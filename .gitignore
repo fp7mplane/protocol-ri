@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*.so
+docs/_build/
+.coverage
+.DS_Store?
+.Spotlight-V100
