@@ -9,7 +9,7 @@ mPlane Protocol Reference Implementation
 .. automodule:: mplane
    :members:
 
-Reference documentation for each module is found in the subsecitons below.
+.. warning:: This document describes an extremely prerelease version of the mPlane protocol reference implementation. 
 
 module mplane.model
 -------------------
