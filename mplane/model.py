@@ -46,11 +46,124 @@ components and clients. There are four kinds of Notification:
 To see how all this fits together, let's simulate the message exchange
 in a simple ping measurement. First, we load the registry and 
 programatically create a new Capability, as would be advertised by
-the component:
+the component. First, we initialize the registry and create a new 
+empty Capability:
 
-This would be transformed into JSON and made available to clients:
+>>> import mplane
+>>> import json
+>>> mplane.model.initialize_registry()
+>>> cap = mplane.model.Capability()
 
-[work pointer]
+Probe components generally advertise a temporal scope from the
+present stretching into the indeterminate future:
+
+>>> cap.add_parameter("start.ms", "now...+inf")
+>>> cap.add_parameter("end.ms", "now...+inf")
+
+We can only ping from one IPv4 address, to any IPv4 address. 
+Adding a parameter without a constraint makes it unconstrained:
+
+>>> cap.add_parameter("source.ip4", "10.0.27.2")
+>>> cap.add_parameter("destination.ip4")
+
+We'll allow the client to set a period between one second and one hour,
+which allows relatively long running measurements as well as more
+immediate ones, without allowing an individual probe to be used for
+flooding or DoS attacks:
+
+>>> cap.add_parameter("period.s", "1...3600")
+
+Then we define the result columns this measurement can produce. Here,
+we want quick reporting of min, max, and mean delays, as well as a
+total count of singleton measurements taken and packets lost:
+
+>>> cap.add_result_column("delay.twoway.icmp.ms.min")
+>>> cap.add_result_column("delay.twoway.icmp.ms.max")
+>>> cap.add_result_column("delay.twoway.icmp.ms.mean")
+>>> cap.add_result_column("delay.twoway.icmp.ms.count")
+>>> cap.add_result_column("packets.lost")
+
+Now we have a capability we could transform into JSON and make 
+available to clients via the mPlane protocol, or via static 
+download or configuration:
+
+>>> capjson = json.dumps(cap.to_dict())
+>>> capjson # doctest: +SKIP
+'{"capability": "measure", "parameters": {"end.ms": "now...+inf", "period.s": "1...3600", "source.ip4": "10.0.27.2", "destination.ip4": "*", "start.ms": "now...+inf"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"]}'
+
+On the client side, we'd receive this capability as a JSON object and turn it
+into a capability, from which we generate a specification:
+
+>>> clicap = mplane.model.Capability(dictval=json.loads(capjson))
+>>> spec = mplane.model.Specification(capability=clicap)
+>>> spec
+<Specification: measure c866eab081fdd339d4f6b2da6c0acfa4 with 0/5 params, 0 metadata, 5 columns>
+
+Here we have a specification with 0 of 5 parameters filled in. (The long
+hexadecimal number is the schema hash, which identifies the parameter and
+result columns. Statements with identical sets of parameters and columns
+(schemas) will have identical schema hashes.)
+
+So let's fill in some parameters; note that strings are accepted and
+automatically parsed using each parameter's primitive type:
+
+>>> spec.set_parameter_value("start.ms", "2014-12-24 22:18:42")
+>>> spec.set_parameter_value("end.ms", "2014-12-24 22:19:42")
+>>> spec.set_parameter_value("period.s", 1)
+>>> spec.set_parameter_value("source.ip4", "10.0.27.2")
+>>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
+
+(Note that right now the protocol only supports absolute temporal scopes. 
+We'll probably want to fix this with "now + x" notation. We also want
+easy temporal scope checks -- a statement.in_interval() check to see if
+a specification should run now, for instance.)
+
+And now we can transform this specification and send it back to
+the component from which we got the capability:
+
+>>> specjson = json.dumps(spec.to_dict())
+>>> specjson # doctest: +SKIP
+'{"specification": "measure", "parameters": {"source.ip4": "10.0.27.2", "period.s": "1", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000", "destination.ip4": "10.0.37.2"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"]}'
+
+On the component side, likewise, we'd receive this specification as a JSON
+object and turn it back into a specification:
+
+>>> comspec = mplane.model.Specification(dictval=json.loads(specjson))
+
+The component would determine the measurement, query, or other operation to
+run by the specification, then extract the necessary parameter values, e.g.:
+
+>>> comspec.get_parameter_value("destination.ip4")
+IPv4Address('10.0.37.2')
+>>> comspec.get_parameter_value("period.s")
+1
+
+After running the measurement, the component would return the results
+by assigning values to parameters which changed and result columns
+measured:
+
+>>> res = mplane.model.Result(specification=comspec)
+>>> res.set_parameter_value("start.ms", "2014-12-24 22:18:42.993000")
+>>> res.set_parameter_value("end.ms", "2014-12-24 22:19:42.991000")
+>>> res.set_result_value("delay.twoway.icmp.ms.min", 33)
+>>> res.set_result_value("delay.twoway.icmp.ms.mean", 55)
+>>> res.set_result_value("delay.twoway.icmp.ms.max", 192)
+>>> res.set_result_value("delay.twoway.icmp.ms.count", 58)
+>>> res.set_result_value("packets.lost", 2)
+
+The result can then be serialized and sent back to the client:
+
+>>> resjson = json.dumps(res.to_dict())
+>>> resjson # doctest: +SKIP
+'{"result": "measure", "parameters": {"source.ip4": "10.0.27.2", "period.s": "1", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000", "destination.ip4": "10.0.37.2"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"], "resultvalues": [["33", "192", "55", "58", "2"]]}'
+
+which can transform them back to a result and extract the values:
+
+>>> clires = mplane.model.Result(dictval=json.loads(resjson))
+>>> clires
+<Result: measure c866eab081fdd339d4f6b2da6c0acfa4 with 5 params, 0 metadata, 5 columns, 1 rows>
+
+(We also need a row iterator over results.)
 
 """
 
@@ -58,7 +171,11 @@ from ipaddress import ip_address
 from datetime import datetime, timezone
 import collections
 import functools
+import operator
+import hashlib
 import re
+import os
+
 
 #######################################################################
 # String constants
@@ -613,7 +730,7 @@ def initialize_registry(filename=None):
 
     with open(filename, mode="r") as file:
         for elem in _parse_elements(file):
-            _element_registry[elem.name] = elem
+            _element_registry[elem._name] = elem
 
 def element(name):
     return _element_registry[name]
@@ -727,8 +844,6 @@ def test_constraints():
     sc = parse_constraint(prim_address,"10.0.27.100,10.0.28.103")
     assert sc.met_by(ip_address('10.0.28.103'))
     assert not sc.met_by(ip_address('10.0.27.103'))
-    assert str(sc) == "10.0.27.100,10.0.28.103"
-
 
 #######################################################################
 # Statements
@@ -744,9 +859,12 @@ class Parameter(Element):
     """
     def __init__(self, parent_element, constraint=constraint_all, val=None):
         super(Parameter, self).__init__(parent_element._name, parent_element._prim)
-        self._constraint = constraint_all
-        if val is not None:
-            self.set_value(val)
+        if isinstance(constraint, str):
+            self._constraint = parse_constraint(self._prim, constraint)
+        else:
+            self._constraint = constraint
+
+        self.set_value(val)
 
     def __repr__(self):
         return "<Parameter "+str(self)+" "+repr(self._prim)+\
@@ -757,10 +875,10 @@ class Parameter(Element):
         return self._val is not None
 
     def set_value(self, val):
-        if instanceof(val, str):
+        if isinstance(val, str):
             val = self._prim.parse(val)
 
-        if self._constraint.met_by(val):
+        if (val is None) or self._constraint.met_by(val):
             self._val = val
         else:
             raise ValueError(repr(self) + " cannot take value " + repr(val))
@@ -810,8 +928,12 @@ class ResultColumn(Element):
 
     """
     def __init__(self, parent_element):
-        super(Parameter, self).__init__(parent_element._name, parent_element._prim)
+        super(ResultColumn, self).__init__(parent_element._name, parent_element._prim)
         self._vals = []
+
+    def __repr__(self):
+        return "<ResultColumn "+str(self)+" "+repr(self._prim)+\
+               " with "+str(len(self))+" values>"
 
     def __len__(self):
         return len(self._vals)
@@ -859,17 +981,20 @@ class Statement(object):
             self.from_dict(dictval)
         else:
             self._verb = verb;
- 
+
+    def __repr__(self):
+        return "<Statement "+self.kind_str()+": "+self._verb+" ("+self.schema.hash()+")>"
+
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
     def validate(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
-    def add_parameter(self, elem_name, constraint_str=CONSTRAINT_ALL, val=None):
+    def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
         self._params[elem_name] = Parameter(element(elem_name), 
-                                  constraint=parse_constraint(constraint_str),
+                                  constraint=constraint,
                                   val = val)
 
     def add_metadata(self, elem_name, val):
@@ -882,7 +1007,20 @@ class Statement(object):
 
     def count_parameters(self):
         """Return the number of parameters in this Statement"""
-        return len(self._parameters)
+        return len(self._params)
+
+    def count_parameter_values(self):
+        """Return the number of parameters in this Statement"""
+        return sum(map(lambda p: p.has_value(), self._params.values()))
+
+    def get_parameter_value(self, elem_name):
+        """Return the value for a named parameter on this Statement."""
+        return self._params[elem_name].get_value()
+
+    def set_parameter_value(self, elem_name, value):
+        """Programatically set a value for a parameter on this Statement."""
+        elem = self._params[elem_name]
+        elem.set_value(value)
 
     def count_metadata(self):
         """Return the number of metavalues in this Statement"""
@@ -895,16 +1033,34 @@ class Statement(object):
     def count_result_rows(self):
         """Return the number of result rows in this Statement"""
         return functools.reduce(max, 
-                   [len(col) for col in self.results._resultcolumns()], 0)
+                   [len(col) for col in self._resultcolumns.values()], 0)
+
+    def parameter_names(self):
+        """Iterate over the names of parameters in this statement"""
+        yield from self._params.keys()
+
+    def result_column_names(self):
+        """Iterate over the names of result columns in this statement"""
+        yield from self._resultcolumns.keys()
+
+    def schema_hash(self):
+        """
+        Return a hex string uniquely identifying the set of parameters
+        and result columns (the schema) of this statement.
+
+        """
+        sstr = "p" + " ".join(sorted(self._params.keys())) + \
+               "r" + " ".join(sorted(self._resultcolumns.keys()))
+        return hashlib.md5(sstr.encode('utf-8')).hexdigest()
 
     def _result_rows(self):
         rows = []
-        for row_index in range(count_result_rows()):
+        for row_index in range(self.count_result_rows()):
             row = []
             rows.append(row)
-            for col in self.results.values():
+            for col in self._resultcolumns.values():
                 try:
-                    valstr = col.prim.unparse(col[row_index])
+                    valstr = col._prim.unparse(col[row_index])
                 except IndexError:
                     valstr = NULLVALUE
                 row.append(valstr)
@@ -916,7 +1072,7 @@ class Statement(object):
         (for further conversion to JSON or YAML)
 
         """
-        d = {}
+        d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
         if self.count_parameters() > 0:
@@ -947,8 +1103,10 @@ class Statement(object):
         """
         Fill in this Statement with values from a dictionary
         produced with to_dict (i.e., as taken from JSON or YAML).
+        Ignores result values; these are handles by Result.from_dict()
 
         """
+        self.validate()
         self._verb = d[self.kind_str()]
 
         if SECTION_PARAMETERS in d:
@@ -959,8 +1117,8 @@ class Statement(object):
                 self.add_metadata(k, v)
 
         if SECTION_RESULTS in d:
-            for (k, v) in d[SECTION_RESULTS].items():
-                self.add_result_column()
+            for v in d[SECTION_RESULTS]:
+                self.add_result_column(v)
 
         
 class Capability(Statement):
@@ -985,6 +1143,12 @@ class Capability(Statement):
         else:
             super(Capability, self).__init__(verb=verb)
 
+    def __repr__(self):
+        return "<Capability: "+self._verb+" "+self.schema_hash()+" with "+\
+               str(self.count_parameters())+" params, "+\
+               str(self.count_metadata())+" metadata, "+\
+               str(self.count_result_columns())+" columns>"
+
     def kind_str(self):
         return KIND_CAPABILITY
 
@@ -1004,7 +1168,7 @@ class Capability(Statement):
         as constraints.
         """
         for (k, v) in d.items():
-            self.add_parameter(k, constraint_str=v)
+            self.add_parameter(k, constraint=v)
 
 class Specification(Statement):
     """
@@ -1033,6 +1197,13 @@ class Specification(Statement):
                 self._metadata = capability._metadata
                 self._resultcolumns = capability._resultcolumns
 
+    def __repr__(self):
+        return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
+               str(self.count_parameter_values())+"/"+\
+               str(self.count_parameters())+" params, "+\
+               str(self.count_metadata())+" metadata, "+\
+               str(self.count_result_columns())+" columns>"
+
     def kind_str(self):
         return KIND_SPECIFICATION
 
@@ -1044,30 +1215,28 @@ class Specification(Statement):
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
 
-    def set_parameter_value(self, elem_name, value):
-        """
-        Programatically set a value for a parameter on this Specification.
-        Used to fill values in on Specifications derived from Capabilities.
-
-        """
-        elem = self._params[elem_name]
-        elem.set_value(value)
-
 class Result(Statement):
     """docstring for Result"""
-    def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE):
+    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE):
         if dictval is not None:
             super(Result, self).__init__(dictval=dictval)
         else:
             super(Result, self).__init__(verb=verb)
-            if statement is not None:
-                self._verb = statement._verb
-                self._params = statement._params
-                self._metadata = statement._metadata
-                self._resultcolumns = statement._resultcolumns
+            if specification is not None:
+                self._verb = specification._verb
+                self._params = specification._params
+                self._metadata = specification._metadata
+                self._resultcolumns = specification._resultcolumns
+
+    def __repr__(self):
+        return "<Result: "+self._verb+" "+self.schema_hash()+" with "+\
+               str(self.count_parameters())+" params, "+\
+               str(self.count_metadata())+" metadata, "+\
+               str(self.count_result_columns())+" columns, "+\
+               str(self.count_result_rows())+" rows>"
 
     def kind_str(self):
-        return KIND_SPECIFICATION
+        return KIND_RESULT
 
     def validate(self):
         pval = functools.reduce(operator.__and__, 
@@ -1086,12 +1255,15 @@ class Result(Statement):
         """
         super(Result,self).from_dict(d)
 
-        column_key = list(self.results.keys())
+        column_key = list(self._resultcolumns.keys())
 
         if SECTION_RESULTVALUES in d:
             for i, row in enumerate(d[SECTION_RESULTVALUES]):
                 for j, val in enumerate(row):
                     self._resultcolumns[column_key[j]][i] = val
+
+    def set_result_value(self, elem_name, val, row_index=0):
+        self._resultcolumns[elem_name][row_index] = val
 
 #######################################################################
 # Notifications
@@ -1100,35 +1272,29 @@ class Result(Statement):
 class Notification(object):
     """docstring for Notification"""
     def __init__(self, arg):
-        super(Notification, self).__init__()
-        self.arg = arg
+        pass
 
 class Receipt(Notification):
-    """docstring for Receipt"""
-    def __init__(self, dictval=None, statement=None):
-        super(Receipt, self).__init__()
-        self.arg = arg
+    """docstring for receipt"""
+    def __init__(self, dictval=None, specification=None):
+        pass
 
 class Redemption(Notification):
     """docstring for Redemption"""
     def __init__(self, dictval=None, receipt=None):
-        super(Redemption, self).__init__()
-        self.arg = arg
+        pass
 
 class Indirection(Notification):
     """docstring for Indirection"""
     def __init__(self, arg):
-        super(Indirection, self).__init__()
-        self.arg = arg
+        pass
 
 class Withdrawal(Notification):
     """docstring for Withdrawal"""
     def __init__(self, dictval=None, capability=None):
-        super(Withdrawal, self).__init__()
-        self.arg = arg
+        pass
         
 class Interrupt(Notification):
     """docstring for Interrupt"""
     def __init__(self, arg):
-        super(Interrupt, self).__init__()
-        self.arg = arg
+        pass

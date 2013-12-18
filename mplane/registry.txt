@@ -1,16 +1,16 @@
 # Temporal scope
-start.s: timestamp
-start.ms: timestamp
-start.us: timestamp
-start.ns: timestamp
-end.s: timestamp
-end.ms: timestamp
-end.us: timestamp
-end.ns: timestamp
-time.s: timestamp
-time.ms: timestamp
-time.us: timestamp
-time.ns: timestamp
+start.s: time
+start.ms: time
+start.us: time
+start.ns: time
+end.s: time
+end.ms: time
+end.us: time
+end.ns: time
+time.s: time
+time.ms: time
+time.us: time
+time.ns: time
 
 # Additional timing
 duration.s: natural
