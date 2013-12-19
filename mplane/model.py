@@ -204,6 +204,8 @@ SECTION_PARAMETERS = "parameters"
 SECTION_METADATA = "metadata"
 SECTION_RESULTS = "results"
 SECTION_RESULTVALUES = "resultvalues"
+SECTION_TOKEN = "token"
+SECTION_ERROR = "error"
 
 KIND_CAPABILITY = "capability"
 KIND_SPECIFICATION = "specification"
@@ -967,8 +969,12 @@ class ResultColumn(Element):
 
 class Statement(object):
     """
-    Common implementation superclass of all mPlane Statements.
-    Use Capability, Specification, and ResultSet instead.
+    A Statement is an assertion about the properties of a measurement
+    or other action performed by an mPlane component. This class 
+    contains common implementation for the three kinds of mPlane
+    statement. Clients and components should use the
+    :class:`mplane.model.Capability`, :class:`mplane.model.Specification`, 
+    and :class:`mplane.model.Result` classes instead.
 
     """
     def __init__(self, dictval=None, verb=VERB_MEASURE):
@@ -978,7 +984,7 @@ class Statement(object):
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
         if dictval is not None:
-            self.from_dict(dictval)
+            self._from_dict(dictval)
         else:
             self._verb = verb;
 
@@ -1068,10 +1074,12 @@ class Statement(object):
 
     def to_dict(self):
         """
-        Convert a Statement to a dictionary 
-        (for further conversion to JSON or YAML)
+        Convert a Statement to a dictionary (for further conversion 
+        to JSON or YAML), which can be passed as the dictval
+        argument of the appropriate statement constructor.
 
         """
+        self.validate()
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
@@ -1099,14 +1107,13 @@ class Statement(object):
         for (k, v) in d.items():
             self.add_parameter(k, val=v)
 
-    def from_dict(self, d):
+    def _from_dict(self, d):
         """
         Fill in this Statement with values from a dictionary
         produced with to_dict (i.e., as taken from JSON or YAML).
-        Ignores result values; these are handles by Result.from_dict()
+        Ignores result values; these are handled by :func:`Result._from_dict()
 
         """
-        self.validate()
         self._verb = d[self.kind_str()]
 
         if SECTION_PARAMETERS in d:
@@ -1138,10 +1145,7 @@ class Capability(Statement):
     """
 
     def __init__(self, dictval=None, verb=VERB_MEASURE):
-        if dictval is not None:
-            super(Capability, self).__init__(dictval=dictval)
-        else:
-            super(Capability, self).__init__(verb=verb)
+        super(Capability, self).__init__(dictval=dictval, verb=verb)
 
     def __repr__(self):
         return "<Capability: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1187,15 +1191,12 @@ class Specification(Statement):
 
     """
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE):
-        if dictval is not None:
-            super(Specification, self).__init__(dictval=dictval)
-        else:
-            super(Specification, self).__init__(verb=verb)
-            if capability is not None:
-                self._verb = capability._verb
-                self._params = capability._params
-                self._metadata = capability._metadata
-                self._resultcolumns = capability._resultcolumns
+        super(Specification, self).__init__(dictval=dictval, verb=verb)
+        if dictval is None and capability is not None:
+            self._verb = capability._verb
+            self._params = capability._params
+            self._metadata = capability._metadata
+            self._resultcolumns = capability._resultcolumns
 
     def __repr__(self):
         return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1218,15 +1219,12 @@ class Specification(Statement):
 class Result(Statement):
     """docstring for Result"""
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE):
-        if dictval is not None:
-            super(Result, self).__init__(dictval=dictval)
-        else:
-            super(Result, self).__init__(verb=verb)
-            if specification is not None:
-                self._verb = specification._verb
-                self._params = specification._params
-                self._metadata = specification._metadata
-                self._resultcolumns = specification._resultcolumns
+        super(Result, self).__init__(dictval=dictval, verb=verb)
+        if dictval is None and specification is not None:
+            self._verb = specification._verb
+            self._params = specification._params
+            self._metadata = specification._metadata
+            self._resultcolumns = specification._resultcolumns
 
     def __repr__(self):
         return "<Result: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1243,17 +1241,16 @@ class Result(Statement):
                         (p.has_value() for p in self._params.values()),
                         True)
 
-        if (not pval) or (self.count_result_rows() > 0):
-            raise ValueError("Specifications must have parameter values.")
+        if (not pval):
+            raise ValueError("Results must have parameter values.")
 
-    def from_dict(self, d):
+    def _from_dict(self, d):
         """
-        Fill in this Statement with values from a dictionary
-        produced with to_dict (i.e., as taken from JSON or YAML).
-        Result's version also fills in result values.
+        Fill in this Result with values from a dictionary
+        produced with to_dict().
 
         """
-        super(Result,self).from_dict(d)
+        super(Result,self)._from_dict(d)
 
         column_key = list(self._resultcolumns.keys())
 
@@ -1269,32 +1266,118 @@ class Result(Statement):
 # Notifications
 #######################################################################
 
-class Notification(object):
-    """docstring for Notification"""
-    def __init__(self, arg):
-        pass
+class BareNotification(object):
+    """
+    Notifications are used to send additional information between
+    mPlane clients and components other than measurement statements.
+    Notifications can either be part of a normal measurement workflow
+    (as Receipts and Redemptions) or signal exceptional conditions
+    (as Withdrawals and Interrupts).
 
-class Receipt(Notification):
+    This class contains implementation common to all Notifications
+    which do not contain any information from a related Capability
+    or Specification.
+
+    """
+    def __init__(self, dictval=None, token=None, verb=VERB_MEASURE):
+        super(Notification, self).__init__()
+        if dictval is not None:
+            self._from_dict(dictval)
+        else:
+            self._verb = verb;
+
+        self._token = token
+
+class StatementNotification(Statement):
+    """
+    Common implementation superclass for notifications that 
+    may contain all or part of a related Capability or Specification.
+
+    Clients and components should use :class:`mplane.model.Receipt`,
+    :class:`mplane.model.Redemption`, and :class:`mplane.model.Withdrawal`
+    directly
+
+    """
+    def __init__(self, dictval=None, statement=None, token=None, verb=VERB_MEASURE):
+        super(StatementNotification, self).__init__(dictval=dictval, verb=verb)
+        if dictval is None and statement is not None:
+            self._verb = capability._verb
+            self._params = capability._params
+            self._metadata = capability._metadata
+            self._resultcolumns = capability._resultcolumns
+
+        self._token = token
+
+    def _default_token(self):
+        return self._verb+"_"+self.schema_hash()
+
+    def get_token(self):
+        if self._token is None:
+            self._token = self._default_token()
+        return self._token
+
+    def to_dict(self, token_only=False):
+        d = super(StatementNotification, self).to_dict()
+        if token_only and self._token is not None:
+            try:
+                del(d[SECTION_PARAMETERS])
+                del(d[SECTION_METADATA])
+                del(d[SECTION_RESULTS])
+            except KeyError:
+                pass
+
+        d[SECTION_TOKEN] = self.get_token
+
+        return d
+
+    def _from_dict(self, d):
+        super(StatementNotification,self)._from_dict(d)
+
+        if SECTION_TOKEN in d:
+            self._token = d[SECTION_TOKEN]
+
+class Receipt(StatementNotification):
     """docstring for receipt"""
-    def __init__(self, dictval=None, specification=None):
-        pass
+    def __init__(self, dictval=None, specification=None, token=None):
+        super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
 
-class Redemption(Notification):
+    def kind_str(self):
+        return KIND_RECEIPT
+
+    def validate(self):
+        return Specification.validate(self)
+
+class Redemption(StatementNotification):
     """docstring for Redemption"""
-    def __init__(self, dictval=None, receipt=None):
-        pass
+    def __init__(self, dictval=None, receipt=None, token=None):
+        super(Redemption,self).__init__(dictval=dictval, statement=receipt, token=token)
+        if receipt is not None and token is None:
+            self._token = receipt.get_token()
 
-class Indirection(Notification):
-    """docstring for Indirection"""
-    def __init__(self, arg):
-        pass
+    def kind_str(self):
+        return KIND_REDEMPTION
 
-class Withdrawal(Notification):
+    def validate(self):
+        return Specification.validate(self)
+
+class Withdrawal(StatementNotification):
     """docstring for Withdrawal"""
-    def __init__(self, dictval=None, capability=None):
-        pass
-        
-class Interrupt(Notification):
+    def __init__(self, dictval=None, capability=None, token=None):
+        super(Withdrawal,self).__init__(dictval=dictval, statement=capability, token=token)
+ 
+    def kind_str(self):
+        return KIND_WITHDRAWAL
+
+    def validate(self):
+        return Capability.validate(self)
+
+class Interrupt(StatementNotification):
     """docstring for Interrupt"""
-    def __init__(self, arg):
-        pass
+    def __init__(self, dictval=None, specification=None, token=None):
+        super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
+
+    def kind_str(self):
+        return KIND_RECEIPT
+
+    def validate(self):
+        return Specification.validate(self)
