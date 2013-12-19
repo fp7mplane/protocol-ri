@@ -169,6 +169,7 @@ which can transform them back to a result and extract the values:
 
 from ipaddress import ip_address
 from datetime import datetime, timezone
+from copy import copy
 import collections
 import functools
 import operator
@@ -989,7 +990,7 @@ class Statement(object):
             self._verb = verb;
 
     def __repr__(self):
-        return "<Statement "+self.kind_str()+": "+self._verb+" ("+self.schema.hash()+")>"
+        return "<Statement "+self.kind_str()+": "+self._verb+" ("+self.schema_hash()+")>"
 
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
@@ -1194,9 +1195,9 @@ class Specification(Statement):
         super(Specification, self).__init__(dictval=dictval, verb=verb)
         if dictval is None and capability is not None:
             self._verb = capability._verb
-            self._params = capability._params
             self._metadata = capability._metadata
-            self._resultcolumns = capability._resultcolumns
+            self._params = copy(capability._params)
+            self._resultcolumns = copy(capability._resultcolumns)
 
     def __repr__(self):
         return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1222,9 +1223,9 @@ class Result(Statement):
         super(Result, self).__init__(dictval=dictval, verb=verb)
         if dictval is None and specification is not None:
             self._verb = specification._verb
-            self._params = specification._params
             self._metadata = specification._metadata
-            self._resultcolumns = specification._resultcolumns
+            self._params = copy(specification._params)
+            self._resultcolumns = copy(specification._resultcolumns)
 
     def __repr__(self):
         return "<Result: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1301,10 +1302,10 @@ class StatementNotification(Statement):
     def __init__(self, dictval=None, statement=None, token=None, verb=VERB_MEASURE):
         super(StatementNotification, self).__init__(dictval=dictval, verb=verb)
         if dictval is None and statement is not None:
-            self._verb = capability._verb
-            self._params = capability._params
-            self._metadata = capability._metadata
-            self._resultcolumns = capability._resultcolumns
+            self._verb = statement._verb
+            self._metadata = statement._metadata
+            self._params = copy(statement._params)
+            self._resultcolumns = copy(statement._resultcolumns)
 
         self._token = token
 
@@ -1326,7 +1327,7 @@ class StatementNotification(Statement):
             except KeyError:
                 pass
 
-        d[SECTION_TOKEN] = self.get_token
+        d[SECTION_TOKEN] = self.get_token()
 
         return d
 
@@ -1337,9 +1338,15 @@ class StatementNotification(Statement):
             self._token = d[SECTION_TOKEN]
 
 class Receipt(StatementNotification):
-    """docstring for receipt"""
+    """
+    A component presents a receipt to a Client in lieu of a result, when the
+    result will not be available in a reasonable amount of time; or to confirm
+    a Specification """
     def __init__(self, dictval=None, specification=None, token=None):
         super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
+
+    def __repr__(self):
+        return "<Receipt: "+self.get_token()+">"
 
     def kind_str(self):
         return KIND_RECEIPT
@@ -1348,11 +1355,18 @@ class Receipt(StatementNotification):
         return Specification.validate(self)
 
 class Redemption(StatementNotification):
-    """docstring for Redemption"""
+    """
+    A client presents a Redemption to a component from which it has received
+    a Receipt in order to get the associated Result.
+
+    """
     def __init__(self, dictval=None, receipt=None, token=None):
         super(Redemption,self).__init__(dictval=dictval, statement=receipt, token=token)
         if receipt is not None and token is None:
             self._token = receipt.get_token()
+
+    def __repr__(self):
+        return "<Redemption: "+self.get_token()+">"
 
     def kind_str(self):
         return KIND_REDEMPTION
@@ -1361,10 +1375,13 @@ class Redemption(StatementNotification):
         return Specification.validate(self)
 
 class Withdrawal(StatementNotification):
-    """docstring for Withdrawal"""
+    """A Withdrawal cancels a Capability"""
     def __init__(self, dictval=None, capability=None, token=None):
         super(Withdrawal,self).__init__(dictval=dictval, statement=capability, token=token)
- 
+
+    def __repr__(self):
+        return "<Withdrawal: "+self.get_token()+">"
+
     def kind_str(self):
         return KIND_WITHDRAWAL
 
@@ -1372,12 +1389,15 @@ class Withdrawal(StatementNotification):
         return Capability.validate(self)
 
 class Interrupt(StatementNotification):
-    """docstring for Interrupt"""
+    """An Interrupt cancels a Specification"""
     def __init__(self, dictval=None, specification=None, token=None):
         super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
 
+    def __repr__(self):
+        return "<Interrupt: "+self.get_token()+">"
+
     def kind_str(self):
-        return KIND_RECEIPT
+        return KIND_INTERRUPT
 
     def validate(self):
         return Specification.validate(self)
