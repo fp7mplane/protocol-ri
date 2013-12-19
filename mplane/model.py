@@ -94,15 +94,17 @@ download or configuration:
 On the client side, we'd receive this capability as a JSON object and turn it
 into a capability, from which we generate a specification:
 
->>> clicap = mplane.model.Capability(dictval=json.loads(capjson))
+>>> clicap = mplane.model.message_from_dict(json.loads(capjson))
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure c866eab081fdd339d4f6b2da6c0acfa4 with 0/5 params, 0 metadata, 5 columns>
+<Specification: measure b7e78ecade6929e549e169bd12030182 with 0/5 params, 0 metadata, 5 columns>
 
-Here we have a specification with 0 of 5 parameters filled in. (The long
-hexadecimal number is the schema hash, which identifies the parameter and
-result columns. Statements with identical sets of parameters and columns
-(schemas) will have identical schema hashes.)
+Here we have a specification with 0 of 5 parameters filled in. 
+
+.. note:: The long hexadecimal number in statement representations is the 
+          schema hash, which identifies the parameter and result columns.
+          Statements with identical sets of parameters and columns
+          (schemas) will have identical schema hashes.
 
 So let's fill in some parameters; note that strings are accepted and
 automatically parsed using each parameter's primitive type:
@@ -113,10 +115,12 @@ automatically parsed using each parameter's primitive type:
 >>> spec.set_parameter_value("source.ip4", "10.0.27.2")
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
 
-(Note that right now the protocol only supports absolute temporal scopes. 
-We'll probably want to fix this with "now + x" notation. We also want
-easy temporal scope checks -- a statement.in_interval() check to see if
-a specification should run now, for instance.)
+.. note:: Presently, the protocol only supports absolute temporal scopes. 
+          We almost certainly need relative scopes ("now + 1m") as well,
+          to make it easier to state a specification has a duration as
+          opposed to hard limits. This functionality will be added concurrently
+          with the scheduling features in mplane.component, which themselves
+          should follow current work in the LMAP WG.
 
 And now we can transform this specification and send it back to
 the component from which we got the capability:
@@ -128,7 +132,7 @@ the component from which we got the capability:
 On the component side, likewise, we'd receive this specification as a JSON
 object and turn it back into a specification:
 
->>> comspec = mplane.model.Specification(dictval=json.loads(specjson))
+>>> comspec = mplane.model.message_from_dict(json.loads(specjson))
 
 The component would determine the measurement, query, or other operation to
 run by the specification, then extract the necessary parameter values, e.g.:
@@ -159,17 +163,42 @@ The result can then be serialized and sent back to the client:
 
 which can transform them back to a result and extract the values:
 
->>> clires = mplane.model.Result(dictval=json.loads(resjson))
+>>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure c866eab081fdd339d4f6b2da6c0acfa4 with 5 params, 0 metadata, 5 columns, 1 rows>
+<Result: measure b7e78ecade6929e549e169bd12030182 with 5 params, 0 metadata, 5 columns, 1 rows>
 
-(We also need a row iterator over results.)
+.. note:: We'll need a row iterator over results at some point.
+
+If the component cannot return results immediately (for example, because
+the measurement will take some time), it can return a receipt instead:
+
+>>> rcpt = mplane.model.Receipt(specification=comspec)
+
+This receipt contains all the information in the specification, as well as a token
+which can be used to quickly identify it in the future. 
+
+>>> rcpt.get_token()
+'c4a88bccc437f538778549129af50897'
+
+.. note:: The mPlane protocol specification allows components to assign tokens
+          however they like. In the reference implementation, the default token
+          is based on a hash like the schema hash: statements with the same verb,
+          schema, parameter values, and metadata will have identical default tokens.
+          A component could, however, assign serial-number based tokens, or tokens
+          mapping to structures in its own filesystem, etc.
+
+>>> jsonrcpt = json.dumps(rcpt.to_dict())
+>>> jsonrcpt # doctest: +SKIP
+'{"receipt": "measure", "parameters": {"period.s": "1", "destination.ip4": "10.0.37.2", "source.ip4": "10.0.27.2", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"], "token": "c4a88bccc437f538778549129af50897"}'
+The component keeps the receipt, keyed by token, and returns it to the
+client in a message. The client then which generates a future redemption 
+referring to this receipt to retrieve the results.
 
 """
 
 from ipaddress import ip_address
 from datetime import datetime, timezone
-from copy import copy
+from copy import copy, deepcopy
 import collections
 import functools
 import operator
@@ -1056,8 +1085,8 @@ class Statement(object):
         and result columns (the schema) of this statement.
 
         """
-        sstr = "p" + " ".join(sorted(self._params.keys())) + \
-               "r" + " ".join(sorted(self._resultcolumns.keys()))
+        sstr = "p " + " ".join(sorted(self._params.keys())) + \
+               " r " + " ".join(sorted(self._resultcolumns.keys()))
         return hashlib.md5(sstr.encode('utf-8')).hexdigest()
 
     def _result_rows(self):
@@ -1196,8 +1225,8 @@ class Specification(Statement):
         if dictval is None and capability is not None:
             self._verb = capability._verb
             self._metadata = capability._metadata
-            self._params = copy(capability._params)
-            self._resultcolumns = copy(capability._resultcolumns)
+            self._params = deepcopy(capability._params)
+            self._resultcolumns = deepcopy(capability._resultcolumns)
 
     def __repr__(self):
         return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1224,8 +1253,8 @@ class Result(Statement):
         if dictval is None and specification is not None:
             self._verb = specification._verb
             self._metadata = specification._metadata
-            self._params = copy(specification._params)
-            self._resultcolumns = copy(specification._resultcolumns)
+            self._params = deepcopy(specification._params)
+            self._resultcolumns = deepcopy(specification._resultcolumns)
 
     def __repr__(self):
         return "<Result: "+self._verb+" "+self.schema_hash()+" with "+\
@@ -1304,13 +1333,26 @@ class StatementNotification(Statement):
         if dictval is None and statement is not None:
             self._verb = statement._verb
             self._metadata = statement._metadata
-            self._params = copy(statement._params)
-            self._resultcolumns = copy(statement._resultcolumns)
+            self._params = deepcopy(statement._params)
+            self._resultcolumns = deepcopy(statement._resultcolumns)
 
         self._token = token
 
     def _default_token(self):
-        return self._verb+"_"+self.schema_hash()
+        spk = sorted(self._params.keys())
+        spc = [str(self._params[k]._constraint) for k in spk]
+        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
+        smk = sorted(self._metadata.keys())
+        smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
+        tstr = self._verb + \
+               " pk " + " ".join(spk) + \
+               " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
+               " mk " + " ".join(spc) + " mv " + " ".join(spv) + \
+               " r " + " ".join(sorted(self._resultcolumns.keys()))
+        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+
+        params = map(lambda v: v.unparse(v.get_value))
+        self._verb+"_"+self.schema_hash()
 
     def get_token(self):
         if self._token is None:
@@ -1352,7 +1394,7 @@ class Receipt(StatementNotification):
         return KIND_RECEIPT
 
     def validate(self):
-        return Specification.validate(self)
+        Specification.validate(self)
 
 class Redemption(StatementNotification):
     """
@@ -1372,7 +1414,7 @@ class Redemption(StatementNotification):
         return KIND_REDEMPTION
 
     def validate(self):
-        return Specification.validate(self)
+        Specification.validate(self)
 
 class Withdrawal(StatementNotification):
     """A Withdrawal cancels a Capability"""
@@ -1386,7 +1428,7 @@ class Withdrawal(StatementNotification):
         return KIND_WITHDRAWAL
 
     def validate(self):
-        return Capability.validate(self)
+        Capability.validate(self)
 
 class Interrupt(StatementNotification):
     """An Interrupt cancels a Specification"""
@@ -1400,4 +1442,23 @@ class Interrupt(StatementNotification):
         return KIND_INTERRUPT
 
     def validate(self):
-        return Specification.validate(self)
+        Specification.validate(self)
+
+def message_from_dict(d):
+    """
+    Given a dictionary returned from to_dict(), return a decoded
+    mPlane message (statement or notification).
+
+    """
+    classmap = { KIND_CAPABILITY : Capability,
+                 KIND_SPECIFICATION : Specification,
+                 KIND_RESULT : Result,
+                 KIND_RECEIPT : Receipt,
+                 KIND_REDEMPTION : Redemption,
+                 KIND_WITHDRAWAL : Withdrawal,
+                 KIND_INTERRUPT : Interrupt }
+
+    for k in classmap.keys():
+        if k in d:
+            return classmap[k](dictval = d)
+

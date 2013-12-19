@@ -1,6 +1,4 @@
 """
-mPlane Protocol Reference Implementation
-
 .. moduleauthor:: Brian Trammell <brian@trammell.ch>
 
 This module provides a reference implementation of the mPlane protocol. It is
