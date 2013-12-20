@@ -89,7 +89,17 @@ download or configuration:
 
 >>> capjson = json.dumps(cap.to_dict())
 >>> capjson # doctest: +SKIP
-'{"capability": "measure", "parameters": {"end.ms": "now...+inf", "period.s": "1...3600", "source.ip4": "10.0.27.2", "destination.ip4": "*", "start.ms": "now...+inf"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"]}'
+'{"capability": "measure", 
+  "parameters": {"end.ms": "now...+inf", 
+                 "period.s": "1...3600", 
+                 "source.ip4": "10.0.27.2", 
+                 "destination.ip4": "*", 
+                 "start.ms": "now...+inf"}, 
+  "results": ["delay.twoway.icmp.ms.min", 
+              "delay.twoway.icmp.ms.max", 
+              "delay.twoway.icmp.ms.mean", 
+              "delay.twoway.icmp.ms.count", 
+              "packets.lost"]}'
 
 On the client side, we'd receive this capability as a JSON object and turn it
 into a capability, from which we generate a specification:
@@ -127,7 +137,17 @@ the component from which we got the capability:
 
 >>> specjson = json.dumps(spec.to_dict())
 >>> specjson # doctest: +SKIP
-'{"specification": "measure", "parameters": {"source.ip4": "10.0.27.2", "period.s": "1", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000", "destination.ip4": "10.0.37.2"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"]}'
+'{"specification": "measure", 
+  "parameters": {"source.ip4": "10.0.27.2", 
+                 "period.s": "1", 
+                 "end.ms": "2014-12-24 22:19:42.000000", 
+                 "start.ms": "2014-12-24 22:18:42.000000", 
+                 "destination.ip4": "10.0.37.2"}, 
+  "results": ["delay.twoway.icmp.ms.min", 
+              "delay.twoway.icmp.ms.max", 
+              "delay.twoway.icmp.ms.mean", 
+              "delay.twoway.icmp.ms.count", 
+              "packets.lost"]}'
 
 On the component side, likewise, we'd receive this specification as a JSON
 object and turn it back into a specification:
@@ -159,15 +179,24 @@ The result can then be serialized and sent back to the client:
 
 >>> resjson = json.dumps(res.to_dict())
 >>> resjson # doctest: +SKIP
-'{"result": "measure", "parameters": {"source.ip4": "10.0.27.2", "period.s": "1", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000", "destination.ip4": "10.0.37.2"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"], "resultvalues": [["33", "192", "55", "58", "2"]]}'
+'{"result": "measure", 
+  "parameters": {"source.ip4": "10.0.27.2", 
+                 "period.s": "1", 
+                 "end.ms": "2014-12-24 22:19:42.000000", 
+                 "start.ms": "2014-12-24 22:18:42.000000", 
+                 "destination.ip4": "10.0.37.2"}, 
+  "results": ["delay.twoway.icmp.ms.min", 
+              "delay.twoway.icmp.ms.max", 
+              "delay.twoway.icmp.ms.mean", 
+              "delay.twoway.icmp.ms.count", 
+              "packets.lost"], 
+  "resultvalues": [["33", "192", "55", "58", "2"]]}'
 
 which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
 <Result: measure b7e78ecade6929e549e169bd12030182 with 5 params, 0 metadata, 5 columns, 1 rows>
-
-.. note:: We'll need a row iterator over results at some point.
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -189,10 +218,38 @@ which can be used to quickly identify it in the future.
 
 >>> jsonrcpt = json.dumps(rcpt.to_dict())
 >>> jsonrcpt # doctest: +SKIP
-'{"receipt": "measure", "parameters": {"period.s": "1", "destination.ip4": "10.0.37.2", "source.ip4": "10.0.27.2", "end.ms": "2014-12-24 22:19:42.000000", "start.ms": "2014-12-24 22:18:42.000000"}, "results": ["delay.twoway.icmp.ms.min", "delay.twoway.icmp.ms.max", "delay.twoway.icmp.ms.mean", "delay.twoway.icmp.ms.count", "packets.lost"], "token": "c4a88bccc437f538778549129af50897"}'
+'{"receipt": "measure", 
+  "parameters": {"period.s": "1", 
+                 "destination.ip4": "10.0.37.2", 
+                 "source.ip4": "10.0.27.2", 
+                 "end.ms": "2014-12-24 22:19:42.000000", 
+                 "start.ms": "2014-12-24 22:18:42.000000"}, 
+  "results": ["delay.twoway.icmp.ms.min", 
+              "delay.twoway.icmp.ms.max", 
+              "delay.twoway.icmp.ms.mean", 
+              "delay.twoway.icmp.ms.count", 
+              "packets.lost"], 
+  "token": "c4a88bccc437f538778549129af50897"}'
+
 The component keeps the receipt, keyed by token, and returns it to the
 client in a message. The client then which generates a future redemption 
-referring to this receipt to retrieve the results.
+referring to this receipt to retrieve the results:
+
+>>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
+>>> clircpt
+<Receipt: c4a88bccc437f538778549129af50897>
+>>> rdpt = mplane.model.Redemption(receipt=clircpt)
+>>> rdpt
+<Redemption: c4a88bccc437f538778549129af50897>
+
+Note here that the redemption has the same token as the receipt; 
+just the token may be sent back to the component to retrieve the 
+results:
+
+>>> json.dumps(rdpt.to_dict(token_only=True))
+'{"redemption": "measure", "token": "c4a88bccc437f538778549129af50897"}'
+
+.. note:: We should document and test interrupts and withdrawals, as well.
 
 """
 
@@ -205,7 +262,6 @@ import operator
 import hashlib
 import re
 import os
-
 
 #######################################################################
 # String constants
@@ -350,7 +406,7 @@ class OnceTime(PastTime):
 time_once = OnceTime()
 
 def test_weird_times():
-    """ensure special timestamps order correctly"""
+    """Ensure special timestamps order correctly."""
     assert time_past < time_present
     assert time_present < time_future
     assert time_past < time_future
@@ -415,15 +471,6 @@ class StringPrimitive(Primitive):
     If necessary, use the prim_string instance of this class;
     in general, however, this is used internally by Element.
 
-    >>> import mplane.model
-    >>> mplane.model.prim_string.parse("foo")
-    'foo'
-    >>> mplane.model.prim_string.unparse("foo")
-    'foo'
-    >>> mplane.model.prim_string.parse("*")
-    >>> mplane.model.prim_string.unparse(None)
-    '*'
-
     """
     def __init__(self):
         super().__init__("string")
@@ -438,12 +485,6 @@ class NaturalPrimitive(Primitive):
     Uses a Python int as the native representation.
     If necessary, use the prim_natural instance of this class;
     in general, however, this is used internally by Element.
-
-    >>> import mplane.model
-    >>> mplane.model.prim_natural.parse("42")
-    42
-    >>> mplane.model.prim_natural.unparse(27)
-    '27'
 
     """
     def __init__(self):
@@ -468,13 +509,6 @@ class RealPrimitive(Primitive):
     If necessary, use the prim_real instance of this class;
     in general, however, this is used internally by Element.
 
-    >>> import math
-    >>> import mplane.model
-    >>> mplane.model.prim_real.unparse(math.pi)
-    '3.141592653589793'
-    >>> mplane.model.prim_real.parse("4.2e6")
-    4200000.0
-
     """
     def __init__(self):
         super(RealPrimitive, self).__init__("real")
@@ -496,12 +530,6 @@ class BooleanPrimitive(Primitive):
     Uses a Python bool as the native representation.
     If necessary, use the prim_boolean instance of this class;
     in general, however, this is used internally by Element.
- 
-    >>> import mplane.model   
-    >>> mplane.model.prim_boolean.unparse(False)
-    'False'
-    >>> mplane.model.prim_boolean.parse("True")
-    True
 
     """
     def __init__(self):
@@ -527,19 +555,6 @@ class AddressPrimitive(Primitive):
 
     Uses the Python standard library ipaddress module
     for the native representation. 
-    If necessary, use the prim_address instance of this class;
-    in general, however, this is used internally by Element.
-
-    >>> from ipaddress import ip_address
-    >>> import mplane.model   
-    >>> mplane.model.prim_address.parse("10.0.27.101")
-    IPv4Address('10.0.27.101')
-    >>> mplane.model.prim_address.unparse(ip_address("10.0.27.101"))
-    '10.0.27.101'
-    >>> mplane.model.prim_address.parse("2001:db8:1:33::c0:ffee")
-    IPv6Address('2001:db8:1:33::c0:ffee')
-    >>> mplane.model.prim_address.unparse(ip_address("2001:db8:1:33::c0:ffee"))
-    '2001:db8:1:33::c0:ffee'
 
     """
     def __init__(self):
@@ -573,19 +588,6 @@ class TimePrimitive(Primitive):
     """
     Represents a UTC timestamp with arbitrary precision.
     Also handles special-purpose mPlane timestamps.
-
-    >>> from datetime import datetime
-    >>> import mplane.model   
-    >>> mplane.model.prim_time.parse("2013-07-30 23:19:42")
-    datetime.datetime(2013, 7, 30, 23, 19, 42)
-    >>> mplane.model.prim_time.unparse(datetime(2013, 7, 30, 23, 19, 42))
-    '2013-07-30 23:19:42.000000'
-    >>> mplane.model.prim_time.parse("now")
-    mplane.model.time_present
-    >>> mplane.model.prim_time.parse("-inf")
-    mplane.model.time_past
-    >>> mplane.model.prim_time.parse("whenever")
-    mplane.model.time_whenever
 
     """
     def __init__(self):
@@ -644,6 +646,40 @@ _prim = {x.name: x for x in [prim_string,
                              prim_time,
                              prim_address, 
                              prim_url]}
+
+def test_primitives():
+    """Test primitive parsing and unparsing"""
+    import math
+    assert prim_string.parse("foo") == 'foo'
+    assert prim_string.unparse("foo") == 'foo'
+    assert prim_string.parse("*") is None
+    assert prim_string.unparse(None) == '*'
+    assert prim_natural.parse("42") == 42
+    assert prim_natural.unparse(27) == '27'
+    assert prim_real.unparse(math.pi) == '3.141592653589793'
+    assert prim_real.parse("4.2e6") == 4200000.0
+    assert prim_boolean.unparse(False) == 'False'
+    assert prim_boolean.parse("True") == True
+    assert prim_address.parse("10.0.27.101") == ip_address('10.0.27.101')
+    assert prim_address.unparse(ip_address("10.0.27.101")) == '10.0.27.101'
+    assert prim_address.parse("2001:db8:1:33::c0:ffee") == \
+           ip_address('2001:db8:1:33::c0:ffee')
+    assert prim_address.unparse(ip_address("2001:db8:1:33::c0:ffee")) == \
+           '2001:db8:1:33::c0:ffee'
+    assert prim_time.parse("2013-07-30 23:19:42") == \
+           datetime(2013, 7, 30, 23, 19, 42)
+    assert prim_time.unparse(datetime(2013, 7, 30, 23, 19, 42)) == \
+           '2013-07-30 23:19:42.000000'
+    assert prim_time.parse("now") is time_present
+    assert prim_time.parse("-inf") is time_past
+    assert prim_time.parse("+inf") is time_future
+    assert prim_time.parse("once") is time_once
+    assert prim_time.parse("whenever") is time_whenever
+    assert prim_time.unparse(time_present) == "now"
+    assert prim_time.unparse(time_past) == "-inf"
+    assert prim_time.unparse(time_future) == "+inf"
+    assert prim_time.unparse(time_once) == "once"
+    assert prim_time.unparse(time_whenever) == "whenever"
 
 #
 # Element classes
@@ -860,7 +896,7 @@ def parse_constraint(prim, sval):
         return SetConstraint(prim=prim, sval=sval)
 
 def test_constraints():
-    """test range and set constraints"""
+    """Test range and set constraints"""
 
     assert constraint_all.met_by("whatever")
     assert constraint_all.met_by(None)
@@ -1351,9 +1387,6 @@ class StatementNotification(Statement):
                " r " + " ".join(sorted(self._resultcolumns.keys()))
         return hashlib.md5(tstr.encode('utf-8')).hexdigest()
 
-        params = map(lambda v: v.unparse(v.get_value))
-        self._verb+"_"+self.schema_hash()
-
     def get_token(self):
         if self._token is None:
             self._token = self._default_token()
@@ -1362,12 +1395,11 @@ class StatementNotification(Statement):
     def to_dict(self, token_only=False):
         d = super(StatementNotification, self).to_dict()
         if token_only and self._token is not None:
-            try:
-                del(d[SECTION_PARAMETERS])
-                del(d[SECTION_METADATA])
-                del(d[SECTION_RESULTS])
-            except KeyError:
-                pass
+            for sk in (SECTION_PARAMETERS, SECTION_METADATA, SECTION_RESULTS):
+                try:
+                    del(d[sk])
+                except KeyError:
+                    pass
 
         d[SECTION_TOKEN] = self.get_token()
 
