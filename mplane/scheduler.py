@@ -20,9 +20,19 @@
 #
 
 """
-Scheduler for jobs at an mPlane Component; implements the dynamics of 
-capabilities, specifications, and results within the mPlane reference
-component.
+Implements the dynamics of capabilities, specifications, and 
+results within the mPlane reference component.
 
 """
+
+class Job(object):
+	"""
+	Represents a measurement that can run, or is running, at a component.
+
+	"""
+	def __init__(self):
+		super(Job, self).__init__()
+	
+	def run(self, params):
+		pass
 
