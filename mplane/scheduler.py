@@ -25,6 +25,10 @@ results within the mPlane reference component.
 
 """
 
+from datetime import datetime, timedelta
+import threading
+import mplane.model
+
 class Service(object):
     """
     A Service is a binding of some runnable code to an 
