@@ -302,6 +302,9 @@ KIND_INDIRECTION = "indirection"
 KIND_WITHDRAWAL = "withdrawal"
 KIND_INTERRUPT = "interrupt"
 
+PARAM_START = "start"
+PARAM_END = "end"
+
 #######################################################################
 # Special Timestamp Values
 #######################################################################
