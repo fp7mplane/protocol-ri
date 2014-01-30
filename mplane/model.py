@@ -1072,13 +1072,13 @@ class Statement(object):
                                   constraint=constraint,
                                   val = val)
 
-    def add_metadata(self, elem_name, val):
-        """Programatically add a metadata element to this statement."""
-        self._metadata[elem_name] = Metavalue(element(elem_name), val)
+    def has_parameter(self, elem_name):
+        """Return True if the statement has a parameter with the given name"""
+        return elem_name in self._params
 
-    def add_result_column(self, elem_name):
-        """Programatically add a result column to this Statement."""
-        self._resultcolumns[elem_name] = ResultColumn(element(elem_name))
+    def parameter_names(self):
+        """Iterate over the names of parameters in this Statement"""
+        yield from self._params.keys()
 
     def count_parameters(self):
         """Return the number of parameters in this Statement"""
@@ -1097,9 +1097,32 @@ class Statement(object):
         elem = self._params[elem_name]
         elem.set_value(value)
 
+    def add_metadata(self, elem_name, val):
+        """Programatically add a metadata element to this statement."""
+        self._metadata[elem_name] = Metavalue(element(elem_name), val)
+
+    def has_metadata(self, elem_name):
+        """Return True if the statement has a metadata element with the given name"""
+        return elem_name in self._metadata
+
+    def metadata_names(self):
+        """Iterate over the names of metadata elements in this Statement"""
+        yield from self._metadata.keys()
+
     def count_metadata(self):
         """Return the number of metavalues in this Statement"""
         return len(self._metadata)
+
+    def add_result_column(self, elem_name):
+        """Programatically add a result column to this Statement."""
+        self._resultcolumns[elem_name] = ResultColumn(element(elem_name))
+
+    def has_result_column(self, elem_name):
+        return elem_name in self._resultcolumns
+
+    def result_column_names(self):
+        """Iterate over the names of result columns in this statement"""
+        yield from self._resultcolumns.keys()
 
     def count_result_columns(self):
         """Return the number of result columns in this Statement"""
@@ -1109,14 +1132,6 @@ class Statement(object):
         """Return the number of result rows in this Statement"""
         return functools.reduce(max, 
                    [len(col) for col in self._resultcolumns.values()], 0)
-
-    def parameter_names(self):
-        """Iterate over the names of parameters in this statement"""
-        yield from self._params.keys()
-
-    def result_column_names(self):
-        """Iterate over the names of result columns in this statement"""
-        yield from self._resultcolumns.keys()
 
     def schema_hash(self):
         """
@@ -1284,6 +1299,25 @@ class Specification(Statement):
 
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
+
+    def job_delay(self):
+        """
+        Return the current delay required before running this 
+        specification, in seconds.
+
+        Returns 0 if the specification should start immediately. 
+        """
+        pass
+
+    def job_duration(self):
+        """
+        Return the duration of this specification, in seconds.
+
+        Returns 0 if the specification should run once, 
+        and None if the specification should run forever.
+
+        """
+        pass
 
 class Result(Statement):
     """docstring for Result"""

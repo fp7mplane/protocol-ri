@@ -31,6 +31,8 @@ import threading
 import subprocess
 import collections
 from datetime import datetime
+import mplane.model
+import mplane.scheduler
 
 _pingline_re = re.compile("icmp_seq=(\d+)\s+ttl=(\d+)\s+time=([\d\.]+)\s+ms")
 
@@ -42,21 +44,74 @@ _pingopt_count = "-c"
 
 PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 
-def parse_ping_line(line):
+def _parse_ping_line(line):
 	m = _pingline_re.search(line)
 	if m is None:
 		return None
 	mg = m.groups()
 	return PingValue(datetime.utcnow(), int(mg[0]), int(mg[1]), int(float(mg[2]) * 1000))
 
+def _ping4_process(ipaddr, period, count):
+	pass
+
+def _ping6_process(ipaddr, period, count):
+	pass
+
+class PingService(mplane.scheduler.Service):
+
+	def __init__(self, capability):
+		# verify the capability is acceptable
+		if not ((capability.has_parameter("source.ip4") or 
+			     capability.has_parameter("source.ip6")) and
+		        (capability.has_parameter("destination.ip4") or 
+			     capability.has_parameter("destination.ip6")) and
+		        capability.has_parameter("period.s") and
+		        (capability.has_result_column("delay.twoway.icmp.us") or
+		         capability.has_result_column("delay.twoway.icmp.us.min") or
+		         capability.has_result_column("delay.twoway.icmp.us.mean") or		    	
+		         capability.has_result_column("delay.twoway.icmp.us.max"))):
+			raise ValueError("capability not acceptable")
+
+		super(PingService, self).__init__(capability)
+
+	def run(self, specification, check_interrupt):
+		# verify specification and unpack parameters
+
+		# FIXME work pointer
+
+		# build a ping command line
+		ping_argv = []
+		if (self.ipaddr.version == 4):
+			ping_argv.append(_ping4cmd)
+		elif (self.ipaddr.version == 6):
+			ping_argv.append(_ping6cmd)
+		else:
+			raise ValueError("Unsupported IP version " + str(self.ipaddr.version))
+
+		ping_argv += _pingopts
+		ping_argv.append(_pingopt_period)
+		ping_argv.append(str(self.period))
+		ping_argv.append(_pingopt_count)
+		ping_argv.append(str(self.count))
+		ping_argv.append(str(self.ipaddr))
+
+		# start the ping process
+		print("running " + " ".join(ping_argv))
+
+		self.reset()
+		with subprocess.Popen(ping_argv, stdout=subprocess.PIPE) as ping_proc:
+			for line in ping_proc.stdout:
+				line = line.decode("utf-8")
+				if self.interrupted:
+					return
+				result = parse_ping_line(line)
+				if result is not None:
+					print("got %u usec at %s" % (result.usec, str(result.time)))
+					self.results.append(result)
+
 class AsyncPing(threading.Thread):
 	"""A thread which will ping count times every period seconds"""
-	def __init__(self, ipaddr, period, count):
-		super(AsyncPing, self).__init__()
-		self.ipaddr = ipaddr
-		self.period = period
-		self.count = count
-		self.interrupted = False
+
 
 	def interrupt(self):
 		self.interrupted = True
