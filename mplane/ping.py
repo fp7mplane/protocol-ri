@@ -45,142 +45,95 @@ _pingopt_count = "-c"
 PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 
 def _parse_ping_line(line):
-	m = _pingline_re.search(line)
-	if m is None:
-		return None
-	mg = m.groups()
-	return PingValue(datetime.utcnow(), int(mg[0]), int(mg[1]), int(float(mg[2]) * 1000))
+    m = _pingline_re.search(line)
+    if m is None:
+        return None
+    mg = m.groups()
+    return PingValue(datetime.utcnow(), int(mg[0]), int(mg[1]), int(float(mg[2]) * 1000))
 
-def _ping4_process(ipaddr, period, count):
-	pass
+def _ping_process(progname, ipaddr, period=None, count=None):
+    ping_argv = [progname]
+    if period is not None:
+        ping_argv += [_pingopt_period, str(period)]
+    if count is not None:
+        ping_argv += [_pingopt_count, str(count)]
+    ping_argv += [str(ipaddr)]
 
-def _ping6_process(ipaddr, period, count):
-	pass
+    return subprocess.Popen(ping_argv, stdout=subprocess.PIPE)
+
+def _ping4_process(ipaddr, period=None, count=None):
+    return _ping_process(_ping4cmd, ipaddr, period, count)
+
+def _ping6_process(ipaddr, period=None, count=None):
+    return _ping_process(_ping6cmd, ipaddr, period, count)
+
+def pings_min_delay(pings):
+    return min(map(lambda x: x.usec, pings))
+
+def pings_mean_delay(pings):
+    return sum(map(lambda x: x.usec, pings)) / len(pings)
+
+def pings_median_delay(pings):
+    return sorted(map(lambda x: x.usec, pings))[len(pings) // 2]
+
+def pings_max_delay(pings):
+    return max(map(lambda x: x.usec, pings))
+
+def pings_start_time(pings):
+    return pings[0].time
+
+def pings_end_time(pings):
+    return pings[-1].time
 
 class PingService(mplane.scheduler.Service):
+    def __init__(self, cap):
+        # verify the capability is acceptable
+        if not ((cap.has_parameter("source.ip4") or 
+                 cap.has_parameter("source.ip6")) and
+                (cap.has_parameter("destination.ip4") or 
+                 cap.has_parameter("destination.ip6")) and
+                cap.has_parameter("period.s") and
+                (cap.has_result_column("delay.twoway.icmp.us") or
+                 cap.has_result_column("delay.twoway.icmp.us.min") or
+                 cap.has_result_column("delay.twoway.icmp.us.mean") or                
+                 cap.has_result_column("delay.twoway.icmp.us.max"))):
+            raise ValueError("capability not acceptable")
+        super(PingService, self).__init__(cap)
 
-	def __init__(self, capability):
-		# verify the capability is acceptable
-		if not ((capability.has_parameter("source.ip4") or 
-			     capability.has_parameter("source.ip6")) and
-		        (capability.has_parameter("destination.ip4") or 
-			     capability.has_parameter("destination.ip6")) and
-		        capability.has_parameter("period.s") and
-		        (capability.has_result_column("delay.twoway.icmp.us") or
-		         capability.has_result_column("delay.twoway.icmp.us.min") or
-		         capability.has_result_column("delay.twoway.icmp.us.mean") or		    	
-		         capability.has_result_column("delay.twoway.icmp.us.max"))):
-			raise ValueError("capability not acceptable")
+    def run(self, spec, check_interrupt):
+        # unpack parameters
+        period = spec.get_parameter_value("period.s")
+        duration = spec.job_duration()
+        if duration is not None and duration > 0:
+            count = duration // period
+        else:
+            count = None
+        if spec.has_parameter("destination.ip4"):
+            ipaddr = spec.get_parameter_value("destination.ip4")
+            ping_process = _ping4_process(ipaddr, period, count)
+        elif spec.has_parameter("destination.ip6"):
+            ipaddr = spec.get_parameter_value("destination.ip6")
+            ping_process = _ping6_process(ipaddr, period, count)
+        else:
+            raise ValueError("Missing destination")
 
-		super(PingService, self).__init__(capability)
+        # read output from ping
+        pings = []
+        for line in ping_process.stdout:
+            if check_interrupt:
+                break
+            oneping = None
+            while oneping is None
+                oneping = _parse_ping_line(line.decode("utf-8"))
+            pings.append(oneping)
+ 
+        # shut down process
+        ping_process.close()
 
-	def run(self, specification, check_interrupt):
-		# verify specification and unpack parameters
+        # derive a result from the specification
+        res = Result(specification=spec)
 
-		# FIXME work pointer
+        # FIXME work pointer
 
-		# build a ping command line
-		ping_argv = []
-		if (self.ipaddr.version == 4):
-			ping_argv.append(_ping4cmd)
-		elif (self.ipaddr.version == 6):
-			ping_argv.append(_ping6cmd)
-		else:
-			raise ValueError("Unsupported IP version " + str(self.ipaddr.version))
-
-		ping_argv += _pingopts
-		ping_argv.append(_pingopt_period)
-		ping_argv.append(str(self.period))
-		ping_argv.append(_pingopt_count)
-		ping_argv.append(str(self.count))
-		ping_argv.append(str(self.ipaddr))
-
-		# start the ping process
-		print("running " + " ".join(ping_argv))
-
-		self.reset()
-		with subprocess.Popen(ping_argv, stdout=subprocess.PIPE) as ping_proc:
-			for line in ping_proc.stdout:
-				line = line.decode("utf-8")
-				if self.interrupted:
-					return
-				result = parse_ping_line(line)
-				if result is not None:
-					print("got %u usec at %s" % (result.usec, str(result.time)))
-					self.results.append(result)
-
-class AsyncPing(threading.Thread):
-	"""A thread which will ping count times every period seconds"""
-
-
-	def interrupt(self):
-		self.interrupted = True
-
-	def reset(self):
-		self.interrupted = False
-		self.results = []
-		self.result_min = None
-		self.result_mean = None
-		self.result_median = None
-		self.result_max = None
-
-	def run(self):
-		# build a ping command line
-		ping_argv = []
-		if (self.ipaddr.version == 4):
-			ping_argv.append(_ping4cmd)
-		elif (self.ipaddr.version == 6):
-			ping_argv.append(_ping6cmd)
-		else:
-			raise ValueError("Unsupported IP version " + str(self.ipaddr.version))
-
-		ping_argv += _pingopts
-		ping_argv.append(_pingopt_period)
-		ping_argv.append(str(self.period))
-		ping_argv.append(_pingopt_count)
-		ping_argv.append(str(self.count))
-		ping_argv.append(str(self.ipaddr))
-
-		# start the ping process
-		print("running " + " ".join(ping_argv))
-
-		self.reset()
-		with subprocess.Popen(ping_argv, stdout=subprocess.PIPE) as ping_proc:
-			for line in ping_proc.stdout:
-				line = line.decode("utf-8")
-				if self.interrupted:
-					return
-				result = parse_ping_line(line)
-				if result is not None:
-					print("got %u usec at %s" % (result.usec, str(result.time)))
-					self.results.append(result)
-
-	def min_delay(self):
-		if self.result_min is None:
-			self.result_min = min(map(lambda x: x.usec, self.results))
-		return self.result_min
-
-	def mean_delay(self):
-		if self.result_mean is None:
-			self.result_mean = sum(map(lambda x: x.usec, self.results)) / len(self.results)
-		return self.result_mean
-
-	def median_delay(self):
-		if self.result_median is None:
-			self.result_median = sorted(map(lambda x: x.usec, self.results))[int(len(self.results) / 2)]
-		return self.result_median
-
-	def max_delay(self):
-		if self.result_max is None:
-			self.result_max = max(map(lambda x: x.usec, self.results))
-		return self.result_max
-
-	def delay_count(self):
-		return len(self.results)
-
-	def start_time(self):
-		return self.results[0].time
-
-	def end_time(self):
-		return self.results[-1].time
+        return res
 

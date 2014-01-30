@@ -80,8 +80,6 @@ class Job(object):
         self._running = False
         self._started_at = None
         self._ended_at = None
-        self._delay = None
-        self._duration = None
         self._interrupt = threading.Event()
 
     def _run(self):
@@ -103,7 +101,8 @@ class Job(object):
         threading.Thread(target=self._run).start()
 
         # set up interrupt timer if necessary
-        if self._duration is not None and self._duration.total_seconds() > 0:
+        duration = self.specification.job_duration()
+        if duration is not None and duration > 0:
             threading.Timer(self._duration.total_seconds(), self.interrupt).start()
         
     def schedule(self):
@@ -111,38 +110,10 @@ class Job(object):
         Schedule this job to run.
 
         """
-        start = self.specification.get_parameter_value("start")
-        end = self.specification.get_parameter_value("end")
-
-        # calculate delay and duration from temporal scope
-        if isinstance(start, datetime):
-            self._delay = start - datetime.utcnow()
-            if isinstance(end,datetime):
-                self._duration = end - start
-            elif (end is mplane.model.time_once):
-                self._duration = timedelta()
-            elif (end is mplane.model.time_future):
-                self._duration = None
-            else:
-                raise ValueError("Cannot schedule job with end "+str(end))
-        elif ((start is mplane.model.time_now) or 
-              (start is mplane.model.time_whenever):
-            # treat now and whenever as immediate start
-            # revisit this if we actually want to do prioritization
-            self._delay = timedelta()
-            if isinstance(end, datetime):
-                self._duration = end - datetime.utcnow()
-            elif (end is mplane.model.time_once):
-                self._duration = timedelta()
-            elif (end is mplane.model.time_future):
-                self._duration = None
-            else:
-                raise ValueError("Cannot schedule job with end "+str(end))
-        else:
-            raise ValueError("Cannot schedule job with start "+str(start))
+        delay = self.specification.job_delay()
 
         # start a timer to schedule in the future if we have delay
-        if delay.total_seconds() > 0:
+        if delay > 0:
             threading.Timer(self._delay.total_seconds(), self._schedule_now).start()
         else:
             self._schedule_now()
@@ -153,3 +124,6 @@ class Job(object):
 
         """
         self._interrupt.set()
+
+    def get_result_or_receipt(self):
+        pass

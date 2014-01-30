@@ -254,7 +254,7 @@ results:
 """
 
 from ipaddress import ip_address
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
 import collections
 import functools
@@ -1307,7 +1307,13 @@ class Specification(Statement):
 
         Returns 0 if the specification should start immediately. 
         """
-        pass
+        start = self.get_parameter_value(PARAM_START)
+        if start is time_now or start is time_whenever:
+            return 0
+        elif isinstance(start, datetime):
+            return max(0, (start - datetime.utcnow()).total_seconds())
+        else:
+            raise ValueError("Invalid "+PARAM_START+" value")
 
     def job_duration(self):
         """
@@ -1317,7 +1323,28 @@ class Specification(Statement):
         and None if the specification should run forever.
 
         """
-        pass
+        start = self.get_parameter_value(PARAM_START)
+        end = self.get_parameter_value(PARAM_END)
+
+        if end is time_once:
+            return 0
+        elif end is time_future:
+            return None
+        elif not isinstance(end, datetime):
+            raise ValueError("Invalid "+PARAM_END+" value")
+
+        if start is time_now or start is time_whenever:
+            start = datetime.utcnow()
+
+        return (end - start).total_seconds()
+
+    def job_once(self):
+        """
+        Return True if the specification should only 
+        run a single measurement.
+
+        """
+        return self.get_parameter_value(PARAM_END) is time_once
 
 class Result(Statement):
     """docstring for Result"""
