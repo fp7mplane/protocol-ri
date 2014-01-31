@@ -41,7 +41,7 @@ class Service(object):
     """
     def __init__(self, capability):
         super(Service, self).__init__()
-        self.capability = capability
+        self._capability = capability
 
     def run(self, specification, check_interrupt):
         """
@@ -63,6 +63,9 @@ class Service(object):
         """
         raise NotImplementedError("Cannot instantiate an abstract Service")
 
+    def capability(self):
+        return self._capability
+
 class Job(object):
     """
     A Job is a binding of some running code to an
@@ -75,18 +78,18 @@ class Job(object):
         super(Job, self).__init__()
         self.service = service
         self.specification = specification
+        self.receipt = mplane.model.Receipt(specification=specification)
         self.result = None
         self._thread = None
-        self._running = False
         self._started_at = None
         self._ended_at = None
         self._interrupt = threading.Event()
 
     def _run(self):
-        self._running = True
+        self._started_at = datetime.utcnow()
         self.result = self.service.run(self.specification, 
                                        self._check_interrupt)
-        self._running = False
+        self._ended_at = datetime.utcnow()
 
     def _check_interrupt(self):
         return self._interrupt.is_set()
@@ -108,7 +111,6 @@ class Job(object):
     def schedule(self):
         """
         Schedule this job to run.
-
         """
         delay = self.specification.job_delay()
 
@@ -125,5 +127,35 @@ class Job(object):
         """
         self._interrupt.set()
 
-    def get_result_or_receipt(self):
+    def get_reply(self):
+        """
+        If a result is available for this Job (i.e., if the job is done running), 
+        return it. Otherwise, create a receipt from the specification and return that.
+
+        """
+        if (self.result is not None):
+            return self.result
+        else:
+            return self.receipt
+
+class Scheduler(object):
+    """docstring for Scheduler"""
+    def __init__(self):
+        super(Scheduler, self).__init__()
+        self.services = []
+        self.jobs = []
+
+    def add_service(self, service):
+        pass
+
+    def withdraw_service(self, service):
+        pass
+
+    def start_job(self, statement):
+        """
+        Search the available Services for one which can service the statement, 
+        then create and schedule a new job to execute the statement. Returns a
+        key by which the job can be subsequently identified.
+
+        """
         pass

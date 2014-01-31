@@ -85,6 +85,32 @@ def pings_start_time(pings):
 def pings_end_time(pings):
     return pings[-1].time
 
+def ping4_aggregate_capability(ipaddr):
+    cap = mplane.model.Capability()
+    cap.add_parameter("start","now...+inf")
+    cap.add_parameter("end","now...+inf")
+    cap.add_parameter("source.ip4",ipaddr)
+    cap.add_parameter("destination.ip4")
+    cap.add_parameter("period.s")
+    cap.add_result_column("delay.twoway.icmp.us.min")
+    cap.add_result_column("delay.twoway.icmp.us.mean")
+    cap.add_result_column("delay.twoway.icmp.us.max")
+    cap.add_result_column("delay.twoway.icmp.us.count")
+    return cap
+
+def ping4_singleton_capability(ipaddr):
+    cap = mplane.model.Capability()
+    cap.add_parameter("start","now...+inf")
+    cap.add_parameter("end","now...+inf")
+    cap.add_parameter("source.ip4",ipaddr)
+    cap.add_parameter("destination.ip4")
+    cap.add_parameter("period.s")
+    cap.add_result_column("delay.twoway.icmp.us.min")
+    cap.add_result_column("delay.twoway.icmp.us.mean")
+    cap.add_result_column("delay.twoway.icmp.us.max")
+    cap.add_result_column("delay.twoway.icmp.us.count")
+    return cap
+
 class PingService(mplane.scheduler.Service):
     def __init__(self, cap):
         # verify the capability is acceptable
@@ -123,7 +149,7 @@ class PingService(mplane.scheduler.Service):
             if check_interrupt:
                 break
             oneping = None
-            while oneping is None
+            while oneping is None:
                 oneping = _parse_ping_line(line.decode("utf-8"))
             pings.append(oneping)
  

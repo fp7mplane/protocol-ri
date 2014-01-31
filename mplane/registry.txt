@@ -1,7 +1,33 @@
+#######################################################################
+# Core Element Registry 
+#######################################################################
+
 # Temporal scope
 start: time
 end: time
 time: time
+
+#######################################################################
+# Elements used/tested in mplane.ping
+#######################################################################
+
+period.s:
+    Period used for periodic active measurement, in seconds
+delay.twoway.icmp.us: natural
+    Singleton two-way delay as measured by ICMP Echo Request/Reply
+delay.twoway.icmp.us.min: natural
+    Minimum two-way delay as measured by ICMP Echo Request/Reply
+delay.twoway.icmp.us.mean: natural
+    Mean two-way delay as measured by ICMP Echo Request/Reply
+delay.twoway.icmp.us.max: natural
+    Maximum two-way delay as measured by ICMP Echo Request/Reply
+delay.twoway.icmp.us.count: natural
+    Count of valid ICMP Echo Replies received when measuring two-way
+    delay using ICMP Echo Request/Reply
+
+#######################################################################
+# Additional elements from D1.1 (untested)
+#######################################################################
 
 # Additional timing
 duration.s: natural
@@ -67,13 +93,6 @@ flows.unreported: natural
 delay.oneway.s: natural
 delay.twoway.icmp.s: natural
 delay.oneway.ms: natural
-delay.twoway.icmp.ms: natural
-# FIXME need code to keep this from becoming a combinatoric explosion
-delay.twoway.icmp.ms.min: natural
-delay.twoway.icmp.ms.mean: natural
-delay.twoway.icmp.ms.max: natural
-delay.twoway.icmp.ms.count: natural
-# end FIXME
 delay.oneway.us: natural
 delay.twoway.icmp.us: natural
 delay.oneway.ns: natural

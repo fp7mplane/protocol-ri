@@ -31,3 +31,4 @@ version 3 or, at your option, any later version.
 """
 
 from . import model
+from . import scheduler
