@@ -57,8 +57,8 @@ empty Capability:
 Probe components generally advertise a temporal scope from the
 present stretching into the indeterminate future:
 
->>> cap.add_parameter("start.ms", "now...+inf")
->>> cap.add_parameter("end.ms", "now...+inf")
+>>> cap.add_parameter("start", "now...+inf")
+>>> cap.add_parameter("end", "now...+inf")
 
 We can only ping from one IPv4 address, to any IPv4 address. 
 Adding a parameter without a constraint makes it unconstrained:
@@ -90,11 +90,11 @@ download or configuration:
 >>> capjson = json.dumps(cap.to_dict())
 >>> capjson # doctest: +SKIP
 '{"capability": "measure", 
-  "parameters": {"end.ms": "now...+inf", 
+  "parameters": {"end": "now...+inf", 
                  "period.s": "1...3600", 
                  "source.ip4": "10.0.27.2", 
                  "destination.ip4": "*", 
-                 "start.ms": "now...+inf"}, 
+                 "start": "now...+inf"}, 
   "results": ["delay.twoway.icmp.ms.min", 
               "delay.twoway.icmp.ms.max", 
               "delay.twoway.icmp.ms.mean", 
@@ -119,8 +119,8 @@ Here we have a specification with 0 of 5 parameters filled in.
 So let's fill in some parameters; note that strings are accepted and
 automatically parsed using each parameter's primitive type:
 
->>> spec.set_parameter_value("start.ms", "2014-12-24 22:18:42")
->>> spec.set_parameter_value("end.ms", "2014-12-24 22:19:42")
+>>> spec.set_parameter_value("start", "2014-12-24 22:18:42")
+>>> spec.set_parameter_value("end", "2014-12-24 22:19:42")
 >>> spec.set_parameter_value("period.s", 1)
 >>> spec.set_parameter_value("source.ip4", "10.0.27.2")
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
@@ -140,8 +140,8 @@ the component from which we got the capability:
 '{"specification": "measure", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "period.s": "1", 
-                 "end.ms": "2014-12-24 22:19:42.000000", 
-                 "start.ms": "2014-12-24 22:18:42.000000", 
+                 "end": "2014-12-24 22:19:42.000000", 
+                 "start": "2014-12-24 22:18:42.000000", 
                  "destination.ip4": "10.0.37.2"}, 
   "results": ["delay.twoway.icmp.ms.min", 
               "delay.twoway.icmp.ms.max", 
@@ -167,8 +167,8 @@ by assigning values to parameters which changed and result columns
 measured:
 
 >>> res = mplane.model.Result(specification=comspec)
->>> res.set_parameter_value("start.ms", "2014-12-24 22:18:42.993000")
->>> res.set_parameter_value("end.ms", "2014-12-24 22:19:42.991000")
+>>> res.set_parameter_value("start", "2014-12-24 22:18:42.993000")
+>>> res.set_parameter_value("end", "2014-12-24 22:19:42.991000")
 >>> res.set_result_value("delay.twoway.icmp.ms.min", 33)
 >>> res.set_result_value("delay.twoway.icmp.ms.mean", 55)
 >>> res.set_result_value("delay.twoway.icmp.ms.max", 192)
@@ -182,8 +182,8 @@ The result can then be serialized and sent back to the client:
 '{"result": "measure", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "period.s": "1", 
-                 "end.ms": "2014-12-24 22:19:42.000000", 
-                 "start.ms": "2014-12-24 22:18:42.000000", 
+                 "end": "2014-12-24 22:19:42.000000", 
+                 "start": "2014-12-24 22:18:42.000000", 
                  "destination.ip4": "10.0.37.2"}, 
   "results": ["delay.twoway.icmp.ms.min", 
               "delay.twoway.icmp.ms.max", 
@@ -222,8 +222,8 @@ which can be used to quickly identify it in the future.
   "parameters": {"period.s": "1", 
                  "destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2", 
-                 "end.ms": "2014-12-24 22:19:42.000000", 
-                 "start.ms": "2014-12-24 22:18:42.000000"}, 
+                 "end": "2014-12-24 22:19:42.000000", 
+                 "start": "2014-12-24 22:18:42.000000"}, 
   "results": ["delay.twoway.icmp.ms.min", 
               "delay.twoway.icmp.ms.max", 
               "delay.twoway.icmp.ms.mean", 

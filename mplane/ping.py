@@ -133,7 +133,28 @@ class PingService(mplane.scheduler.Service):
         # derive a result from the specification
         res = Result(specification=spec)
 
-        # FIXME work pointer
+        # put actual start and end time into result
+        result.set_parameter_value("start", pings_start_time(pings))
+        result.set_parameter_value("start", pings_end_time(pings))
+
+        # are we returning aggregates or raw numbers?
+        if results.has_result_column("delay.twoway.icmp.us"):
+            # raw numbers
+            for oneping, i in enumerate(pings):
+                results.set_result_value("delay.twoway.icmp.us", oneping.usec, i)
+            if results.has_result_column("time"):
+                for oneping, i in enumerate(pings):
+                    results.set_result_value("time", time, i)
+        else:
+            # aggregates. single row.
+            if results.has_result_column("delay.twoway.icmp.us.min"):
+                results.set_result_value("delay.twoway.icmp.us.min", pings_min_delay(pings))
+            if results.has_result_column("delay.twoway.icmp.us.mean"):
+                results.set_result_value("delay.twoway.icmp.us.mean", pings_mean_delay(pings))
+            if results.has_result_column("delay.twoway.icmp.us.median"):
+                results.set_result_value("delay.twoway.icmp.us.median", pings_median_delay(pings))
+            if results.has_result_column("delay.twoway.icmp.us.max"):
+                results.set_result_value("delay.twoway.icmp.us.max", pings_min_delay(pings))
 
         return res
 
