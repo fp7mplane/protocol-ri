@@ -74,9 +74,10 @@ class Job(object):
     running, or ready to run at some point in the future.
 
     """
-    def __init__(self, service, specification):
+    def __init__(self, service, specification, session=None):
         super(Job, self).__init__()
         self.service = service
+        self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
         self.result = None
@@ -144,6 +145,16 @@ class Scheduler(object):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = []
+
+    def receive_message(self, session, msg):
+        """
+        Receive and process a message from a session. 
+
+        If it's a specification, try to start a job.
+
+        If it's a redemption, try to return a result.
+        """
+        pass
 
     def add_service(self, service):
         pass
