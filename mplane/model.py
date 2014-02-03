@@ -2,8 +2,8 @@
 # mPlane Protocol Reference Implementation
 # Information Model and Element Registry
 #
-# (c) 2013 mPlane Consortium (http://www.ict-mplane.eu)
-#          Author: Brian Trammell <brian@trammell.ch>
+# (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
+#               Author: Brian Trammell <brian@trammell.ch>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
