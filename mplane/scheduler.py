@@ -84,6 +84,7 @@ class Job(object):
         self._thread = None
         self._started_at = None
         self._ended_at = None
+        self._replied_at = None
         self._interrupt = threading.Event()
 
     def _run(self):
@@ -134,39 +135,72 @@ class Job(object):
         return it. Otherwise, create a receipt from the specification and return that.
 
         """
+        self._replied_at = datetime.utcnow()
         if (self.result is not None):
             return self.result
         else:
             return self.receipt
 
 class Scheduler(object):
-    """docstring for Scheduler"""
+    """
+    documentation for scheduler goes here
+
+    """
     def __init__(self):
         super(Scheduler, self).__init__()
         self.services = []
-        self.jobs = []
+        self.jobs = {}
+        self.next_job_serial = 0
 
     def receive_message(self, session, msg):
         """
         Receive and process a message from a session. 
+        Returns a message to send in reply.
 
-        If it's a specification, try to start a job.
-
-        If it's a redemption, try to return a result.
         """
-        pass
+        reply = None
+        if isinstance(msg, mplane.model.Specification):
+            reply = self.start_job(specification=specification, session=session)
+        elif isinstance (msg, mplane.model.Redemption):
+            job_key = msg.get_token()
+            if job_key in self.jobs:
+                reply = self.jobs[job_key].get_reply()
+            else: reply = mplane.model.Exception(token=job_key, 
+                errmsg="Unknown job")
+        else:
+            reply = mplane.model.Exception(token=msg.get_token(), 
+                errmsg="Unexpected message type")
+
+        return reply
 
     def add_service(self, service):
-        pass
+        self.services.append(service)
 
-    def withdraw_service(self, service):
-        pass
-
-    def start_job(self, statement):
+    def start_job(self, specification, session=None):
         """
         Search the available Services for one which can service the statement, 
-        then create and schedule a new job to execute the statement. Returns a
-        key by which the job can be subsequently identified.
+        then create and schedule a new job to execute the statement.
 
         """
-        pass
+        # linearly search the available services
+        for service in self.services:
+            if specification.fulfills(service.capability):
+                # Found. Create a new job.
+                new_job = Job(service=service, \
+                              specification=specification, \
+                              session=session)
+
+                # Key by the receipt's token, and return
+                job_key = new_job.receipt.get_token()
+                if job_key in self.jobs:
+                    # Job already running. Return receipt
+                    return self.jobs[job_key].receipt
+
+                # Keep track of the job and return receipt
+                new_job.schedule()
+                self.jobs[job_key] = new_job
+                return new_job.receipt
+
+        # fall-through, no job 
+        return mplane.model.Exception(token=specification.get_token(),
+                    errmsg="No service registered for specification")

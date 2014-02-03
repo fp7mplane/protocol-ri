@@ -1143,6 +1143,61 @@ class Statement(object):
                " r " + " ".join(sorted(self._resultcolumns.keys()))
         return hashlib.md5(sstr.encode('utf-8')).hexdigest()
 
+    def pv_hash(self):
+        """
+        Return a hex string uniquely identifying the set of parameters,
+        parameter values, and result columns of this statement. Used as
+        a specification key.
+
+        """
+        spk = sorted(self._params.keys())
+        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
+        tstr = self._verb + \
+               " pk " + " ".join(spk) + \
+               " pv " + " ".join(spv) + \
+               " r " + " ".join(sorted(self._resultcolumns.keys()))
+        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+
+    def pcv_hash(self):
+        """
+        Return a hex string uniquely identifying the set of parameters,
+        parameter constraints, parameter values, and result columns 
+        of this statement.
+
+        """
+        spk = sorted(self._params.keys())
+        spc = [str(self._params[k]._constraint) for k in spk]
+        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
+        tstr = self._verb + \
+               " pk " + " ".join(spk) + \
+               " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
+               " r " + " ".join(sorted(self._resultcolumns.keys()))
+        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+
+
+    def mpcv_hash(self):
+        """
+        Return a hex string uniquely identifying the set of parameters,
+        parameter constraints, parameter values, metadata, metadata values, 
+        and result columns (the extended specification) of this statement.
+        Used as a complete token for statements
+
+        """
+        spk = sorted(self._params.keys())
+        spc = [str(self._params[k]._constraint) for k in spk]
+        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
+        smk = sorted(self._metadata.keys())
+        smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
+        tstr = self._verb + \
+               " pk " + " ".join(spk) + \
+               " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
+               " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
+               " r " + " ".join(sorted(self._resultcolumns.keys()))
+        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+
+    def get_token(self):
+        return self.mpcv_hash()
+
     def _result_rows(self):
         rows = []
         for row_index in range(self.count_result_rows()):
@@ -1346,6 +1401,15 @@ class Specification(Statement):
         """
         return self.get_parameter_value(PARAM_END) is time_once
 
+    def fulfills(self, spec):
+        """
+        Determine whether this specification fulfills a given capability
+        (i.e. that the schemas match and that the parameter values match
+        the constraints)
+
+        """
+        pass
+
 class Result(Statement):
     """docstring for Result"""
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE):
@@ -1409,14 +1473,37 @@ class BareNotification(object):
     or Specification.
 
     """
-    def __init__(self, dictval=None, token=None, verb=VERB_MEASURE):
-        super(Notification, self).__init__()
+    def __init__(self, dictval=None, token=None):
+        super(BareNotification, self).__init__()
         if dictval is not None:
             self._from_dict(dictval)
-        else:
-            self._verb = verb;
 
         self._token = token
+
+class Exception(BareNotification):
+    """
+    A Component sends an Exception to a Client, or a Client to a 
+    Component, to present a human-readable message about a failure
+    or non-nominal condition 
+
+    """
+    def __init__(self, dictval=None, token=None, errmsg=None):
+        super(Exception, self).__init__(dictval=dictval, token=token)
+        if errmsg is None:
+            errmsg = "Unspecified exception"
+        self.errmsg = _errmsg
+
+    def get_token(self):
+        return self._token
+
+    def to_dict(self):
+        d[SECTION_TOKEN] = self._token
+        d[SECTION_ERRMSG] = self._errmsg
+        return d
+
+    def _from_dict(self, d):
+        self._token = d[SECTION_TOKEN]
+        self._errmsg = d[SECTION_ERRMSG]
 
 class StatementNotification(Statement):
     """
@@ -1439,17 +1526,7 @@ class StatementNotification(Statement):
         self._token = token
 
     def _default_token(self):
-        spk = sorted(self._params.keys())
-        spc = [str(self._params[k]._constraint) for k in spk]
-        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
-        smk = sorted(self._metadata.keys())
-        smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
-        tstr = self._verb + \
-               " pk " + " ".join(spk) + \
-               " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
-               " mk " + " ".join(spc) + " mv " + " ".join(spv) + \
-               " r " + " ".join(sorted(self._resultcolumns.keys()))
-        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        return self.mpcv_hash()
 
     def get_token(self):
         if self._token is None:

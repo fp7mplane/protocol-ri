@@ -2,8 +2,8 @@
 # mPlane Protocol Reference Implementation
 # JSON message representation
 #
-# (c) 2013 mPlane Consortium (http://www.ict-mplane.eu)
-#          Author: Brian Trammell <brian@trammell.ch>
+# (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
+#               Author: Brian Trammell <brian@trammell.ch>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -18,3 +18,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
+import mplane.model
+import json
+
+def parse(msg):
+	return json.dumps(msg.to_dict(), 
+		              sort_keys=True, indent=2, separators=(',',': '))
+
+def unparse(jstr):
+	return mplane.model.message_from_dict(json.loads(jstr))
