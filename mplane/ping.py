@@ -34,6 +34,8 @@ from datetime import datetime
 import mplane.model
 import mplane.scheduler
 
+import tornado.web
+
 _pingline_re = re.compile("icmp_seq=(\d+)\s+ttl=(\d+)\s+time=([\d\.]+)\s+ms")
 
 _ping4cmd = "ping"
@@ -155,11 +157,12 @@ class PingService(mplane.scheduler.Service):
         else:
             count = None
         if spec.has_parameter("destination.ip4"):
-            ipaddr = spec.get_parameter_value("destination.ip4")
-            ping_process = _ping4_process(ipaddr, period, count)
+            sipaddr = spec.get_parameter_value("source.ip4")
+            dipaddr = spec.get_parameter_value("destination.ip4")
+            ping_process = _ping4_process(sipaddr, dipaddr, period, count)
         elif spec.has_parameter("destination.ip6"):
-            ipaddr = spec.get_parameter_value("destination.ip6")
-            ping_process = _ping6_process(ipaddr, period, count)
+            dipaddr = spec.get_parameter_value("destination.ip6")
+            ping_process = _ping6_process(sipaddr, dipaddr, period, count)
         else:
             raise ValueError("Missing destination")
 
@@ -203,3 +206,51 @@ class PingService(mplane.scheduler.Service):
                 results.set_result_value("delay.twoway.icmp.us.max", pings_min_delay(pings))
 
         return res
+
+def parse_args():
+    global args
+    parser = argparse.ArgumentParser(description="Run an mPlane ping probe server")
+    parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
+                        help="Ping from the given IPv4 address")
+    parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
+                        help="Ping from the given IPv6 address")
+    args = parser.parse_args()
+
+# For right now, start a Tornado-based ping server
+if __name__ == "__main__":
+    global args
+
+    import mplane.tornado
+    import tornado.ioloop
+    import tornado.web
+
+    parse_args()
+
+    ip4addr = None
+    ip6addr = None
+
+    if args.ip4addr:
+        ip4addr = ip_address(ip4addr)
+        if ip4addr.version != 4:
+            raise ValueError("invalid IPv4 address")
+    if args.ip6addr:
+        ip6addr = ip_address(ip4addr)
+        if ip6addr.version != 6:
+            raise ValueError("invalid IPv6 address")
+    if ip4addr is None and ip6addr is None:
+        raise ValueError("need at least one source address to run")
+
+    scheduler = mplane.scheduler.Scheduler
+    if ip4addr is not None:
+        scheduler.add_service(PingService(ping4_aggregate_capability(ip4addr)))
+        scheduler.add_service(PingService(ping4_singleton_capability(ip4addr)))
+    if ip6addr is not None:
+        scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
+        scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
+
+# FIXME move this to mplane.tornado
+    application = tornado.web.Application([
+            (r"/", mplane.tornado.SchedulerHandler, {'scheduler': scheduler})
+        ])
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()

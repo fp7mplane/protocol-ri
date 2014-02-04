@@ -129,6 +129,9 @@ class Job(object):
         """
         self._interrupt.set()
 
+    def finished(self):
+        return self.result is not None
+
     def get_reply(self):
         """
         If a result is available for this Job (i.e., if the job is done running), 
@@ -136,7 +139,7 @@ class Job(object):
 
         """
         self._replied_at = datetime.utcnow()
-        if (self.result is not None):
+        if self.finished():
             return self.result
         else:
             return self.receipt
@@ -151,10 +154,11 @@ class Scheduler(object):
         self.services = []
         self.jobs = {}
         self.next_job_serial = 0
+        self._capability_cache = {}
 
-    def receive_message(self, session, msg):
+    def receive_message(self, msg, session=None):
         """
-        Receive and process a message from a session. 
+        Receive and process a message. 
         Returns a message to send in reply.
 
         """
@@ -175,6 +179,14 @@ class Scheduler(object):
 
     def add_service(self, service):
         self.services.append(service)
+        cap = service.capability()
+        self._capability_cache[cap.get_token()] = cap
+
+    def capability_keys(self):
+        return self._capability_cache.keys()
+
+    def capability_for_key(self, key):
+        return self._capability_cache[key]
 
     def start_job(self, specification, session=None):
         """
@@ -205,4 +217,8 @@ class Scheduler(object):
         return mplane.model.Exception(token=specification.get_token(),
                     errmsg="No service registered for specification")
 
+    def job_for_message(self, msg):
+        return self.jobs[msg.get_token()]
 
+    def prune_jobs(self):
+        pass

@@ -292,6 +292,7 @@ SECTION_RESULTS = "results"
 SECTION_RESULTVALUES = "resultvalues"
 SECTION_TOKEN = "token"
 SECTION_ERROR = "error"
+SECTION_LINK = "link"
 
 KIND_CAPABILITY = "capability"
 KIND_SPECIFICATION = "specification"
@@ -1052,6 +1053,7 @@ class Statement(object):
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
+        self._link = None
         if dictval is not None:
             self._from_dict(dictval)
         else:
@@ -1180,7 +1182,7 @@ class Statement(object):
         Return a hex string uniquely identifying the set of parameters,
         parameter constraints, parameter values, metadata, metadata values, 
         and result columns (the extended specification) of this statement.
-        Used as a complete token for statements
+        Used as a complete token for statements.
 
         """
         spk = sorted(self._params.keys())
@@ -1235,6 +1237,9 @@ class Statement(object):
             if self.count_result_rows() > 0:
                 d[SECTION_RESULTVALUES] = self._result_rows()
 
+        if self._link is not None:
+          d[SECTION_LINK] = self._link
+
         return d
 
     def _params_from_dict(self, d):
@@ -1266,7 +1271,9 @@ class Statement(object):
             for v in d[SECTION_RESULTS]:
                 self.add_result_column(v)
 
-        
+        if SECTION_LINK in d:
+          self._link = d[SECTION_LINK]
+
 class Capability(Statement):
     """
     A Capability represents something an mPlane component can do.
