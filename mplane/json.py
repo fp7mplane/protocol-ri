@@ -23,8 +23,8 @@ import mplane.model
 import json
 
 def parse(msg):
-	return json.dumps(msg.to_dict(), 
-		              sort_keys=True, indent=2, separators=(',',': '))
+    return json.dumps(msg.to_dict(), 
+                      sort_keys=True, indent=2, separators=(',',': '))
 
 def unparse(jstr):
-	return mplane.model.message_from_dict(json.loads(jstr))
+    return mplane.model.message_from_dict(json.loads(jstr))

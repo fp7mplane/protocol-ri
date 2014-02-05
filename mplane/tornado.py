@@ -20,6 +20,7 @@
 #
 
 SLEEP_QUANTUM = 0.250
+CAPABILITY_PATH_ELEM = "capability"
 
 class SchedulerHandler(tornado.web.RequestHandler):
 
@@ -31,7 +32,7 @@ class SchedulerHandler(tornado.web.RequestHandler):
     def get(self):
         # capabilities
         path = self.request.path.split("/")
-        if path[0] == "capability":
+        if path[0] == CAPABILITY_PATH_ELEM:
             if (len(path) == 1 or path[1] is None):
                 self._respond_capability_links()
             else:
