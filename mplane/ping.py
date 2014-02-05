@@ -107,6 +107,7 @@ def ping4_singleton_capability(ipaddr):
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
     cap.add_parameter("period.s")
+    cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
     return cap
 
@@ -130,6 +131,7 @@ def ping6_singleton_capability(ipaddr):
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
     cap.add_parameter("period.s")
+    cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
     return cap
 
@@ -184,7 +186,7 @@ class PingService(mplane.scheduler.Service):
 
         # put actual start and end time into result
         result.set_parameter_value("start", pings_start_time(pings))
-        result.set_parameter_value("start", pings_end_time(pings))
+        result.set_parameter_value("end", pings_end_time(pings))
 
         # are we returning aggregates or raw numbers?
         if results.has_result_column("delay.twoway.icmp.us"):
