@@ -93,6 +93,9 @@ class HttpClient(object):
         """Iterate over capabilities"""
         yield from self._capabilities
 
+    def capability_at(index):
+        return self._capabilities[index]
+
     def add_capability(self, cap):
         # FIXME check for duplicates?
         self._capabilities.append(cap)
@@ -148,6 +151,12 @@ class HttpClient(object):
         yield from self._results
         yield from self._receipts
 
+    def measurement_at(index):
+        if index >= len(self._results):
+            index -= len(self._results)
+            return self._receipts[index]
+        else:
+            return self._results[index]
 
 class ClientShell(cmd.Cmd):
 
@@ -156,6 +165,7 @@ class ClientShell(cmd.Cmd):
 
     def preloop(self):
         self._client = None
+        self._defaults = {}
 
     def do_connect(self, arg):
         args = arg.split()
@@ -168,29 +178,22 @@ class ClientShell(cmd.Cmd):
 
     def do_listcap(self, arg):
         """List available capabilities by number"""
-        capabilities = list(self._client.capabilities())
-        print("%4u capabilities" % len(capabilities))
-        for cap, i in enumerate(capabilities):
+        for cap, i in enumerate(self.client.capabilities()):
             print ("%4u: %s" % i, repr(cap))
 
     def do_listmeas(self, arg):
         """List running/completed measurements by number"""
-        measurements = list(self._client.measurements())
-        print("%4u measurements" % len(measurements))
-        for meas, i in enumerate(measurements):
+        for meas, i in enumerate(self.client.measurements()):
             print ("%4u: %s" % i, repr(meas))
 
-#WORK POINTER
-
     def do_showcap(self, arg):
-        """Show details for a capability, given a number"""
         if len(arg) > 0:
             try:
-                self.show_stmt(self._caps[int(arg.split()[0])])
+                self._show_stmt(self.client.capability_at(int(arg.split()[0]))
             except:
-                print("No such capability "+arg.split()[0])
+                print("No such capability "+arg)
         else:
-            for cap in self._caps:
+            for cap, i in enumerate(self.client.capabilites())
                 print ("cap %4u ---------------------------------------" % i)
                 self._show_stmt(cap)
 
@@ -198,11 +201,11 @@ class ClientShell(cmd.Cmd):
         """Show receipt/results for a measurement, given a number"""
         if len(arg) > 0:
             try:
-                self.show_stmt(self._meas[int(arg.split()[0])])
+                self._show_stmt(self.client.measurement_at(int(arg.split()[0]))
             except:
-                print("No such measurement "+arg.split[0])
+                print("No such measurement "+arg)
         else:
-            for meas, i in enumerate(self._meas):
+            for meas, i in enumerate(self.client.measurements()):
                 print ("meas %4u --------------------------------------" % i)
                 self._show_stmt(meas)
 
@@ -219,16 +222,26 @@ class ClientShell(cmd.Cmd):
         """
         # Retrieve a capability and create a specification
         try:
-            spec = mplane.model.Specification(capability=self._caps[int(arg.split()[0])])
+            spec = mplane.model.Specification(
+                    capability=self.client.capability_at(int(arg.split()[0]))
         except:
             print ("No such capability "+arg)
             return
 
         # Fill in parameter values
-        for param in cap.parameter_names():
-            # WORK POINTER
-            pass
+        for pname in spec.parameter_names():
+            if spec.get_parameter_value(pname) is None:
+                if pname in self._defaults:
+                    # set parameter value from defaults
+                    spec.set_parameter_value(pname, self._defaults[pname])
+                else:
+                    # set parameter value with input
+                    print "|param| "+pname+" = "
+                    spec.set_parameter_value(pname, input())
 
+        # And send it to the server
+        self.client.handle_message(self.client.get_mplane_reply(postmsg=spec))
+        print("ok")
 
     def do_show(self, arg):
         """Show a default parameter value, or all values if no parameter name given"""

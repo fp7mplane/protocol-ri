@@ -833,6 +833,9 @@ class Constraint(object):
         """Determine if this constraint is met by a given value."""
         return True
 
+    def single_value(self):
+        return None
+
 constraint_all = Constraint(None)
 
 class RangeConstraint(Constraint):
@@ -868,6 +871,12 @@ class RangeConstraint(Constraint):
         """Determine if the value is within the range"""
         return (val >= self.a) and (val <= self.b)
 
+    def single_value(self):
+        if self.a == self.b:
+            return self.a
+        else:
+            return None
+
 class SetConstraint(Constraint):
     """Represents acceptable values as a discrete set."""
     def __init__(self, prim, sval=None, vs=None):
@@ -890,6 +899,12 @@ class SetConstraint(Constraint):
     def met_by(self, val):
         """Determine if the value is a mamber of the set"""
         return val in self.vs
+
+    def single_value(self):
+        if len(self.vs) == 1:
+            return self.vs[0]
+        else:
+            return None
 
 def parse_constraint(prim, sval):
     if sval == CONSTRAINT_ALL:
@@ -946,6 +961,9 @@ class Parameter(Element):
     def has_value(self):
         return self._val is not None
 
+    def set_single_value(self):
+        self._val = self._constraint.single_value()
+
     def set_value(self, val):
         if isinstance(val, str):
             val = self._prim.parse(val)
@@ -972,7 +990,6 @@ class Metavalue(Element):
     """
     def __init__(self, parent_element, val):
         super(Metavalue, self).__init__(parent_element._name, parent_element._prim)
-        self._constraint = constraint_all
         self.set_value(val)
 
     def __repr__(self):
@@ -1343,6 +1360,9 @@ class Specification(Statement):
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            # set values that are constrained to a single choice
+            for param in self._params:
+                param.set_single_value()
 
     def __repr__(self):
         return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
