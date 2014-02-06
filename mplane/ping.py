@@ -31,10 +31,13 @@ import threading
 import subprocess
 import collections
 from datetime import datetime
+from ipaddress import ip_address
 import mplane.model
 import mplane.scheduler
-
+import mplane.httpsrv
 import tornado.web
+import tornado.ioloop
+import argparse
 
 _pingline_re = re.compile("icmp_seq=(\d+)\s+ttl=(\d+)\s+time=([\d\.]+)\s+ms")
 
@@ -222,27 +225,24 @@ def parse_args():
 if __name__ == "__main__":
     global args
 
-    import mplane.tornado
-    import tornado.ioloop
-    import tornado.web
-
+    mplane.model.initialize_registry()
     parse_args()
 
     ip4addr = None
     ip6addr = None
 
     if args.ip4addr:
-        ip4addr = ip_address(ip4addr)
+        ip4addr = ip_address(args.ip4addr)
         if ip4addr.version != 4:
             raise ValueError("invalid IPv4 address")
     if args.ip6addr:
-        ip6addr = ip_address(ip4addr)
+        ip6addr = ip_address(args.ip6addr)
         if ip6addr.version != 6:
             raise ValueError("invalid IPv6 address")
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
 
-    scheduler = mplane.scheduler.Scheduler
+    scheduler = mplane.scheduler.Scheduler()
     if ip4addr is not None:
         scheduler.add_service(PingService(ping4_aggregate_capability(ip4addr)))
         scheduler.add_service(PingService(ping4_singleton_capability(ip4addr)))
@@ -250,9 +250,4 @@ if __name__ == "__main__":
         scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
         scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
 
-# FIXME move this to mplane.tornado
-    application = tornado.web.Application([
-            (r"/", mplane.tornado.SchedulerHandler, {'scheduler': scheduler})
-        ])
-    application.listen(8888)
-    tornado.ioloop.IOLoop.instance().start()
+    mplane.httpsrv.runloop(scheduler)
