@@ -1675,5 +1675,5 @@ def parse_yaml(ystr):
     return mplane.model.message_from_dict(yaml.load(ystr))
 
 def unparse_yaml(msg):
-    return yaml.dump(msg.to_dict(), default_flow_style=False, indent=2)
+    return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
 

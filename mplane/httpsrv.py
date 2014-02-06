@@ -33,7 +33,6 @@ class DiscoveryHandler(tornado.web.RequestHandler):
     def get(self):
         # capabilities
         path = self.request.path.split("/")[1:]
-        print("DiscoveryHandler path is "+repr(path))
         if path[0] == CAPABILITY_PATH_ELEM:
             if (len(path) == 1 or path[1] is None):
                 self._respond_capability_links()
@@ -47,7 +46,6 @@ class DiscoveryHandler(tornado.web.RequestHandler):
         self.set_status(200)
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
-        self.write("available mplane capabilities:<br/>")
         for key in self.scheduler.capability_keys():
             self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
         self.write("</body></html>")
@@ -73,17 +71,17 @@ class MessagePostHandler(tornado.web.RequestHandler):
         self.immediate_ms = immediate_ms
 
     def get(self):
-        # capabilities
-        path = self.request.path.split("/")[1:]
-        print("DiscoveryHandler path is "+repr(path))
-        if path[0] == CAPABILITY_PATH_ELEM:
-            if (len(path) == 1 or path[1] is None):
-                self._respond_capability_links()
-            else:
-                self._respond_capability(path[1])
-        else:
-            # FIXME how do we tell tornado we don't want to handle this?
-            raise ValueError("I only know how to handle /"+CAPABILITY_PATH_ELEM+" URLs via HTTP GET")
+        # message
+        self.set_status(200)
+        self.set_header("Content-Type", "text/html")
+        self.write("<html><head><title>mplane.httpsrv</title></head><body>")
+        self.write("This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.<br/>")
+        self.write("<a href='/"+CAPABILITY_PATH_ELEM+"'>Capabilities</a> provided by this server:<br/>")
+        for key in self.scheduler.capability_keys():
+            self.write("<br/><pre>")
+            self.write(mplane.model.unparse_json(self.scheduler.capability_for_key(key)))
+        self.write("</body></html>")
+        self.finish()
 
     def post(self):
         # unwrap json message from body
@@ -120,6 +118,8 @@ class MessagePostHandler(tornado.web.RequestHandler):
         self.set_header("Content-Type", "application/x-mplane+json")
         self.write(mplane.model.unparse_json(msg))
         self.finish()
+
+# FIXME build a class that wraps a scheduler and a runloop...
 
 def runloop(scheduler, port=8888):
     application = tornado.web.Application([

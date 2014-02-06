@@ -25,15 +25,17 @@ import cmd
 import readline
 import urllib.request
 import html.parser
+import urllib.parse
 
 CAPABILITY_PATH_ELEM = "capability"
 
 class CrawlParser(html.parser.HTMLParser):
     def __init__(self, **kwargs):
-        super(LinkParser, self).__init__(**kwargs)
+        super(CrawlParser, self).__init__(**kwargs)
         self.urls = []
 
     def handle_starttag(self, tag, attrs):
+        attrs = {k: v for (k,v) in attrs}
         if tag == "a" and "href" in attrs:
             self.urls.append(attrs["href"])
 
@@ -53,6 +55,8 @@ class HttpClient(object):
                 self._capurl += "/"
             self._capurl += CAPABILITY_PATH_ELEM
 
+        print("new client: "+self._posturl+" "+self._capurl)
+
         # empty capability and measurement lists
         self._capabilities = []
         self._receipts = []
@@ -67,12 +71,12 @@ class HttpClient(object):
         else:
             req = urllib.request.Request(url)
 
-        with urllib.request.urlopen(url_or_req) as res:
+        with urllib.request.urlopen(req) as res:
             if res.status == 200 and \
                res.getheader("Content-Type") == "application/x-mplane+json":
-                return mplane.model.parse_json(res.read())
+                return mplane.model.parse_json(res.read().decode("utf-8"))
             else:
-                return None
+                print(url+" "+repr(res))
 
     def handle_message(self, msg):
         if isinstance(msg, mplane.model.Capability):
@@ -91,29 +95,33 @@ class HttpClient(object):
         """Iterate over capabilities"""
         yield from self._capabilities
 
-    def capability_at(index):
+    def capability_at(self, index):
         return self._capabilities[index]
 
     def add_capability(self, cap):
-        # FIXME check for duplicates?
+        print("adding capability "+cap.get_token())
         self._capabilities.append(cap)
 
     def clear_capabilities(self):
         self._capabilities.clear()
 
-    def retrieve_capabilities(self, url=None):
+    def retrieve_capabilities(self, listurl=None):
         # By default, use the stored capabilities 
-        if url is not None:
-            url = self._capurl
+        if listurl is None:
+            listurl = self._capurl
             self.clear_capabilities()
-        with urllib.request.urlopen(url) as res:
-            if res.status == 200 and \
-                    res.getheader("Content-Type") == "text/xhtml":
-                parser = CrawlPaeser(strict=False)
-                parser.feed(res.read())
+
+        print("getting capabilities from "+listurl)
+        with urllib.request.urlopen(listurl) as res:
+            if res.status == 200:
+                parser = CrawlParser(strict=False)
+                parser.feed(res.read().decode("utf-8"))
                 parser.close()
-                for url in parser.urls:
-                    handle_message(get_mplane_reply(url=url))
+                for capurl in parser.urls:
+                    self.handle_message(
+                        self.get_mplane_reply(url=urllib.parse.urljoin(listurl, capurl)))
+            else:
+                print(listurl+": "+str(res.status))
        
     def receipts(self):
         """Iterate over receipts (pending measurements)"""
@@ -166,6 +174,7 @@ class ClientShell(cmd.Cmd):
         self._defaults = {}
 
     def do_connect(self, arg):
+        """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
         args = arg.split()
         if len(args) >= 2:
             self._client = HttpClient(posturl=args[0], capurl=args[1])
@@ -174,24 +183,26 @@ class ClientShell(cmd.Cmd):
         else:
             print("Cannot connect without a url")
 
+        self._client.retrieve_capabilities()
+
     def do_listcap(self, arg):
         """List available capabilities by number"""
-        for cap, i in enumerate(self.client.capabilities()):
-            print ("%4u: %s" % i, repr(cap))
+        for i, cap in enumerate(self._client.capabilities()):
+            print ("%4u: %s" % (i, repr(cap)))
 
     def do_listmeas(self, arg):
         """List running/completed measurements by number"""
-        for meas, i in enumerate(self.client.measurements()):
-            print ("%4u: %s" % i, repr(meas))
+        for i, meas in enumerate(self._client.measurements()):
+            print ("%4u: %s" % (i, repr(meas)))
 
     def do_showcap(self, arg):
         if len(arg) > 0:
             try:
-                self._show_stmt(self.client.capability_at(int(arg.split()[0]))
+                self._show_stmt(self._client.capability_at(int(arg.split()[0])))
             except:
                 print("No such capability "+arg)
         else:
-            for cap, i in enumerate(self.client.capabilites())
+            for i, cap in enumerate(self._client.capabilities()):
                 print ("cap %4u ---------------------------------------" % i)
                 self._show_stmt(cap)
 
@@ -199,17 +210,17 @@ class ClientShell(cmd.Cmd):
         """Show receipt/results for a measurement, given a number"""
         if len(arg) > 0:
             try:
-                self._show_stmt(self.client.measurement_at(int(arg.split()[0]))
+                self._show_stmt(self._client.measurement_at(int(arg.split()[0])))
             except:
                 print("No such measurement "+arg)
         else:
-            for meas, i in enumerate(self.client.measurements()):
+            for i, meas in enumerate(self._client.measurements()):
                 print ("meas %4u --------------------------------------" % i)
                 self._show_stmt(meas)
 
-    def _show_stmt(self, arg):
+    def _show_stmt(self, stmt):
         """Internal statement/result printer"""
-        print(mplane.model.unparse_yaml(spec))
+        print(mplane.model.unparse_yaml(stmt))
 
     def do_runcap(self, arg):
         """
@@ -219,12 +230,12 @@ class ClientShell(cmd.Cmd):
 
         """
         # Retrieve a capability and create a specification
-        try:
-            spec = mplane.model.Specification(
-                    capability=self.client.capability_at(int(arg.split()[0]))
-        except:
-            print ("No such capability "+arg)
-            return
+#        try:
+        spec = mplane.model.Specification(
+                    capability=self._client.capability_at(int(arg.split()[0])))
+#        except:
+#            print ("No such capability "+arg)
+#            return
 
         # Fill in parameter values
         for pname in spec.parameter_names():
@@ -234,11 +245,11 @@ class ClientShell(cmd.Cmd):
                     spec.set_parameter_value(pname, self._defaults[pname])
                 else:
                     # set parameter value with input
-                    print "|param| "+pname+" = "
+                    print("|param| "+pname+" = ")
                     spec.set_parameter_value(pname, input())
 
         # And send it to the server
-        self.client.handle_message(self.client.get_mplane_reply(postmsg=spec))
+        self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))
         print("ok")
 
     def do_show(self, arg):
@@ -281,4 +292,5 @@ class ClientShell(cmd.Cmd):
         return True
 
 if __name__ == "__main__":
+    mplane.model.initialize_registry()
     ClientShell().cmdloop()
