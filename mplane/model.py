@@ -1529,17 +1529,21 @@ class Exception(BareNotification):
             errmsg = "Unspecified exception"
         self._errmsg = errmsg
 
+    def __repr__(self):
+        return "<Exception: "+self._token+" "+self._errmsg+">"
+
     def get_token(self):
         return self._token
 
     def to_dict(self):
+        d = collections.OrderedDict()
         d[SECTION_TOKEN] = self._token
-        d[SECTION_ERRMSG] = self._errmsg
+        d[SECTION_ERROR] = self._errmsg
         return d
 
     def _from_dict(self, d):
         self._token = d[SECTION_TOKEN]
-        self._errmsg = d[SECTION_ERRMSG]
+        self._errmsg = d[SECTION_ERROR]
 
 class StatementNotification(Statement):
     """

@@ -25,7 +25,15 @@ import mplane.model
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 
-class DiscoveryHandler(tornado.web.RequestHandler):
+class MPlaneHandler(tornado.web.RequestHandler):
+
+    def _respond_message(self, msg):
+        self.set_status(200)
+        self.set_header("Content-Type", "application/x-mplane+json")
+        self.write(mplane.model.unparse_json(msg))
+        self.finish()
+
+class DiscoveryHandler(MPlaneHandler):
 
     def initialize(self, scheduler):
         self.scheduler = scheduler
@@ -54,17 +62,7 @@ class DiscoveryHandler(tornado.web.RequestHandler):
     def _respond_capability(self, key):
         self._respond_message(self.scheduler.capability_for_key(key))
 
-    def _respond_message(self, msg):
-        if isinstance(msg, mplane.model.Exception):
-            self.set_status(500)
-        else:
-            self.set_status(200)
-
-        self.set_header("Content-Type", "application/x-mplane+json")
-        self.write(mplane.model.unparse_json(msg))
-        self.finish()
-
-class MessagePostHandler(tornado.web.RequestHandler):
+class MessagePostHandler(MPlaneHandler):
 
     def initialize(self, scheduler, immediate_ms = 5000):
         self.scheduler = scheduler
@@ -107,17 +105,7 @@ class MessagePostHandler(tornado.web.RequestHandler):
                     break
 
         # return reply
-        _respond_message(reply)
-
-    def _respond_message(self, msg):
-        if isinstance(msg, mplane.model.Exception):
-            self.set_status(500)
-        else:
-            self.set_status(200)
-
-        self.set_header("Content-Type", "application/x-mplane+json")
-        self.write(mplane.model.unparse_json(msg))
-        self.finish()
+        self._respond_message(reply)
 
 # FIXME build a class that wraps a scheduler and a runloop...
 

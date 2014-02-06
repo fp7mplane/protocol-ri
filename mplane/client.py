@@ -81,13 +81,16 @@ class HttpClient(object):
                 print(url+" "+repr(res))
 
     def handle_message(self, msg):
+        print("got message:")
+        print(mplane.model.unparse_yaml(msg))
+
         if isinstance(msg, mplane.model.Capability):
             self.add_capability(msg)
         elif isinstance(msg, mplane.model.Receipt):
             self.add_receipt(msg)
         elif isinstance(msg, mplane.model.Result):
             self.add_result(msg)
-        elif isinstance(msf, mplane.model.Exception):
+        elif isinstance(msg, mplane.model.Exception):
             self.handle_exception(msg)
         else:
             # FIXME do something diagnostic here
@@ -165,6 +168,9 @@ class HttpClient(object):
             return self._receipts[index]
         else:
             return self._results[index]
+
+    def handle_exception(self, exc):
+        print(repr(exc))
 
 class ClientShell(cmd.Cmd):
 
