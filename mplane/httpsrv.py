@@ -86,7 +86,7 @@ class MessagePostHandler(tornado.web.RequestHandler):
     def post(self):
         # unwrap json message from body
         if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            msg = mplane.model.parse_json(self.request.body)
+            msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
             # FIXME how do we tell tornado we don't want to handle this?
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
@@ -95,12 +95,12 @@ class MessagePostHandler(tornado.web.RequestHandler):
         reply = self.scheduler.receive_message(msg)
 
         # wait for immediate delay
-        if immediate_ms > 0 and \
+        if self.immediate_ms > 0 and \
            isinstance(msg, mplane.model.Specification) and \
            isinstance(reply, mplane.model.Receipt):
             job = self.scheduler.job_for_message(reply)
             wait_start = datetime.utcnow()
-            while (datetime.utcnow() - wait_start).total_seconds() * 1000 < immediate_ms:
+            while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
                 time.sleep(SLEEP_QUANTUM)
                 if job.finished():
                     reply = job.get_reply()

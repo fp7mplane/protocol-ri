@@ -1527,7 +1527,7 @@ class Exception(BareNotification):
         super(Exception, self).__init__(dictval=dictval, token=token)
         if errmsg is None:
             errmsg = "Unspecified exception"
-        self.errmsg = _errmsg
+        self._errmsg = errmsg
 
     def get_token(self):
         return self._token

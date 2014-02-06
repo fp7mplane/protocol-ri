@@ -164,7 +164,7 @@ class Scheduler(object):
         """
         reply = None
         if isinstance(msg, mplane.model.Specification):
-            reply = self.start_job(specification=specification, session=session)
+            reply = self.start_job(specification=msg, session=session)
         elif isinstance (msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
