@@ -49,7 +49,7 @@ class DiscoveryHandler(tornado.web.RequestHandler):
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
         self.write("available mplane capabilities:<br/>")
-        for key in self.scheduler.capability_keys:
+        for key in self.scheduler.capability_keys():
             self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
             self.write(key)
             self.write("'>")
