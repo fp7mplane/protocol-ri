@@ -20,7 +20,7 @@
 #
 
 import mplane.model
-
+import sys
 import cmd
 import readline
 import urllib.request
@@ -64,9 +64,11 @@ class HttpClient(object):
 
     def get_mplane_reply(self, url=None, postmsg=None):
         if postmsg is not None:
+            if url is None:
+                url = self._posturl
             req = urllib.request.Request(url, 
-                    data=mplane.model.unparse_json(msg),
-                    headers={"Content-Type", "application/x-mplane+json"}, 
+                    data=mplane.model.unparse_json(postmsg).encode("utf-8"),
+                    headers={"Content-Type": "application/x-mplane+json"}, 
                     method="POST")
         else:
             req = urllib.request.Request(url)
@@ -242,11 +244,15 @@ class ClientShell(cmd.Cmd):
             if spec.get_parameter_value(pname) is None:
                 if pname in self._defaults:
                     # set parameter value from defaults
+                    print("|param| "+pname+" = "+self._defaults[pname])
                     spec.set_parameter_value(pname, self._defaults[pname])
                 else:
                     # set parameter value with input
-                    print("|param| "+pname+" = ")
+                    sys.stdout.write("|param| "+pname+" = ")
                     spec.set_parameter_value(pname, input())
+            else:
+                # FIXME we really want to unparse this
+                print("|param| "+pname+" = "+str(spec.get_parameter_value(pname)))
 
         # And send it to the server
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))

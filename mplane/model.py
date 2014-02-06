@@ -312,6 +312,10 @@ PARAM_END = "end"
 # Special Timestamp Values
 #######################################################################
 
+# FIXME we need magic timestamp values representing durations 
+# (for end timestamp) or some special handling of start/end/duration
+# parameters
+
 @functools.total_ordering
 class PastTime:
     """
@@ -332,7 +336,6 @@ class PastTime:
     def __repr__(self):
         return "mplane.model.time_past"
 
-
 time_past = PastTime()
 
 @functools.total_ordering
@@ -343,9 +346,14 @@ class PresentTime:
     
     """
     def __lt__(self, rval):
-        return datetime.utcnow() < rval;
+        if isinstance(rval, PresentTime):
+            return False
+        else:
+          return datetime.utcnow() < rval;
     
     def __eq__(self, rval):
+        if isinstance(rval, PresentTime):
+            return True
         return datetime.utcnow() == rval;
 
     def __str__(self):
@@ -506,7 +514,6 @@ class NaturalPrimitive(Primitive):
         else:
             return int(sval)
 
-
 class RealPrimitive(Primitive):
     """
     Represents a real number (floating point).
@@ -625,14 +632,14 @@ class TimePrimitive(Primitive):
                 dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M")
             else:
                 dt = datetime.strptime(valstr, "%Y-%m-%d")
-            dt.replace(tzinfo=timezone.utc)
+#            dt.replace(tzinfo=timezone.utc)
             return dt
     
     def unparse(self, val):
         if val is None:
             return VALUE_NONE
         if isinstance(val, datetime):
-            val.replace(tzinfo=timezone.utc)
+ #           val.replace(tzinfo=timezone.utc)
             return val.strftime("%Y-%m-%d %H:%M:%S.%f")
         else:
             return str(val)
@@ -904,7 +911,7 @@ class SetConstraint(Constraint):
 
     def single_value(self):
         if len(self.vs) == 1:
-            return self.vs[0]
+            return list(self.vs)[0]
         else:
             return None
 
@@ -1106,7 +1113,7 @@ class Statement(object):
         return len(self._params)
 
     def count_parameter_values(self):
-        """Return the number of parameters in this Statement"""
+        """Return the number of parameters with values in this Statement"""
         return sum(map(lambda p: p.has_value(), self._params.values()))
 
     def get_parameter_value(self, elem_name):
@@ -1363,7 +1370,7 @@ class Specification(Statement):
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
             # set values that are constrained to a single choice
-            for param in self._params:
+            for param in self._params.values():
                 param.set_single_value()
 
     def __repr__(self):
