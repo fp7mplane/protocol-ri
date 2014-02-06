@@ -20,8 +20,6 @@
 #
 
 import mplane.model
-import mplane.json
-import mplane.yaml
 
 import cmd
 import readline
@@ -63,7 +61,7 @@ class HttpClient(object):
     def get_mplane_reply(self, url=None, postmsg=None):
         if postmsg is not None:
             req = urllib.request.Request(url, 
-                    data=mplane.json.unparse(msg),
+                    data=mplane.model.unparse_json(msg),
                     headers={"Content-Type", "application/x-mplane+json"}, 
                     method="POST")
         else:
@@ -72,7 +70,7 @@ class HttpClient(object):
         with urllib.request.urlopen(url_or_req) as res:
             if res.status == 200 and \
                res.getheader("Content-Type") == "application/x-mplane+json":
-                return mplane.json.parse(res.read())
+                return mplane.model.parse_json(res.read())
             else:
                 return None
 
@@ -211,7 +209,7 @@ class ClientShell(cmd.Cmd):
 
     def _show_stmt(self, arg):
         """Internal statement/result printer"""
-        print(mplane.yaml.unparse(spec))
+        print(mplane.model.unparse_yaml(spec))
 
     def do_runcap(self, arg):
         """

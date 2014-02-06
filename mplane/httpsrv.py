@@ -21,7 +21,6 @@
 
 import tornado.web
 import mplane.model
-import mplane.json
 
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
@@ -51,14 +50,21 @@ class DiscoveryHandler(tornado.web.RequestHandler):
         self.write("available mplane capabilities:<br/>")
         for key in self.scheduler.capability_keys():
             self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
-            self.write(key)
-            self.write("'>")
-            self.write(key)
         self.write("</body></html>")
         self.finish()
 
     def _respond_capability(self, key):
         self._respond_message(self.scheduler.capability_for_key(key))
+
+    def _respond_message(self, msg):
+        if isinstance(msg, mplane.model.Exception):
+            self.set_status(500)
+        else:
+            self.set_status(200)
+
+        self.set_header("Content-Type", "application/x-mplane+json")
+        self.write(mplane.model.unparse_json(msg))
+        self.finish()
 
 class MessagePostHandler(tornado.web.RequestHandler):
 
@@ -66,10 +72,23 @@ class MessagePostHandler(tornado.web.RequestHandler):
         self.scheduler = scheduler
         self.immediate_ms = immediate_ms
 
+    def get(self):
+        # capabilities
+        path = self.request.path.split("/")[1:]
+        print("DiscoveryHandler path is "+repr(path))
+        if path[0] == CAPABILITY_PATH_ELEM:
+            if (len(path) == 1 or path[1] is None):
+                self._respond_capability_links()
+            else:
+                self._respond_capability(path[1])
+        else:
+            # FIXME how do we tell tornado we don't want to handle this?
+            raise ValueError("I only know how to handle /"+CAPABILITY_PATH_ELEM+" URLs via HTTP GET")
+
     def post(self):
         # unwrap json message from body
         if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            msg = mplane.json.parse(self.request.body)
+            msg = mplane.model.parse_json(self.request.body)
         else:
             # FIXME how do we tell tornado we don't want to handle this?
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
@@ -99,7 +118,7 @@ class MessagePostHandler(tornado.web.RequestHandler):
             self.set_status(200)
 
         self.set_header("Content-Type", "application/x-mplane+json")
-        self.write(mplane.json.unparse(msg))
+        self.write(mplane.model.unparse_json(msg))
         self.finish()
 
 def runloop(scheduler, port=8888):

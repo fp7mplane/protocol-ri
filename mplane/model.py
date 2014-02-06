@@ -260,6 +260,8 @@ import collections
 import functools
 import operator
 import hashlib
+import json
+import yaml
 import re
 import os
 
@@ -1661,4 +1663,17 @@ def message_from_dict(d):
     for k in classmap.keys():
         if k in d:
             return classmap[k](dictval = d)
+
+def parse_json(jstr):
+    return message_from_dict(json.loads(jstr))
+
+def unparse_json(msg):
+    return json.dumps(msg.to_dict(), 
+                      sort_keys=True, indent=2, separators=(',',': '))
+
+def parse_yaml(ystr):
+    return mplane.model.message_from_dict(yaml.load(ystr))
+
+def unparse_yaml(msg):
+    return yaml.dump(msg.to_dict(), default_flow_style=False, indent=2)
 
