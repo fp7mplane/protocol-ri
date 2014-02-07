@@ -74,11 +74,14 @@ class HttpClient(object):
             req = urllib.request.Request(url)
 
         with urllib.request.urlopen(req) as res:
+            print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("Content-Type"))
             if res.status == 200 and \
                res.getheader("Content-Type") == "application/x-mplane+json":
+                print("parsing json")
                 return mplane.model.parse_json(res.read().decode("utf-8"))
             else:
-                print(url+" "+repr(res))
+                print("giving up")
+                return None
 
     def handle_message(self, msg):
         print("got message:")

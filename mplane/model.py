@@ -293,8 +293,9 @@ SECTION_METADATA = "metadata"
 SECTION_RESULTS = "results"
 SECTION_RESULTVALUES = "resultvalues"
 SECTION_TOKEN = "token"
-SECTION_ERROR = "error"
+SECTION_MESSAGE = "message"
 SECTION_LINK = "link"
+SECTION_WHEN = "when"
 
 KIND_CAPABILITY = "capability"
 KIND_SPECIFICATION = "specification"
@@ -304,6 +305,7 @@ KIND_REDEMPTION = "redemption"
 KIND_INDIRECTION = "indirection"
 KIND_WITHDRAWAL = "withdrawal"
 KIND_INTERRUPT = "interrupt"
+KIND_EXCEPTION = "exception"
 
 PARAM_START = "start"
 PARAM_END = "end"
@@ -1558,13 +1560,13 @@ class Exception(BareNotification):
 
     def to_dict(self):
         d = collections.OrderedDict()
-        d[SECTION_TOKEN] = self._token
-        d[SECTION_ERROR] = self._errmsg
+        d[KIND_EXCEPTION] = self._token
+        d[SECTION_MESSAGE] = self._errmsg
         return d
 
     def _from_dict(self, d):
-        self._token = d[SECTION_TOKEN]
-        self._errmsg = d[SECTION_ERROR]
+        self._token = d[KIND_EXCEPTION]
+        self._errmsg = d[SECTION_MESSAGE]
 
 class StatementNotification(Statement):
     """
@@ -1690,11 +1692,13 @@ def message_from_dict(d):
                  KIND_RECEIPT : Receipt,
                  KIND_REDEMPTION : Redemption,
                  KIND_WITHDRAWAL : Withdrawal,
-                 KIND_INTERRUPT : Interrupt }
+                 KIND_INTERRUPT : Interrupt,
+                 KIND_EXCEPTION : Exception}
 
     for k in classmap.keys():
         if k in d:
             return classmap[k](dictval = d)
+    raise ValueError("Cannot determine message type from "+repr(d))
 
 def parse_json(jstr):
     return message_from_dict(json.loads(jstr))
