@@ -308,6 +308,8 @@ KIND_INTERRUPT = "interrupt"
 PARAM_START = "start"
 PARAM_END = "end"
 
+REPHL = 8
+
 #######################################################################
 # Special Timestamp Values
 #######################################################################
@@ -632,14 +634,12 @@ class TimePrimitive(Primitive):
                 dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M")
             else:
                 dt = datetime.strptime(valstr, "%Y-%m-%d")
-#            dt.replace(tzinfo=timezone.utc)
             return dt
     
     def unparse(self, val):
         if val is None:
             return VALUE_NONE
         if isinstance(val, datetime):
- #           val.replace(tzinfo=timezone.utc)
             return val.strftime("%Y-%m-%d %H:%M:%S.%f")
         else:
             return str(val)
@@ -838,6 +838,9 @@ class Constraint(object):
         """Represent this Constraint as a string"""
         return CONSTRAINT_ALL
 
+    def __repr__(self):
+        return "mplane.model.constraint_all"
+
     def met_by(self, val):
         """Determine if this constraint is met by a given value."""
         return True
@@ -964,8 +967,7 @@ class Parameter(Element):
 
     def __repr__(self):
         return "<Parameter "+str(self)+" "+repr(self._prim)+\
-               " constraint "+str(self._constraint)+\
-               " value "+repr(self._val)+" >"
+               str(self._constraint)+" value "+repr(self._val)+">"
 
     def has_value(self):
         return self._val is not None
@@ -1086,7 +1088,8 @@ class Statement(object):
             self._verb = verb;
 
     def __repr__(self):
-        return "<Statement "+self.kind_str()+": "+self._verb+" ("+self.schema_hash()+")>"
+        return "<Statement "+self.kind_str()+": "+self._verb+\
+               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+">"
 
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
@@ -1161,7 +1164,7 @@ class Statement(object):
         return functools.reduce(max, 
                    [len(col) for col in self._resultcolumns.values()], 0)
 
-    def schema_hash(self):
+    def schema_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters
         and result columns (the schema) of this statement.
@@ -1169,9 +1172,13 @@ class Statement(object):
         """
         sstr = "p " + " ".join(sorted(self._params.keys())) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
-        return hashlib.md5(sstr.encode('utf-8')).hexdigest()
+        hstr = hashlib.md5(sstr.encode('utf-8')).hexdigest()
+        if lim is not None:
+            return hstr[:lim]
+        else:
+            return hstr
 
-    def pv_hash(self):
+    def pv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter values, and result columns of this statement. Used as
@@ -1184,13 +1191,17 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
-        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        if lim is not None:
+            return hstr[:lim]
+        else:
+            return hstr        
 
-    def pcv_hash(self):
+    def pcv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter constraints, parameter values, and result columns 
-        of this statement.
+        of this statement. Used as a capability key.
 
         """
         spk = sorted(self._params.keys())
@@ -1200,10 +1211,13 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
-        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        if lim is not None:
+            return hstr[:lim]
+        else:
+            return hstr
 
-
-    def mpcv_hash(self):
+    def mpcv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter constraints, parameter values, metadata, metadata values, 
@@ -1221,10 +1235,14 @@ class Statement(object):
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
-        return hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
+        if lim is not None:
+            return hstr[:lim]
+        else:
+            return hstr
 
-    def get_token(self):
-        return self.mpcv_hash()
+    def get_token(self, lim=None):
+        return self.mpcv_hash(lim)
 
     def _result_rows(self):
         rows = []
@@ -1320,10 +1338,11 @@ class Capability(Statement):
         super(Capability, self).__init__(dictval=dictval, verb=verb)
 
     def __repr__(self):
-        return "<Capability: "+self._verb+" "+self.schema_hash()+" with "+\
-               str(self.count_parameters())+" params, "+\
-               str(self.count_metadata())+" metadata, "+\
-               str(self.count_result_columns())+" columns>"
+        return "<Capability: "+self._verb+\
+               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " p/m/r "+str(self.count_parameters())+"/"+\
+               str(self.count_metadata())+"/"+\
+               str(self.count_result_columns())+">"
 
     def kind_str(self):
         return KIND_CAPABILITY
@@ -1374,11 +1393,12 @@ class Specification(Statement):
                 param.set_single_value()
 
     def __repr__(self):
-        return "<Specification: "+self._verb+" "+self.schema_hash()+" with "+\
-               str(self.count_parameter_values())+"/"+\
-               str(self.count_parameters())+" params, "+\
-               str(self.count_metadata())+" metadata, "+\
-               str(self.count_result_columns())+" columns>"
+        return "<Specification: "+self._verb+\
+               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " p(v)/m/r "+str(self.count_parameters())+"("+\
+               str(self.count_parameter_values())+")/"+\
+               str(self.count_metadata())+"/"+\
+               str(self.count_result_columns())+">"
 
     def kind_str(self):
         return KIND_SPECIFICATION
@@ -1457,11 +1477,12 @@ class Result(Statement):
             self._resultcolumns = deepcopy(specification._resultcolumns)
 
     def __repr__(self):
-        return "<Result: "+self._verb+" "+self.schema_hash()+" with "+\
-               str(self.count_parameters())+" params, "+\
-               str(self.count_metadata())+" metadata, "+\
-               str(self.count_result_columns())+" columns, "+\
-               str(self.count_result_rows())+" rows>"
+        return "<Result: "+self._verb+\
+               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " p/m/r(r) "+str(self.count_parameters())+"/"+\
+               str(self.count_metadata())+"/"+\
+               str(self.count_result_columns())+"("+\
+               str(self.count_result_rows())+")>"
 
     def kind_str(self):
         return KIND_RESULT

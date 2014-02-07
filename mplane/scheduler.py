@@ -66,6 +66,9 @@ class Service(object):
     def capability(self):
         return self._capability
 
+    def __repr__(self):
+        return "<Service for "+repr(self._capability)+">"
+
 class Job(object):
     """
     A Job is a binding of some running code to an
@@ -118,8 +121,10 @@ class Job(object):
 
         # start a timer to schedule in the future if we have delay
         if delay > 0:
-            threading.Timer(self._delay.total_seconds(), self._schedule_now).start()
+            print("Scheduling "+repr(self)+" after "+delay.total_seconds()+" sec")
+            threading.Timer(delay.total_seconds(), self._schedule_now).start()
         else:
+            print("Scheduling "+repr(self)+" immediately")
             self._schedule_now()
 
     def interrupt(self):
@@ -143,6 +148,10 @@ class Job(object):
             return self.result
         else:
             return self.receipt
+
+    def __repr__(self):
+        return "<Job for "+repr(self._specification)+">"
+
 
 class Scheduler(object):
     """
@@ -178,6 +187,7 @@ class Scheduler(object):
         return reply
 
     def add_service(self, service):
+        print("Added "+repr(service))
         self.services.append(service)
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
@@ -198,6 +208,7 @@ class Scheduler(object):
         for service in self.services:
             if specification.fulfills(service.capability):
                 # Found. Create a new job.
+                print(repr(service)+" matches "+repr(specification))
                 new_job = Job(service=service, \
                               specification=specification, \
                               session=session)
@@ -206,14 +217,17 @@ class Scheduler(object):
                 job_key = new_job.receipt.get_token()
                 if job_key in self.jobs:
                     # Job already running. Return receipt
+                    print(repr(self.jobs[job_key])+" already running")
                     return self.jobs[job_key].receipt
 
                 # Keep track of the job and return receipt
                 new_job.schedule()
                 self.jobs[job_key] = new_job
+                print("Returning "+repr(new_job.receipt))
                 return new_job.receipt
 
-        # fall-through, no job 
+        # fall-through, no job
+        print("No service for "+repr(specification))
         return mplane.model.Exception(token=specification.get_token(),
                     errmsg="No service registered for specification")
 

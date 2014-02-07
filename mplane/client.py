@@ -104,7 +104,7 @@ class HttpClient(object):
         return self._capabilities[index]
 
     def add_capability(self, cap):
-        print("adding capability "+cap.get_token())
+        print("adding "+repr(cap))
         self._capabilities.append(cap)
 
     def clear_capabilities(self):
