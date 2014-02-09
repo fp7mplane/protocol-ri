@@ -1421,7 +1421,7 @@ class Specification(Statement):
         Returns 0 if the specification should start immediately. 
         """
         start = self.get_parameter_value(PARAM_START)
-        if start is time_now or start is time_whenever:
+        if start is time_present or start is time_whenever:
             return 0
         elif isinstance(start, datetime):
             return max(0, (start - datetime.utcnow()).total_seconds())
@@ -1446,7 +1446,7 @@ class Specification(Statement):
         elif not isinstance(end, datetime):
             raise ValueError("Invalid "+PARAM_END+" value")
 
-        if start is time_now or start is time_whenever:
+        if start is time_present or start is time_whenever:
             start = datetime.utcnow()
 
         return (end - start).total_seconds()
@@ -1459,14 +1459,15 @@ class Specification(Statement):
         """
         return self.get_parameter_value(PARAM_END) is time_once
 
-    def fulfills(self, spec):
+    def fulfills(self, cap):
         """
         Determine whether this specification fulfills a given capability
         (i.e. that the schemas match and that the parameter values match
         the constraints)
 
         """
-        pass
+        #FIXME maybe do this without schema hashing?
+        return self.schema_hash() == cap.schema_hash()
 
 class Result(Statement):
     """docstring for Result"""

@@ -46,6 +46,7 @@ _ping6cmd = "ping6"
 _pingopts = ["-n"]
 _pingopt_period = "-i"
 _pingopt_count = "-c"
+_pingopt_source = "-S"
 
 PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 
@@ -56,20 +57,21 @@ def _parse_ping_line(line):
     mg = m.groups()
     return PingValue(datetime.utcnow(), int(mg[0]), int(mg[1]), int(float(mg[2]) * 1000))
 
-def _ping_process(progname, ipaddr, period=None, count=None):
+def _ping_process(progname, sipaddr, dipaddr, period=None, count=None):
     ping_argv = [progname]
     if period is not None:
         ping_argv += [_pingopt_period, str(period)]
     if count is not None:
         ping_argv += [_pingopt_count, str(count)]
-    ping_argv += [str(ipaddr)]
+    ping_argv += [_pingopt_source, str(sipaddr)]
+    ping_argv += [str(dipaddr)]
 
     return subprocess.Popen(ping_argv, stdout=subprocess.PIPE)
 
-def _ping4_process(ipaddr, period=None, count=None):
+def _ping4_process(sipaddr, dipaddr, period=None, count=None):
     return _ping_process(_ping4cmd, ipaddr, period, count)
 
-def _ping6_process(ipaddr, period=None, count=None):
+def _ping6_process(sipaddr, dipaddr, period=None, count=None):
     return _ping_process(_ping6cmd, ipaddr, period, count)
 
 def pings_min_delay(pings):

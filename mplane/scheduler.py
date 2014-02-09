@@ -111,7 +111,7 @@ class Job(object):
         # set up interrupt timer if necessary
         duration = self.specification.job_duration()
         if duration is not None and duration > 0:
-            threading.Timer(self._duration.total_seconds(), self.interrupt).start()
+            threading.Timer(duration, self.interrupt).start()
         
     def schedule(self):
         """
@@ -121,8 +121,8 @@ class Job(object):
 
         # start a timer to schedule in the future if we have delay
         if delay > 0:
-            print("Scheduling "+repr(self)+" after "+delay.total_seconds()+" sec")
-            threading.Timer(delay.total_seconds(), self._schedule_now).start()
+            print("Scheduling "+repr(self)+" after "+str(delay)+" sec")
+            threading.Timer(delay, self._schedule_now).start()
         else:
             print("Scheduling "+repr(self)+" immediately")
             self._schedule_now()
@@ -150,7 +150,7 @@ class Job(object):
             return self.receipt
 
     def __repr__(self):
-        return "<Job for "+repr(self._specification)+">"
+        return "<Job for "+repr(self.specification)+">"
 
 
 class Scheduler(object):
@@ -206,7 +206,7 @@ class Scheduler(object):
         """
         # linearly search the available services
         for service in self.services:
-            if specification.fulfills(service.capability):
+            if specification.fulfills(service.capability()):
                 # Found. Create a new job.
                 print(repr(service)+" matches "+repr(specification))
                 new_job = Job(service=service, \
