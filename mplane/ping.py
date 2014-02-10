@@ -179,7 +179,7 @@ class PingService(mplane.scheduler.Service):
         # read output from ping
         pings = []
         for line in ping_process.stdout:
-            if check_interrupt:
+            if check_interrupt():
                 break
             oneping = None
             while oneping is None:
