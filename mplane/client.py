@@ -27,6 +27,8 @@ import urllib.request
 import html.parser
 import urllib.parse
 
+from datetime import datetime, timedelta
+
 CAPABILITY_PATH_ELEM = "capability"
 
 class CrawlParser(html.parser.HTMLParser):
@@ -138,7 +140,7 @@ class HttpClient(object):
     def add_receipt(self, msg):
         """Add a receipt. Check for duplicates."""
         if msg.get_token() not in [receipt.get_token() for receipt in self.receipts()]:
-            self._receipts.append()
+            self._receipts.append(msg)
 
     def redeem_receipt(self, msg):
         self.handle_message(self.get_mplane_reply(postmsg=mplane.model.Redemption(receipt=msg)))
@@ -157,7 +159,7 @@ class HttpClient(object):
     def add_result(self, msg):
         """Add a receipt. Check for duplicates."""
         if msg.get_token() not in [result.get_token() for results in self.results()]:
-            self._results.append()
+            self._results.append(msg)
             self.delete_receipt_for(msg.get_token())
 
     def measurements(self):
@@ -300,6 +302,16 @@ class ClientShell(cmd.Cmd):
                 del self._defaults[key]
         except:
             print("Couldn't unset default(s) "+arg)
+
+    def do_tsreset(self, arg):
+        """Reset the temporal scope to run for 30 seconds 30 seconds from now"""
+        st = datetime.utcnow()
+        st += timedelta(seconds=30)
+        et = st + timedelta(seconds=30)
+        self._defaults["start"] = st.strftime("%Y-%m-%d %H:%M:%S")
+        print("start = "+self._defaults["start"])
+        self._defaults["end"] = et.strftime("%Y-%m-%d %H:%M:%S")
+        print("end = "+self._defaults["end"])
 
     def do_EOF(self, arg):
         """Exit the shell by typing ^D"""

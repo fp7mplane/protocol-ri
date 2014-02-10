@@ -53,6 +53,7 @@ PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 def _parse_ping_line(line):
     m = _pingline_re.search(line)
     if m is None:
+        print(line)
         return None
     mg = m.groups()
     return PingValue(datetime.utcnow(), int(mg[0]), int(mg[1]), int(float(mg[2]) * 1000))
@@ -66,13 +67,15 @@ def _ping_process(progname, sipaddr, dipaddr, period=None, count=None):
     ping_argv += [_pingopt_source, str(sipaddr)]
     ping_argv += [str(dipaddr)]
 
+    print("running" + " ".join(ping_argv))
+
     return subprocess.Popen(ping_argv, stdout=subprocess.PIPE)
 
 def _ping4_process(sipaddr, dipaddr, period=None, count=None):
-    return _ping_process(_ping4cmd, ipaddr, period, count)
+    return _ping_process(_ping4cmd, sipaddr, dipaddr, period, count)
 
 def _ping6_process(sipaddr, dipaddr, period=None, count=None):
-    return _ping_process(_ping6cmd, ipaddr, period, count)
+    return _ping_process(_ping6cmd, sipaddr, dipaddr, period, count)
 
 def pings_min_delay(pings):
     return min(map(lambda x: x.usec, pings))
@@ -160,7 +163,7 @@ class PingService(mplane.scheduler.Service):
         period = spec.get_parameter_value("period.s")
         duration = spec.job_duration()
         if duration is not None and duration > 0:
-            count = duration // period
+            count = int(duration / period)
         else:
             count = None
         if spec.has_parameter("destination.ip4"):
@@ -181,36 +184,41 @@ class PingService(mplane.scheduler.Service):
             oneping = None
             while oneping is None:
                 oneping = _parse_ping_line(line.decode("utf-8"))
+            print("ping "+repr(oneping))
             pings.append(oneping)
  
-        # shut down process
-        ping_process.close()
+        # shut down and reap
+        try:
+            ping_process.kill()
+        except OSError:
+            pass
+        ping_process.wait()
 
         # derive a result from the specification
-        res = Result(specification=spec)
+        res = mplane.model.Result(specification=spec)
 
         # put actual start and end time into result
-        result.set_parameter_value("start", pings_start_time(pings))
-        result.set_parameter_value("end", pings_end_time(pings))
+        res.set_parameter_value("start", pings_start_time(pings))
+        res.set_parameter_value("end", pings_end_time(pings))
 
         # are we returning aggregates or raw numbers?
-        if results.has_result_column("delay.twoway.icmp.us"):
+        if res.has_result_column("delay.twoway.icmp.us"):
             # raw numbers
             for oneping, i in enumerate(pings):
-                results.set_result_value("delay.twoway.icmp.us", oneping.usec, i)
-            if results.has_result_column("time"):
+                res.set_result_value("delay.twoway.icmp.us", oneping.usec, i)
+            if res.has_result_column("time"):
                 for oneping, i in enumerate(pings):
-                    results.set_result_value("time", time, i)
+                    res.set_result_value("time", time, i)
         else:
             # aggregates. single row.
-            if results.has_result_column("delay.twoway.icmp.us.min"):
-                results.set_result_value("delay.twoway.icmp.us.min", pings_min_delay(pings))
-            if results.has_result_column("delay.twoway.icmp.us.mean"):
-                results.set_result_value("delay.twoway.icmp.us.mean", pings_mean_delay(pings))
-            if results.has_result_column("delay.twoway.icmp.us.median"):
-                results.set_result_value("delay.twoway.icmp.us.median", pings_median_delay(pings))
-            if results.has_result_column("delay.twoway.icmp.us.max"):
-                results.set_result_value("delay.twoway.icmp.us.max", pings_min_delay(pings))
+            if res.has_result_column("delay.twoway.icmp.us.min"):
+                res.set_result_value("delay.twoway.icmp.us.min", pings_min_delay(pings))
+            if res.has_result_column("delay.twoway.icmp.us.mean"):
+                res.set_result_value("delay.twoway.icmp.us.mean", pings_mean_delay(pings))
+            if res.has_result_column("delay.twoway.icmp.us.median"):
+                res.set_result_value("delay.twoway.icmp.us.median", pings_median_delay(pings))
+            if res.has_result_column("delay.twoway.icmp.us.max"):
+                res.set_result_value("delay.twoway.icmp.us.max", pings_min_delay(pings))
 
         return res
 
