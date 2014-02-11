@@ -1080,6 +1080,9 @@ class Statement(object):
     and :class:`mplane.model.Result` classes instead.
 
     """
+
+    # FIXME, move token into Statement, generate it from parameters, and carry it forward into Result.
+
     def __init__(self, dictval=None, verb=VERB_MEASURE):
         super(Statement, self).__init__()
         #Make a blank statement
