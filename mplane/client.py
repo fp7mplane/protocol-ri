@@ -150,7 +150,7 @@ class HttpClient(object):
             self.redeem_receipt(receipt)
 
     def delete_receipt_for(self, token):
-        self._receipts = filter(self._receipts, lambda msg: msg.get_token() != token)
+        self._receipts = list(filter(lambda msg: msg.get_token() != token, self._receipts))
 
     def results(self):
         """Iterate over receipts (pending measurements)"""
@@ -271,7 +271,7 @@ class ClientShell(cmd.Cmd):
 
     def do_redeem(self, arg):
         """Attempt to redeem all outstanding receipts"""
-        self._client.redeem.receipts()
+        self._client.redeem_receipts()
         print("ok")
 
     def do_show(self, arg):

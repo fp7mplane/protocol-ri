@@ -109,7 +109,7 @@ class MessagePostHandler(MPlaneHandler):
         # return reply
         self._respond_message(reply)
 
-# FIXME build a class that wraps a scheduler and a runloop...
+# FIXME build a class that wraps a scheduler and a runloop (and maybe a command line interpreter)
 
 def runloop(scheduler, port=8888):
     application = tornado.web.Application([
