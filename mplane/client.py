@@ -269,6 +269,11 @@ class ClientShell(cmd.Cmd):
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))
         print("ok")
 
+    def do_redeem(self, arg):
+        """Attempt to redeem all outstanding receipts"""
+        self._client.redeem.receipts()
+        print("ok")
+
     def do_show(self, arg):
         """Show a default parameter value, or all values if no parameter name given"""
         if len(arg) > 0:

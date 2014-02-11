@@ -39,7 +39,7 @@ import tornado.web
 import tornado.ioloop
 import argparse
 
-_pingline_re = re.compile("icmp_seq=(\d+)\s+ttl=(\d+)\s+time=([\d\.]+)\s+ms")
+_pingline_re = re.compile("icmp_seq=(\d+)\s+\S+=(\d+)\s+time=([\d\.]+)\s+ms")
 
 _ping4cmd = "ping"
 _ping6cmd = "ping6"
@@ -84,10 +84,10 @@ def pings_min_delay(pings):
     return min(map(lambda x: x.usec, pings))
 
 def pings_mean_delay(pings):
-    return sum(map(lambda x: x.usec, pings)) / len(pings)
+    return int(sum(map(lambda x: x.usec, pings)) / len(pings))
 
 def pings_median_delay(pings):
-    return sorted(map(lambda x: x.usec, pings))[len(pings) // 2]
+    return sorted(map(lambda x: x.usec, pings))[int(len(pings) / 2)]
 
 def pings_max_delay(pings):
     return max(map(lambda x: x.usec, pings))
@@ -170,11 +170,13 @@ class PingService(mplane.scheduler.Service):
             count = int(duration / period)
         else:
             count = None
+
         if spec.has_parameter("destination.ip4"):
             sipaddr = spec.get_parameter_value("source.ip4")
             dipaddr = spec.get_parameter_value("destination.ip4")
             ping_process = _ping4_process(sipaddr, dipaddr, period, count)
         elif spec.has_parameter("destination.ip6"):
+            sipaddr = spec.get_parameter_value("source.ip6")
             dipaddr = spec.get_parameter_value("destination.ip6")
             ping_process = _ping6_process(sipaddr, dipaddr, period, count)
         else:
@@ -207,11 +209,11 @@ class PingService(mplane.scheduler.Service):
         # are we returning aggregates or raw numbers?
         if res.has_result_column("delay.twoway.icmp.us"):
             # raw numbers
-            for oneping, i in enumerate(pings):
+            for i, oneping in enumerate(pings):
                 res.set_result_value("delay.twoway.icmp.us", oneping.usec, i)
             if res.has_result_column("time"):
-                for oneping, i in enumerate(pings):
-                    res.set_result_value("time", time, i)
+                for i, oneping in enumerate(pings):
+                    res.set_result_value("time", oneping.time, i)
         else:
             # aggregates. single row.
             if res.has_result_column("delay.twoway.icmp.us.min"):
@@ -237,15 +239,48 @@ def parse_args():
                         help="Ping from the given IPv6 address")
     args = parser.parse_args()
 
-def test_ping4():
-    testsvc = PingService(ping4_aggregate_capability(LOOP4))
-    spec = mplane.model.Specification(capability=testsvc.capability())
+def test_ping():
+    svc = PingService(ping4_aggregate_capability(LOOP4))
+    spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip4", LOOP4)
     spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
-    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=11) )
+    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
     spec.set_parameter_value("period.s", 1)
 
-    res = testsvc.run(spec, lambda: False)
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = PingService(ping4_singleton_capability(LOOP4))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("destination.ip4", LOOP4)
+    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
+    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
+    spec.set_parameter_value("period.s", 1)
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = PingService(ping6_aggregate_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("destination.ip6", LOOP6)
+    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
+    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
+    spec.set_parameter_value("period.s", 1)
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = PingService(ping6_singleton_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("destination.ip6", LOOP6)
+    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
+    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
+    spec.set_parameter_value("period.s", 1)
+
+    res = svc.run(spec, lambda: False)
     print(repr(res))
     print(mplane.model.unparse_yaml(res))
 
