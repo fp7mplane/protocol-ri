@@ -995,6 +995,9 @@ class Parameter(Element):
         else:
             return (self._name, str(self._constraint))
 
+    def _clear_constraint(self):
+        self._constraint = constraint_all
+
 class Metavalue(Element):
     """
     A Metavalue is an element which can take an unconstrained value.
@@ -1166,6 +1169,12 @@ class Statement(object):
         return functools.reduce(max, 
                    [len(col) for col in self._resultcolumns.values()], 0)
 
+    def get_link(self):
+        return self._link
+
+    def set_link(self, link):
+        self._link = link
+
     def schema_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters
@@ -1255,7 +1264,7 @@ class Statement(object):
                 try:
                     valstr = col._prim.unparse(col[row_index])
                 except IndexError:
-                    valstr = NULLVALUE
+                    valstr = VALUE_NONE
                 row.append(valstr)
         return rows
 
@@ -1319,6 +1328,10 @@ class Statement(object):
 
         if SECTION_LINK in d:
           self._link = d[SECTION_LINK]
+
+    def _clear_constraints(self):
+        for param in self._params.values():
+            param._clear_constraint()
 
 class Capability(Statement):
     """
@@ -1478,6 +1491,8 @@ class Result(Statement):
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
+            # allow parameters to take values 
+            self._clear_constraints()
 
     def __repr__(self):
         return "<Result: "+self._verb+\

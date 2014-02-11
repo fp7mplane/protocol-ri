@@ -2,7 +2,7 @@
 # Core Element Registry 
 #######################################################################
 
-# Temporal scope
+# Temporal scope (NOTE: these will be replaced by the when: section)
 start: time
 end: time
 time: time

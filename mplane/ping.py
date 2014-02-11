@@ -2,8 +2,8 @@
 # mPlane Protocol Reference Implementation
 # ICMP Ping component code
 #
-# (c) 2013 mPlane Consortium (http://www.ict-mplane.eu)
-#          Author: Brian Trammell <brian@trammell.ch>
+# (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
+#               Author: Brian Trammell <brian@trammell.ch>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -30,7 +30,7 @@ import ipaddress
 import threading
 import subprocess
 import collections
-from datetime import datetime
+from datetime import datetime, timedelta
 from ipaddress import ip_address
 import mplane.model
 import mplane.scheduler
@@ -47,6 +47,9 @@ _pingopts = ["-n"]
 _pingopt_period = "-i"
 _pingopt_count = "-c"
 _pingopt_source = "-S"
+
+LOOP4 = "127.0.0.1"
+LOOP6 = "::1"
 
 PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 
@@ -67,7 +70,7 @@ def _ping_process(progname, sipaddr, dipaddr, period=None, count=None):
     ping_argv += [_pingopt_source, str(sipaddr)]
     ping_argv += [str(dipaddr)]
 
-    print("running" + " ".join(ping_argv))
+    print("running " + " ".join(ping_argv))
 
     return subprocess.Popen(ping_argv, stdout=subprocess.PIPE)
 
@@ -154,7 +157,8 @@ class PingService(mplane.scheduler.Service):
                 (cap.has_result_column("delay.twoway.icmp.us") or
                  cap.has_result_column("delay.twoway.icmp.us.min") or
                  cap.has_result_column("delay.twoway.icmp.us.mean") or                
-                 cap.has_result_column("delay.twoway.icmp.us.max"))):
+                 cap.has_result_column("delay.twoway.icmp.us.max") or
+                 cap.has_result_column("delay.twoway.icmp.us.count"))):
             raise ValueError("capability not acceptable")
         super(PingService, self).__init__(cap)
 
@@ -181,11 +185,10 @@ class PingService(mplane.scheduler.Service):
         for line in ping_process.stdout:
             if check_interrupt():
                 break
-            oneping = None
-            while oneping is None:
-                oneping = _parse_ping_line(line.decode("utf-8"))
-            print("ping "+repr(oneping))
-            pings.append(oneping)
+            oneping = _parse_ping_line(line.decode("utf-8"))
+            if oneping is not None:
+                print("ping "+repr(oneping))
+                pings.append(oneping)
  
         # shut down and reap
         try:
@@ -218,7 +221,10 @@ class PingService(mplane.scheduler.Service):
             if res.has_result_column("delay.twoway.icmp.us.median"):
                 res.set_result_value("delay.twoway.icmp.us.median", pings_median_delay(pings))
             if res.has_result_column("delay.twoway.icmp.us.max"):
-                res.set_result_value("delay.twoway.icmp.us.max", pings_min_delay(pings))
+                res.set_result_value("delay.twoway.icmp.us.max", pings_max_delay(pings))
+            if res.has_result_column("delay.twoway.icmp.us.count"):
+                res.set_result_value("delay.twoway.icmp.us.count", len(pings))
+
 
         return res
 
@@ -230,6 +236,18 @@ def parse_args():
     parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
                         help="Ping from the given IPv6 address")
     args = parser.parse_args()
+
+def test_ping4():
+    testsvc = PingService(ping4_aggregate_capability(LOOP4))
+    spec = mplane.model.Specification(capability=testsvc.capability())
+    spec.set_parameter_value("destination.ip4", LOOP4)
+    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
+    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=11) )
+    spec.set_parameter_value("period.s", 1)
+
+    res = testsvc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
 
 # For right now, start a Tornado-based ping server
 if __name__ == "__main__":
