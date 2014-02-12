@@ -1081,11 +1081,9 @@ class Statement(object):
 
     """
 
-    # FIXME, move token into Statement, generate it from parameters, and carry it forward into Result.
-
-    def __init__(self, dictval=None, verb=VERB_MEASURE):
+    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None):
         super(Statement, self).__init__()
-        #Make a blank statement
+        # Make a blank statement
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -1094,6 +1092,8 @@ class Statement(object):
             self._from_dict(dictval)
         else:
             self._verb = verb;
+
+        self._token = token
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
@@ -1178,7 +1178,7 @@ class Statement(object):
     def set_link(self, link):
         self._link = link
 
-    def schema_hash(self, lim=None):
+    def _schema_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters
         and result columns (the schema) of this statement.
@@ -1192,7 +1192,7 @@ class Statement(object):
         else:
             return hstr
 
-    def pv_hash(self, lim=None):
+    def _pv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter values, and result columns of this statement. Used as
@@ -1211,7 +1211,7 @@ class Statement(object):
         else:
             return hstr        
 
-    def pcv_hash(self, lim=None):
+    def _pcv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter constraints, parameter values, and result columns 
@@ -1231,7 +1231,7 @@ class Statement(object):
         else:
             return hstr
 
-    def mpcv_hash(self, lim=None):
+    def _mpcv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         parameter constraints, parameter values, metadata, metadata values, 
@@ -1256,7 +1256,12 @@ class Statement(object):
             return hstr
 
     def get_token(self, lim=None):
-        return self.mpcv_hash(lim)
+        if self._token is None:
+          self._token = _default_token()
+        return self._token
+
+    def _default_token(self):
+      return self._mpcv_hash()
 
     def _result_rows(self):
         rows = []
@@ -1282,6 +1287,12 @@ class Statement(object):
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
+        if self._link is not None:
+          d[SECTION_LINK] = self._link
+
+        if self._token is not None:
+          d[SECTION_TOKEN] = self._token
+
         if self.count_parameters() > 0:
             d[SECTION_PARAMETERS] = {t[0] : t[1] for t in [v.as_tuple() 
                                         for v in self._params.values()]}
@@ -1294,9 +1305,6 @@ class Statement(object):
             d[SECTION_RESULTS] = [k for k in self._resultcolumns.keys()]
             if self.count_result_rows() > 0:
                 d[SECTION_RESULTVALUES] = self._result_rows()
-
-        if self._link is not None:
-          d[SECTION_LINK] = self._link
 
         return d
 
@@ -1318,6 +1326,12 @@ class Statement(object):
         """
         self._verb = d[self.kind_str()]
 
+        if SECTION_LINK in d:
+          self._link = d[SECTION_LINK]
+
+        if SECTION_TOKEN in d:
+          self._token = d[SECTION_TOKEN]
+
         if SECTION_PARAMETERS in d:
             self._params_from_dict(d[SECTION_PARAMETERS])
 
@@ -1328,9 +1342,6 @@ class Statement(object):
         if SECTION_RESULTS in d:
             for v in d[SECTION_RESULTS]:
                 self.add_result_column(v)
-
-        if SECTION_LINK in d:
-          self._link = d[SECTION_LINK]
 
     def _clear_constraints(self):
         for param in self._params.values():
@@ -1485,6 +1496,9 @@ class Specification(Statement):
         #FIXME maybe do this without schema hashing?
         return self.schema_hash() == cap.schema_hash()
 
+    def _default_token(self):
+        return self.pv_hash()
+
 class Result(Statement):
     """docstring for Result"""
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE):
@@ -1494,7 +1508,9 @@ class Result(Statement):
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
-            # allow parameters to take values 
+            # assign token even if specification default not available
+            self._token = specification.get_token()
+            # allow parameters to take values other than
             self._clear_constraints()
 
     def __repr__(self):
@@ -1604,8 +1620,6 @@ class StatementNotification(Statement):
             self._metadata = statement._metadata
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
-
-        self._token = token
 
     def _default_token(self):
         return self.mpcv_hash()
