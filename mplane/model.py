@@ -1613,8 +1613,9 @@ class StatementNotification(Statement):
 
     def to_dict(self, token_only=False):
         d = super(StatementNotification, self).to_dict()
+
         if token_only and self._token is not None:
-            for sk in (SECTION_PARAMETERS, SECTION_METADATA, SECTION_RESULTS):
+            for sk in (SECTION_PARAMETERS, SECTION_METADATA, SECTION_RESULTS, SECTION_LINK):
                 try:
                     del(d[sk])
                 except KeyError:
