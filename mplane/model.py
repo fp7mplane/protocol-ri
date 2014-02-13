@@ -202,7 +202,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure token 4a06016a schema 6c6f8524 p/m/r(r) 5/0/5(1)>
+<Result: measure token db63083e schema 6c6f8524 p/m/r(r) 5/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -213,7 +213,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'1dc759b982b3c600e71c3d0559a58d4e'
+'db63083eec411c16654cf4e65532f4c7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -235,7 +235,7 @@ which can be used to quickly identify it in the future.
               "delay.twoway.icmp.us.mean", 
               "delay.twoway.icmp.us.count", 
               "packets.lost"], 
-  "token": "c4a88bccc437f538778549129af50897"}'
+  "token": "db63083eec411c16654cf4e65532f4c7"}'
 
 The component keeps the receipt, keyed by token, and returns it to the
 client in a message. The client then which generates a future redemption 
@@ -243,17 +243,17 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<Receipt: c4a88bccc437f538778549129af50897>
+<Receipt: db63083eec411c16654cf4e65532f4c7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<Redemption: c4a88bccc437f538778549129af50897>
+<Redemption: db63083eec411c16654cf4e65532f4c7>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "c4a88bccc437f538778549129af50897"}'
+'{"redemption": "measure", "token": "db63083eec411c16654cf4e65532f4c7"}'
 
 .. note:: We should document and test interrupts and withdrawals, as well.
 
@@ -1093,13 +1093,14 @@ class Statement(object):
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
+        self._token = token
         self._link = None
+
         if dictval is not None:
             self._from_dict(dictval)
         else:
             self._verb = verb;
 
-        self._token = token
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
