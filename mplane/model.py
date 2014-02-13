@@ -1246,6 +1246,8 @@ class Statement(object):
           self._token = self._default_token()
         if lim is not None and len(self._token) > lim:
           return self._token[:lim]
+        else:
+          return self._token
 
     def _default_token(self):
       return self._mpcv_hash()
