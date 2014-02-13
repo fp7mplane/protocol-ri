@@ -213,7 +213,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'c4a88bccc437f538778549129af50897'
+'1dc759b982b3c600e71c3d0559a58d4e'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
