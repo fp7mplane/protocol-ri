@@ -77,10 +77,10 @@ Then we define the result columns this measurement can produce. Here,
 we want quick reporting of min, max, and mean delays, as well as a
 total count of singleton measurements taken and packets lost:
 
->>> cap.add_result_column("delay.twoway.icmp.ms.min")
->>> cap.add_result_column("delay.twoway.icmp.ms.max")
->>> cap.add_result_column("delay.twoway.icmp.ms.mean")
->>> cap.add_result_column("delay.twoway.icmp.ms.count")
+>>> cap.add_result_column("delay.twoway.icmp.us.min")
+>>> cap.add_result_column("delay.twoway.icmp.us.max")
+>>> cap.add_result_column("delay.twoway.icmp.us.mean")
+>>> cap.add_result_column("delay.twoway.icmp.us.count")
 >>> cap.add_result_column("packets.lost")
 
 Now we have a capability we could transform into JSON and make 
@@ -95,10 +95,10 @@ download or configuration:
                  "source.ip4": "10.0.27.2", 
                  "destination.ip4": "*", 
                  "start": "now...+inf"}, 
-  "results": ["delay.twoway.icmp.ms.min", 
-              "delay.twoway.icmp.ms.max", 
-              "delay.twoway.icmp.ms.mean", 
-              "delay.twoway.icmp.ms.count", 
+  "results": ["delay.twoway.icmp.us.min", 
+              "delay.twoway.icmp.us.max", 
+              "delay.twoway.icmp.us.mean", 
+              "delay.twoway.icmp.us.count", 
               "packets.lost"]}'
 
 On the client side, we'd receive this capability as a JSON object and turn it
@@ -107,14 +107,20 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.message_from_dict(json.loads(capjson))
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure b7e78ecade6929e549e169bd12030182 with 0/5 params, 0 metadata, 5 columns>
+<Specification: measure token db63083e schema 6c6f8524 p(v)/m/r 5(1)/0/5>
 
-Here we have a specification with 0 of 5 parameters filled in. 
+Here we have a specification with a given token, schema, and 5 parameters 
+(one of which has a value), no metadata, and five result columns.
 
-.. note:: The long hexadecimal number in statement representations is the 
-          schema hash, which identifies the parameter and result columns.
-          Statements with identical sets of parameters and columns
-          (schemas) will have identical schema hashes.
+.. note:: The schema of the statement is identified by a
+          schema hash, the first eight hex digits of which are shown for 
+          diagnostic purposes. Statements with identical sets of parameters 
+          and columns (schemas) will have identical schema hashes. Likewise,
+          the token is defined by the schema as well as the parameter values.
+
+.. note:: When creating a Specification from a Capability, which is the normal
+          workflow with mPlane, any parameters with constraints only allowing
+          a single value will be automatically filled in.
 
 So let's fill in some parameters; note that strings are accepted and
 automatically parsed using each parameter's primitive type:
@@ -143,10 +149,10 @@ the component from which we got the capability:
                  "end": "2014-12-24 22:19:42.000000", 
                  "start": "2014-12-24 22:18:42.000000", 
                  "destination.ip4": "10.0.37.2"}, 
-  "results": ["delay.twoway.icmp.ms.min", 
-              "delay.twoway.icmp.ms.max", 
-              "delay.twoway.icmp.ms.mean", 
-              "delay.twoway.icmp.ms.count", 
+  "results": ["delay.twoway.icmp.us.min", 
+              "delay.twoway.icmp.us.max", 
+              "delay.twoway.icmp.us.mean", 
+              "delay.twoway.icmp.us.count", 
               "packets.lost"]}'
 
 On the component side, likewise, we'd receive this specification as a JSON
@@ -169,10 +175,10 @@ measured:
 >>> res = mplane.model.Result(specification=comspec)
 >>> res.set_parameter_value("start", "2014-12-24 22:18:42.993000")
 >>> res.set_parameter_value("end", "2014-12-24 22:19:42.991000")
->>> res.set_result_value("delay.twoway.icmp.ms.min", 33)
->>> res.set_result_value("delay.twoway.icmp.ms.mean", 55)
->>> res.set_result_value("delay.twoway.icmp.ms.max", 192)
->>> res.set_result_value("delay.twoway.icmp.ms.count", 58)
+>>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
+>>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
+>>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
+>>> res.set_result_value("delay.twoway.icmp.us.count", 58220)
 >>> res.set_result_value("packets.lost", 2)
 
 The result can then be serialized and sent back to the client:
@@ -182,21 +188,21 @@ The result can then be serialized and sent back to the client:
 '{"result": "measure", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "period.s": "1", 
-                 "end": "2014-12-24 22:19:42.000000", 
-                 "start": "2014-12-24 22:18:42.000000", 
+                 "end": "2014-12-24 22:19:42.99100", 
+                 "start": "2014-12-24 22:18:42.993000", 
                  "destination.ip4": "10.0.37.2"}, 
-  "results": ["delay.twoway.icmp.ms.min", 
-              "delay.twoway.icmp.ms.max", 
-              "delay.twoway.icmp.ms.mean", 
-              "delay.twoway.icmp.ms.count", 
+  "results": ["delay.twoway.icmp.us.min", 
+              "delay.twoway.icmp.us.max", 
+              "delay.twoway.icmp.us.mean", 
+              "delay.twoway.icmp.us.count", 
               "packets.lost"], 
-  "resultvalues": [["33", "192", "55", "58", "2"]]}'
+  "resultvalues": [["33155", "192307", "55166", "58220", "2"]]}'
 
 which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure b7e78ecade6929e549e169bd12030182 with 5 params, 0 metadata, 5 columns, 1 rows>
+<Result: measure token 4a06016a schema 6c6f8524 p/m/r(r) 5/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -224,10 +230,10 @@ which can be used to quickly identify it in the future.
                  "source.ip4": "10.0.27.2", 
                  "end": "2014-12-24 22:19:42.000000", 
                  "start": "2014-12-24 22:18:42.000000"}, 
-  "results": ["delay.twoway.icmp.ms.min", 
-              "delay.twoway.icmp.ms.max", 
-              "delay.twoway.icmp.ms.mean", 
-              "delay.twoway.icmp.ms.count", 
+  "results": ["delay.twoway.icmp.us.min", 
+              "delay.twoway.icmp.us.max", 
+              "delay.twoway.icmp.us.mean", 
+              "delay.twoway.icmp.us.count", 
               "packets.lost"], 
   "token": "c4a88bccc437f538778549129af50897"}'
 
@@ -1097,7 +1103,7 @@ class Statement(object):
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
-               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+">"
+               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+">"
 
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
@@ -1209,26 +1215,6 @@ class Statement(object):
         if lim is not None:
             return hstr[:lim]
         else:
-            return hstr        
-
-    def _pcv_hash(self, lim=None):
-        """
-        Return a hex string uniquely identifying the set of parameters,
-        parameter constraints, parameter values, and result columns 
-        of this statement. Used as a capability key.
-
-        """
-        spk = sorted(self._params.keys())
-        spc = [str(self._params[k]._constraint) for k in spk]
-        spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
-        tstr = self._verb + \
-               " pk " + " ".join(spk) + \
-               " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
-               " r " + " ".join(sorted(self._resultcolumns.keys()))
-        hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
-        if lim is not None:
-            return hstr[:lim]
-        else:
             return hstr
 
     def _mpcv_hash(self, lim=None):
@@ -1257,8 +1243,9 @@ class Statement(object):
 
     def get_token(self, lim=None):
         if self._token is None:
-          self._token = _default_token()
-        return self._token
+          self._token = self._default_token()
+        if lim is not None and len(self._token) > lim:
+          return self._token[:lim]
 
     def _default_token(self):
       return self._mpcv_hash()
@@ -1363,12 +1350,12 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE):
-        super(Capability, self).__init__(dictval=dictval, verb=verb)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None):
+        super(Capability, self).__init__(dictval=dictval, verb=verb, token=token)
 
     def __repr__(self):
         return "<Capability: "+self._verb+\
-               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p/m/r "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
                str(self.count_result_columns())+">"
@@ -1410,8 +1397,8 @@ class Specification(Statement):
     [FIXME document how this works once it's written]
 
     """
-    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE):
-        super(Specification, self).__init__(dictval=dictval, verb=verb)
+    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None):
+        super(Specification, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and capability is not None:
             self._verb = capability._verb
             self._metadata = capability._metadata
@@ -1423,7 +1410,7 @@ class Specification(Statement):
 
     def __repr__(self):
         return "<Specification: "+self._verb+\
-               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p(v)/m/r "+str(self.count_parameters())+"("+\
                str(self.count_parameter_values())+")/"+\
                str(self.count_metadata())+"/"+\
@@ -1494,28 +1481,28 @@ class Specification(Statement):
 
         """
         #FIXME maybe do this without schema hashing?
-        return self.schema_hash() == cap.schema_hash()
+        return self._schema_hash() == cap._schema_hash()
 
     def _default_token(self):
-        return self.pv_hash()
+        return self._pv_hash()
 
 class Result(Statement):
-    """docstring for Result"""
-    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE):
-        super(Result, self).__init__(dictval=dictval, verb=verb)
+    """docstring for Result: note the token is generally inherited from the specification"""
+    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, token=None):
+        super(Result, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and specification is not None:
             self._verb = specification._verb
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
-            # assign token even if specification default not available
+            # assign token from specification
             self._token = specification.get_token()
             # allow parameters to take values other than
             self._clear_constraints()
 
     def __repr__(self):
         return "<Result: "+self._verb+\
-               " token "+self.get_token(REPHL)+" schema "+self.schema_hash(REPHL)+\
+               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p/m/r(r) "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
                str(self.count_result_columns())+"("+\
@@ -1588,7 +1575,7 @@ class Exception(BareNotification):
         self._errmsg = errmsg
 
     def __repr__(self):
-        return "<Exception: "+self._token+" "+self._errmsg+">"
+        return "<Exception: "+self.get_token()+" "+self._errmsg+">"
 
     def get_token(self):
         return self._token
@@ -1613,21 +1600,14 @@ class StatementNotification(Statement):
     directly
 
     """
-    def __init__(self, dictval=None, statement=None, token=None, verb=VERB_MEASURE):
-        super(StatementNotification, self).__init__(dictval=dictval, verb=verb)
+    def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE, token=None):
+        super(StatementNotification, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
             self._verb = statement._verb
             self._metadata = statement._metadata
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
-
-    def _default_token(self):
-        return self.mpcv_hash()
-
-    def get_token(self):
-        if self._token is None:
-            self._token = self._default_token()
-        return self._token
+            self._token = statement.get_token()
 
     def to_dict(self, token_only=False):
         d = super(StatementNotification, self).to_dict()
@@ -1638,15 +1618,7 @@ class StatementNotification(Statement):
                 except KeyError:
                     pass
 
-        d[SECTION_TOKEN] = self.get_token()
-
         return d
-
-    def _from_dict(self, d):
-        super(StatementNotification,self)._from_dict(d)
-
-        if SECTION_TOKEN in d:
-            self._token = d[SECTION_TOKEN]
 
 class Receipt(StatementNotification):
     """
