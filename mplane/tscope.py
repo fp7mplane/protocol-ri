@@ -32,9 +32,17 @@ this code will be integrated into model.py.
 
 """
 
+import re
+from datetime import datetime, timedelta
+
+
 TIME_PAST = "past"
 TIME_NOW = "now"
 TIME_FUTURE = "future"
+
+RANGE_SEP = " ... "
+DURATION_SEP = " + "
+PERIOD_SEP = " / "
 
 _iso8601_pat = '(\d+-\d+-\d+)(\s+\d+:\d+(:\d+)?)?(\.\d+)?'
 _iso8601_re = re.compile(_iso8601_pat)
@@ -114,23 +122,28 @@ def parse_time(valstr):
     elif valstr == TIME_NOW:
         return time_now
     else:
-        mg = _iso8601_re.match(valstr).groups()
-        if mg[2]:
-            dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M:%S")
+        m = _iso8601_re.match(valstr)
+        if m:
+            mstr = m.group(0)
+            mg = m.groups()
             if mg[3]:
-                # FIXME handle fractional seconds
-                pass
-        elif mg[1]:
-            dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M")
+                # FIXME handle fractional seconds correctly
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S.%f")
+            elif mg[2]:
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S")
+            elif mg[1]:
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M")
+            else:
+                dt = datetime.strptime(mstr, "%Y-%m-%d")
+            return dt
         else:
-            dt = datetime.strptime(valstr, "%Y-%m-%d")
-        return dt
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane timestamp")
     
 def unparse_time(valts, precision="us"):    
     return valts.strftime(_iso8601_fmt[precision])
 
 def parse_dur(valstr):
-    if valstr is None or valstr == VALUE_NONE:
+    if valstr is None:
         return None
     else:
         mh = _dur_re.match(valstr),groups()
@@ -141,7 +154,7 @@ def parse_dur(valstr):
     return timedelta(seconds=valsec)
 
 def unparse_dur(valtd):
-    valsec = int(valtd.total_seconds):
+    valsec = int(valtd.total_seconds())
     valstr = ""
     for i in range(3):
         if valsec > _dur_seclabel[i][0]:
@@ -167,7 +180,7 @@ class When(object):
 
         if valstr is not None:
             self._parse(valstr)
-        
+
     def _parse(self, valstr):
         # First separate the period from the value and parse it
         valsplit = valstr.split(PERIOD_SEP)
@@ -197,13 +210,16 @@ class When(object):
         valstr = unparse_time(self._a)
 
         if self._b is not None:
-            valstr = " ".join(valstr, RANGE_SEP, unparse_time(self._b))
+            valstr = "".join((valstr, RANGE_SEP, unparse_time(self._b)))
         elif self._d is not None:
-            valstr = " ".join(valstr, DURATION_SEP, unparse_dur(self._d))
+            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._d)))
 
         if (self._p) is not None:
-            valstr = " ".join(valstr, PERIOD_SEP, unparse_dur(self._p))
+            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._p)))
+        return valstr
 
+    def __repr__(self):
+        return "<When: "+str(self)+">"
 
 class Schedule(object):
     """
