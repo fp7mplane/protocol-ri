@@ -44,6 +44,14 @@ RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
 
+KEY_WHEN = "when"
+KEY_MONTHS = "months"
+KEY_DAYS = "days"
+KEY_WEEKDAYS = "weekdays"
+KEY_HOURS = "hours"
+KEY_MINUTES = "minutes"
+KEY_SECONDS = "seconds"
+
 _iso8601_pat = '(\d+-\d+-\d+)(\s+\d+:\d+(:\d+)?)?(\.\d+)?'
 _iso8601_re = re.compile(_iso8601_pat)
 _iso8601_fmt = { 'us': '%Y-%m-%d %H:%M:%S.%f',
@@ -169,6 +177,19 @@ def unparse_dur(valtd):
         valstr = "0s"
     return valstr
 
+def parse_numset(valstr):
+    pass
+
+def unparse_numset(valset):
+    pass
+
+def parse_wdayset(valstr):
+    pass
+
+def unparse_wdayset(valset):
+    pass
+
+
 class When(object):
     """
     Defines the temporal scopes for capabilities, results, or 
@@ -233,11 +254,37 @@ class When(object):
         or Results.
 
         """
-        pass
+        return self._a is not None and self._b is None and self._d is None
+
+    def start_datetime(self):
+        if self._a is time_now:
+            return datetime.utcnow()
+        else:
+            return self._a
+
+    def end_datetime(self):
+        sdt = self.start_datetime()
+        if self._b is not None:
+            return self._b
+        elif self._d is not None:
+            return sdt + self._d
+        else:
+            return sdt
+
+    def duration(self):
+        if self._d is not None:
+            return self._d
+        elif self._b is None:
+            return timedelta()
+        else:
+            return self._b - self.start_datetime()
+
+    def period(self):
+        return self._p
 
     def start_delay(self, tzero=None):
         """
-        Calculate delay to the scheduled start of this temporal scope.
+        Calculate delay in seconds to the scheduled start of this temporal scope.
         Returns 0 if the start time has already passed and the end time
         has not yet passed, or None if the temporal scope is expired. 
         Used in scheduling an enclosing Specification; has no meaning 
@@ -261,13 +308,52 @@ class Schedule(object):
     """
     Defines a schedule for repeated operations based on crontab-like
     sets of months, days, days of weeks, hours, minutes, and seconds.
-    Used to specify repetitions 
+    Used to specify repetitions of single measurements in a Specification.
+    Designed to be broadly compatible with LMAP calendar-based scheduling.
     """
-    def __init__(self):
+    def __init__(self, dictval=None, when=None):
         super(Schedule, self).__init__()
+        self._when = when
         self._months = set()
         self._days = set()
         self._weekdays = set()
         self._hours = set()
         self._minutes = set()
         self._seconds = set()
+
+        if dictval is not None:
+            self._from_dict(dictval)
+
+    def to_dict(self):
+        d = {}
+        if self._when:
+            d[KEY_WHEN] = str(self._when)
+        if len(self._months):
+            d[KEY_MONTHS] = unparse_numset(self._months)
+        if len(self._days):
+            d[KEY_DAYS] = unparse_numset(self._days)
+        if len(self._weekdays):
+            d[KEY_WEEKDAYS] = unparse_wdayset(self._weekdays)
+        if len(self._hours):
+            d[KEY_HOURS] = unparse_numset(self._hours)
+        if len(self._minutes):
+            d[KEY_MINUTES] = unparse_numset(self._minutes)
+        if len(self._seconds):
+            d[KEY_SECONDS] = unparse_numset(self._seconds)
+        return d
+
+    def _from_dict(self, d):
+        if KEY_WHEN in d:
+            self._when = When(valstr=d[KEY_WHEN])
+        if KEY_MONTHS in d:
+            self._months = parse_numset(d[KEY_MONTHS])
+        if KEY_DAYS in d:
+            self._days = parse_numset(d[KEY_DAYS])
+        if KEY_WEEKDAYS in d:
+            self._weekdays = parse_wdayset(d[KEY_WEEKDAYS])
+        if KEY_HOURS in d:
+            self._hours = parse_numset(d[KEY_HOURS])
+        if KEY_MINUTES in d:
+            self._minutes = parse_numset(d[KEY_MINUTES])
+        if KEY_SECONDS in d:
+            self._seconds = parse_numset(d[KEY_SECONDS])
