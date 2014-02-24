@@ -51,7 +51,7 @@ _iso8601_fmt = { 'us': '%Y-%m-%d %H:%M:%S.%f',
                   'm': '%Y-%m-%d %H:%M',
                   'd': '%Y-%m-%d'}
 
-_dur_pat = '((\d+)d)((\d+)h)((\d+)m)((\d+)s)'
+_dur_pat = '((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?'
 _dur_re = re.compile(_dur_pat)
 _dur_seclabel = ( (86400, 'd'),
                   ( 3600, 'h'),
@@ -146,17 +146,21 @@ def parse_dur(valstr):
     if valstr is None:
         return None
     else:
-        mh = _dur_re.match(valstr),groups()
-        valsec = 0
-        for i in range(3):
-            if mg[2*i + 1]:
-                valsec += _dur_seclabel[i][0] * int(mg[2*i + 1])
-    return timedelta(seconds=valsec)
+        m = _dur_re.match(valstr)
+        if m:
+            mg = m.groups()
+            valsec = 0
+            for i in range(4):
+                if mg[2*i + 1]:
+                    valsec += _dur_seclabel[i][0] * int(mg[2*i + 1])
+            return timedelta(seconds=valsec)
+        else:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane duration")
 
 def unparse_dur(valtd):
     valsec = int(valtd.total_seconds())
     valstr = ""
-    for i in range(3):
+    for i in range(4):
         if valsec > _dur_seclabel[i][0]:
             valunit = int(valsec / _dur_seclabel[i][0])
             valstr += str(valunit) + _dur_seclabel[i][1]
@@ -220,6 +224,38 @@ class When(object):
 
     def __repr__(self):
         return "<When: "+str(self)+">"
+
+    def is_singleton(self):
+        """
+        Return True if this temporal scope refers to a
+        singleton measurement. Used in scheduling an enclosing
+        Specification; has no meaning for Capabilities 
+        or Results.
+
+        """
+        pass
+
+    def start_delay(self, tzero=None):
+        """
+        Calculate delay to the scheduled start of this temporal scope.
+        Returns 0 if the start time has already passed and the end time
+        has not yet passed, or None if the temporal scope is expired. 
+        Used in scheduling an enclosing Specification; has no meaning 
+        for Capabilities or Results.
+
+        """
+        pass
+
+    def end_delay(self, tzero=None):
+        """
+        Calculate delay to the scheduled end of this temporal scope.
+        Returns 0 if the scheduled end time has already passed, or
+        None if the temporal scope has no scheduled end.
+        Used in scheduling an enclosing Specification; has no meaning 
+        for Capabilities or Results.
+
+        """ 
+        pass
 
 class Schedule(object):
     """
