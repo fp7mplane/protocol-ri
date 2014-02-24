@@ -43,6 +43,7 @@ TIME_FUTURE = "future"
 RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
+SET_SEP = ","
 
 KEY_WHEN = "when"
 KEY_MONTHS = "months"
@@ -66,7 +67,8 @@ _dur_seclabel = ( (86400, 'd'),
                   (   60, 'm'),
                   (    1, 's') )
 
-_dow_label = ('so', 'mo', 'tu', 'we', 'th', 'fr', 'sa')
+_dow_label = ('mo', 'tu', 'we', 'th', 'fr', 'sa', 'so')
+_dow_number = { k: v for (v, k) in enumerate(_dow_label) }
 
 class PastTime:
     """
@@ -178,16 +180,16 @@ def unparse_dur(valtd):
     return valstr
 
 def parse_numset(valstr):
-    pass
+    return set(map(int, valstr.split(SET_SEP)))
 
 def unparse_numset(valset):
-    pass
+    return SET_SEP.join(map(str, sorted(list(valset))))
 
 def parse_wdayset(valstr):
-    pass
+    return set(map(lambda x:_dow_number[x], valstr.split(SET_SEP)))
 
 def unparse_wdayset(valset):
-    pass
+    return SET_SEP.join(map(lambda x: _dow_label[x], sorted(list(valset))))
 
 
 class When(object):
@@ -246,6 +248,9 @@ class When(object):
     def __repr__(self):
         return "<When: "+str(self)+">"
 
+    def is_immediate(self):
+        return self._a is time_now
+
     def is_singleton(self):
         """
         Return True if this temporal scope refers to a
@@ -256,53 +261,84 @@ class When(object):
         """
         return self._a is not None and self._b is None and self._d is None
 
-    def start_datetime(self):
+    def _datetimes(self, tzero=None):
+        if tzero is None:
+            tzero = datetime.utcnow()
+
         if self._a is time_now:
-            return datetime.utcnow()
+            start = tzero
         else:
-            return self._a
+            start = self._a
 
-    def end_datetime(self):
-        sdt = self.start_datetime()
         if self._b is not None:
-            return self._b
+            end = self._b
         elif self._d is not None:
-            return sdt + self._d
+            end = start + self._d
         else:
-            return sdt
+            end = start
 
-    def duration(self):
+        return (start, end)
+
+    def duration(self, tzero=None):
         if self._d is not None:
             return self._d
         elif self._b is None:
             return timedelta()
+        elif self._b is time_future:
+            return None
         else:
-            return self._b - self.start_datetime()
+            return self._b - self._datetimes(tzero)
 
     def period(self):
         return self._p
 
-    def start_delay(self, tzero=None):
+    def timer_delays(self, tzero=None):
         """
-        Calculate delay in seconds to the scheduled start of this temporal scope.
-        Returns 0 if the start time has already passed and the end time
-        has not yet passed, or None if the temporal scope is expired. 
-        Used in scheduling an enclosing Specification; has no meaning 
-        for Capabilities or Results.
+        Returns a tuple with delays for timers to signal the start and end of
+        a temporal scope, given a specified time zero, which defaults to the
+        current system time. 
+
+        The start delay is defined to be zero if the scheduled start time has
+        already passed or the temporal scope is immediate (i.e., starts now).
+        The start delay is None if the temporal scope has expired (that is,
+        the current time is after the calculated end time)
+
+        The end delay is defined to be None if the temporal scope has already
+        expired, or if the temporal scope has no scheduled end (is infinite or
+        a singleton). End delays are calculated to give priority to duration 
+        when a temporal scope is expressed in terms of duration, and to 
+        prioritize end time otherwise.
+ 
+        Used in scheduling an enclosing Specification for execution. 
+        Has no meaning for Capabilities or Results.
 
         """
-        pass
+        # default to current time
+        if tzero is None:
+            tzero = datetime.utcnow()
+        
+        # get datetimes
+        (start, end) = self._datetimes(tzero)
 
-    def end_delay(self, tzero=None):
-        """
-        Calculate delay to the scheduled end of this temporal scope.
-        Returns 0 if the scheduled end time has already passed, or
-        None if the temporal scope has no scheduled end.
-        Used in scheduling an enclosing Specification; has no meaning 
-        for Capabilities or Results.
+        # determine start delay, account for late start
+        sd = (start - tzero).total_seconds()
+        if sd < 0:
+            sd = 0
 
-        """ 
-        pass
+        # determine end delay
+        if self._b is not None and self._b is not time_future:
+            ed = (end - tzero).total_seconds()
+        elif self._d is not None:
+            ed = sd + self._d.total_seconds();
+        else:
+            ed = None
+
+        # detect expired temporal scope
+        if ed is not None and ed < 0:
+            sd = None
+            ed = None
+
+        return (sd, ed)
 
 class Schedule(object):
     """
