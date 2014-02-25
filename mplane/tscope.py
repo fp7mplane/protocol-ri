@@ -270,12 +270,13 @@ class When(object):
         else:
             start = self._a
 
-        if self._b is None:
-            end = start
-        elif self._b is time_future:
+        if self._b is time_future:
             end = None
-        elif self._d is not None:
-            end = start + self._d
+        elif self._b is None:
+            if self._d is not None:
+                end = start + self._d
+            else:
+                end = start
         else:
             end = self._b
 
@@ -363,7 +364,7 @@ class When(object):
         Return True if time t falls within this scope.
 
         """
-        return sort_scope(t, tzero) == 0
+        return self.sort_scope(t, tzero) == 0
 
 class Schedule(object):
     """
@@ -384,6 +385,20 @@ class Schedule(object):
 
         if dictval is not None:
             self._from_dict(dictval)
+
+    def __repr__(self):
+        rs = "<Schedule "
+        if self._when is not None:
+            rs += repr(self._when) + " "
+        rs += "cron "
+        rs += "/".join(map(str, [len(self._months),
+                                 len(self._days),
+                                 len(self._weekdays),
+                                 len(self._hours),
+                                 len(self._minutes),
+                                 len(self._seconds)]))
+        rs += ">"
+        return rs
 
     def to_dict(self):
         d = {}
@@ -437,7 +452,7 @@ class Schedule(object):
             period = timedelta(seconds=1)
 
         # fast forward if necessary
-        lag = self._when.sort_scope()
+        lag = self._when.sort_scope(t)
         if lag < 0:
             t += timedelta(seconds=-lag)
 
