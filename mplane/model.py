@@ -277,31 +277,40 @@ import os
 
 ELEMENT_SEP = "."
 
-CONSTRAINT_ALL = "*"
-CONSTRAINT_RANGESEP = "..."
-CONSTRAINT_SETSEP = ","
+RANGE_SEP = " ... "
+DURATION_SEP = " + "
+PERIOD_SEP = " / "
+SET_SEP = ","
 
+CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
 
 TIME_PAST = "-inf"
 TIME_NOW = "now"
 TIME_FUTURE = "+inf"
-TIME_WHENEVER = "whenever"
-TIME_ONCE = "once"
 
 VERB_MEASURE = "measure"
 VERB_QUERY = "query"
 VERB_COLLECT = "collect"
 VERB_STORE = "store"
 
-SECTION_PARAMETERS = "parameters"
-SECTION_METADATA = "metadata"
-SECTION_RESULTS = "results"
-SECTION_RESULTVALUES = "resultvalues"
-SECTION_TOKEN = "token"
-SECTION_MESSAGE = "message"
-SECTION_LINK = "link"
-SECTION_WHEN = "when"
+KEY_PARAMETERS = "parameters"
+KEY_METADATA = "metadata"
+KEY_RESULTS = "results"
+KEY_RESULTVALUES = "resultvalues"
+KEY_TOKEN = "token"
+KEY_MESSAGE = "message"
+KEY_LINK = "link"
+KEY_WHEN = "when"
+KEY_SCHEDULE = "schedule"
+KEY_REGISTRY = "registry"
+
+KEY_MONTHS = "months"
+KEY_DAYS = "days"
+KEY_WEEKDAYS = "weekdays"
+KEY_HOURS = "hours"
+KEY_MINUTES = "minutes"
+KEY_SECONDS = "seconds"
 
 KIND_CAPABILITY = "capability"
 KIND_SPECIFICATION = "specification"
@@ -316,126 +325,491 @@ KIND_EXCEPTION = "exception"
 PARAM_START = "start"
 PARAM_END = "end"
 
+# Hash length in __repr__ strings
 REPHL = 8
 
 #######################################################################
-# Special Timestamp Values
+# Universal parse and unparse functions for times and durations
 #######################################################################
 
-# FIXME we need magic timestamp values representing durations 
-# (for end timestamp) or some special handling of start/end/duration
-# parameters
+_iso8601_pat = '(\d+-\d+-\d+)(\s+\d+:\d+(:\d+)?)?(\.\d+)?'
+_iso8601_re = re.compile(_iso8601_pat)
+_iso8601_fmt = { 'us': '%Y-%m-%d %H:%M:%S.%f',
+                  's': '%Y-%m-%d %H:%M:%S',
+                  'm': '%Y-%m-%d %H:%M',
+                  'd': '%Y-%m-%d'}
 
-@functools.total_ordering
+_dur_pat = '((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?'
+_dur_re = re.compile(_dur_pat)
+_dur_seclabel = ( (86400, 'd'),
+                  ( 3600, 'h'),
+                  (   60, 'm'),
+                  (    1, 's') )
+
+def parse_time(valstr):
+    if valstr is None:
+        return None
+    elif valstr == TIME_PAST:
+        return time_past
+    elif valstr == TIME_FUTURE:
+        return time_future
+    elif valstr == TIME_NOW:
+        return time_now
+    else:
+        m = _iso8601_re.match(valstr)
+        if m:
+            mstr = m.group(0)
+            mg = m.groups()
+            if mg[3]:
+                # FIXME handle fractional seconds correctly
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S.%f")
+            elif mg[2]:
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S")
+            elif mg[1]:
+                dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M")
+            else:
+                dt = datetime.strptime(mstr, "%Y-%m-%d")
+            return dt
+        else:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane timestamp")
+    
+def unparse_time(valts, precision="us"):
+    if isinstance(valts, datetime):
+        return valts.strftime(_iso8601_fmt[precision])
+    else:
+        return str(valts)
+
+def parse_dur(valstr):
+    if valstr is None:
+        return None
+    else:
+        m = _dur_re.match(valstr)
+        if m:
+            mg = m.groups()
+            valsec = 0
+            for i in range(4):
+                if mg[2*i + 1]:
+                    valsec += _dur_seclabel[i][0] * int(mg[2*i + 1])
+            return timedelta(seconds=valsec)
+        else:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane duration")
+
+def unparse_dur(valtd):
+    valsec = int(valtd.total_seconds())
+    valstr = ""
+    for i in range(4):
+        if valsec > _dur_seclabel[i][0]:
+            valunit = int(valsec / _dur_seclabel[i][0])
+            valstr += str(valunit) + _dur_seclabel[i][1]
+            valsec -= valunit * _dur_seclabel[i][0]
+    if len(valstr) == 0:
+        valstr = "0s"
+    return valstr
+
+#######################################################################
+# Temporal Scoping and Scheduling
+#######################################################################
+
 class PastTime:
     """
     Class representing the indeterminate past. 
-    Will compare as less than any other datetime.
     Do not instantiate; use the time_past instance of this class.
 
     """
-    def __lt__(self, rval):
-        return not (self is rval)
-    
-    def __eq__(self, rval):
-        return self is rval
-
     def __str__(self):
         return TIME_PAST
 
     def __repr__(self):
-        return "mplane.model.time_past"
+        return "mplane.tscope.time_past"
+
+    def strftime(self, ign):
+        return str(self)
+
 
 time_past = PastTime()
 
-@functools.total_ordering
-class PresentTime:
+class NowTime:
     """
     Class representing the present.
-    Do not instantiate; use the time_present instance of this class.
+    Do not instantiate; use the time_now instance of this class.
     
     """
-    def __lt__(self, rval):
-        if isinstance(rval, PresentTime):
-            return False
-        else:
-          return datetime.utcnow() < rval;
-    
-    def __eq__(self, rval):
-        if isinstance(rval, PresentTime):
-            return True
-        return datetime.utcnow() == rval;
-
     def __str__(self):
         return TIME_NOW
 
     def __repr__(self):
-        return "mplane.model.time_present"
+        return "mplane.tscope.time_now"
 
-time_present = PresentTime()
+    def strftime(self, ign):
+        return str(self)
 
-@functools.total_ordering
+time_now = NowTime()
+
 class FutureTime:
     """
-    Class representing the indeterminate future; 
-    used for comparison with datetimes. 
-    Use the time_future instance of this class.
+    Class representing the indeterminate future.
+    Do not instantiate; use the time_future instance of this class.
 
     """
-    def __lt__(self, rval):
-        return False
-    
-    def __eq__(self, rval):
-        return self is rval
-
     def __str__(self):
         return TIME_FUTURE
 
     def __repr__(self):
-        return "mplane.model.time_future"
+        return "mplane.tscope.time_future"
+
+    def strftime(self, ign):
+        return str(self)
 
 time_future = FutureTime()
 
-class WheneverTime(PresentTime):
+def _parse_numset(valstr):
+    return set(map(int, valstr.split(SET_SEP)))
+
+def _unparse_numset(valset):
+    return SET_SEP.join(map(str, sorted(list(valset))))
+
+_dow_label = ('mo', 'tu', 'we', 'th', 'fr', 'sa', 'so')
+_dow_number = { k: v for (v, k) in enumerate(_dow_label) }
+
+def _parse_wdayset(valstr):
+    return set(map(lambda x:_dow_number[x], valstr.split(SET_SEP)))
+
+def _unparse_wdayset(valset):
+    return SET_SEP.join(map(lambda x: _dow_label[x], sorted(list(valset))))
+
+class When(object):
     """
-    Class representing an intederminate time near the 
-    present time. Only valid as the start time in a Specification
-    where the end time is time_once, and is equivalent to PresentTime
-    with an implicit lower priority. Do not instantiate; 
-    use the time_whenever instance of this class.
+    Defines the temporal scopes for capabilities, results, or 
+    single measurement specifications.
 
     """
+    def __init__(self, valstr=None, a=None, b=None, d=None, p=None):
+        super(When, self).__init__()
+        self._a = a
+        self._b = b
+        self._d = d
+        self._p = p
+
+        if valstr is not None:
+            self._parse(valstr)
+
+    def _parse(self, valstr):
+        # First separate the period from the value and parse it
+        valsplit = valstr.split(PERIOD_SEP)
+        if len(valsplit) > 1:
+            (valstr, perstr) = valsplit
+            self._p = parse_dur(perstr)
+        else:
+            self._p = None
+
+        # then try to split duration or range
+        valsplit = valstr.split(DURATION_SEP)
+        if len(valsplit) > 1:
+            (valstr, durstr) = valsplit
+            self._d = parse_dur(durstr)
+            valsplit = [valstr]
+        else:
+            self._d = None
+            valsplit = valstr.split(RANGE_SEP)
+        
+        self._a = parse_time(valsplit[0])
+        if len(valsplit) > 1:
+            self._b = parse_time(valsplit[1])
+        else:
+            self._b = None
+
     def __str__(self):
-        return TIME_WHENEVER
+        valstr = unparse_time(self._a)
+
+        if self._b is not None:
+            valstr = "".join((valstr, RANGE_SEP, unparse_time(self._b)))
+        elif self._d is not None:
+            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._d)))
+
+        if (self._p) is not None:
+            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._p)))
+        return valstr
 
     def __repr__(self):
-        return "mplane.model.time_whenever"
+        return "<When: "+str(self)+">"
 
-time_whenever = WheneverTime()
+    def is_immediate(self):
+        """Return True if this is an immediate scope (i.e., starts now)"""
+        return self._a is time_now
 
-class OnceTime(PastTime):
+    def is_forever(self):
+        """Return True if this scope ends in the indeterminate future"""
+        return self._b is time_future
+
+    def is_past(self):
+        """Return True if this is an indefinite past scope"""
+        return self._a is time_past and self._b is time_now
+
+    def is_future(self):
+        """Return True if this is an indefinite future scope"""
+        return self._a is time_now and self._b is time_future
+
+    def is_infinite(self):
+        """
+        Return True if this scope is completely infinite 
+        (from the infinite past to the infinite future)
+
+        """
+        return self._a is time_past and self._b is time_future
+
+    def is_definite(self):
+        """
+        Return True if this scope defines a definite time 
+        or a definite time interval.
+
+        """
+        if self._b is None:
+            return isinstance(self._a, datetime)
+        else:
+            return isinstance(self._a, datetime) and isinstance(self._b, datetime)
+
+    def is_singleton(self):
+        """
+        Return True if this temporal scope refers to a
+        singleton measurement. Used in scheduling an enclosing
+        Specification; has no meaning for Capabilities 
+        or Results.
+
+        """
+        return self._a is not None and self._b is None and self._d is None
+
+    def _datetimes(self, tzero=None):
+        if tzero is None:
+            tzero = datetime.utcnow()
+
+        if self._a is time_now:
+            start = tzero
+        else:
+            start = self._a
+
+        if self._b is time_future:
+            end = None
+        elif self._b is None:
+            if self._d is not None:
+                end = start + self._d
+            else:
+                end = start
+        else:
+            end = self._b
+
+        return (start, end)
+
+    def duration(self, tzero=None):
+        if self._d is not None:
+            return self._d
+        elif self._b is None:
+            return timedelta()
+        elif self._b is time_future:
+            return None
+        else:
+            return self._b - self._datetimes(tzero)
+
+    def period(self):
+        return self._p
+
+    def timer_delays(self, tzero=None):
+        """
+        Returns a tuple with delays for timers to signal the start and end of
+        a temporal scope, given a specified time zero, which defaults to the
+        current system time. 
+
+        The start delay is defined to be zero if the scheduled start time has
+        already passed or the temporal scope is immediate (i.e., starts now).
+        The start delay is None if the temporal scope has expired (that is,
+        the current time is after the calculated end time)
+
+        The end delay is defined to be None if the temporal scope has already
+        expired, or if the temporal scope has no scheduled end (is infinite or
+        a singleton). End delays are calculated to give priority to duration 
+        when a temporal scope is expressed in terms of duration, and to 
+        prioritize end time otherwise.
+ 
+        Used in scheduling an enclosing Specification for execution. 
+        Has no meaning for Capabilities or Results.
+
+        """
+        # default to current time
+        if tzero is None:
+            tzero = datetime.utcnow()
+        
+        # get datetimes
+        (start, end) = self._datetimes(tzero=tzero)
+
+        # determine start delay, account for late start
+        sd = (start - tzero).total_seconds()
+        if sd < 0:
+            sd = 0
+
+        # determine end delay
+        if self._b is not None and self._b is not time_future:
+            ed = (end - tzero).total_seconds()
+        elif self._d is not None:
+            ed = sd + self._d.total_seconds();
+        else:
+            ed = None
+
+        # detect expired temporal scope
+        if ed is not None and ed < 0:
+            sd = None
+            ed = None
+
+        return (sd, ed)
+
+    def sort_scope(self, t, tzero=None):
+        """
+        Return < 0 if time t falls before this scope,
+        0 if time t falls within the scope, 
+        or > 0 if time t falls after this scope. 
+
+        """
+        (start, end) = self._datetimes(tzero=tzero)
+
+        if start and t < start:
+            return (t - start).total_seconds()
+        elif end and t > end:
+            return (t - end).total_seconds()
+        else:
+            return 0
+
+    def in_scope(self, t, tzero=None):
+        """
+        Return True if time t falls within this scope.
+
+        """
+        return self.sort_scope(t, tzero) == 0
+
+    def overlap_scope(self, w, tzero=None):
+        """
+        Return true if there is an overlap between this scope and another.
+
+        """
+        if w.in_scope(self._a):
+            return True
+        elif self._b and w.in_scope(self._b):
+            return True
+        else:
+            return False
+
+when_infinite = When(a=time_past, b=time_future)
+
+class Schedule(object):
     """
-    Class representing a special timestamp, valid as the end time in a
-    Specification, signifying that a measurement should run (natually)
-    once then stop. Sorts as PastTime. Do not instantiate; use the 
-    time_once instance of this class.
-
+    Defines a schedule for repeated operations based on crontab-like
+    sets of months, days, days of weeks, hours, minutes, and seconds.
+    Used to specify repetitions of single measurements in a Specification.
+    Designed to be broadly compatible with LMAP calendar-based scheduling.
     """
-    def __str__(self):
-        return TIME_ONCE
+    def __init__(self, dictval=None, when=None):
+        super(Schedule, self).__init__()
+        self._when = when
+        self._months = set()
+        self._days = set()
+        self._weekdays = set()
+        self._hours = set()
+        self._minutes = set()
+        self._seconds = set()
+
+        if dictval is not None:
+            self._from_dict(dictval)
 
     def __repr__(self):
-        return "mplane.model.time_once"
+        rs = "<Schedule "
+        if self._when is not None:
+            rs += repr(self._when) + " "
+        rs += "cron "
+        rs += "/".join(map(str, [len(self._months),
+                                 len(self._days),
+                                 len(self._weekdays),
+                                 len(self._hours),
+                                 len(self._minutes),
+                                 len(self._seconds)]))
+        rs += ">"
+        return rs
 
-time_once = OnceTime()
+    def to_dict(self):
+        d = {}
+        if self._when:
+            d[KEY_WHEN] = str(self._when)
+        if len(self._months):
+            d[KEY_MONTHS] = _unparse_numset(self._months)
+        if len(self._days):
+            d[KEY_DAYS] = _unparse_numset(self._days)
+        if len(self._weekdays):
+            d[KEY_WEEKDAYS] = _unparse_wdayset(self._weekdays)
+        if len(self._hours):
+            d[KEY_HOURS] = _unparse_numset(self._hours)
+        if len(self._minutes):
+            d[KEY_MINUTES] = _unparse_numset(self._minutes)
+        if len(self._seconds):
+            d[KEY_SECONDS] = _unparse_numset(self._seconds)
+        return d
 
-def test_weird_times():
-    """Ensure special timestamps order correctly."""
-    assert time_past < time_present
-    assert time_present < time_future
-    assert time_past < time_future
-    assert time_once < time_present
-    assert time_whenever < time_future
+    def _from_dict(self, d):
+        if KEY_WHEN in d:
+            self._when = When(valstr=d[KEY_WHEN])
+        if KEY_MONTHS in d:
+            self._months = _parse_numset(d[KEY_MONTHS])
+        if KEY_DAYS in d:
+            self._days = _parse_numset(d[KEY_DAYS])
+        if KEY_WEEKDAYS in d:
+            self._weekdays = _parse_wdayset(d[KEY_WEEKDAYS])
+        if KEY_HOURS in d:
+            self._hours = _parse_numset(d[KEY_HOURS])
+        if KEY_MINUTES in d:
+            self._minutes = _parse_numset(d[KEY_MINUTES])
+        if KEY_SECONDS in d:
+            self._seconds = _parse_numset(d[KEY_SECONDS])
+
+    def _datetime_iterator(self, t=None):
+        """
+        Returns an iterator over datetimes generated by the schedule 
+        and period. 
+
+        """
+        # default to now, zero microseconds, initialize minus one second
+        if t is None:
+            t = datetime.utcnow().replace(microsecond=0)
+
+        # get base period (default 1s) and
+        period = None
+        if self._when is not None:
+            period = self._when.period()
+        if period is None:
+            period = timedelta(seconds=1)
+
+        # fast forward if necessary
+        lag = self._when.sort_scope(t)
+        if lag < 0:
+            t += timedelta(seconds=-lag)
+
+        # loop through time by period and check for match
+        t -= period
+        while True:
+            t += period
+            if self._when is not None and not self._when.in_scope(t):
+                break
+            if len(self._seconds) and (t.second not in self._seconds):
+                continue
+            if len(self._minutes) and (t.minute not in self._minutes):
+                continue
+            if len(self._hours) and (t.hour not in self._hours):
+                continue
+            if len(self._days) and (t.day not in self._days):
+                continue
+            if len(self._weekdays) and (t.weekday() not in self._weekdays):
+                continue
+            if len(self._months) and (t.month not in self._months):
+                continue
+            yield t
+
+def test_tscope():
+    """Test When and Schedule"""
+    assert False
 
 #######################################################################
 # Primitive Types
@@ -620,37 +994,10 @@ class TimePrimitive(Primitive):
         return "mplane.model.prim_time"
 
     def parse(self, valstr):
-        if valstr is None or valstr == VALUE_NONE:
-            return None
-        elif valstr == TIME_PAST:
-            return time_past
-        elif valstr == TIME_NOW:
-            return time_present
-        elif valstr == TIME_FUTURE:
-            return time_future
-        elif valstr == TIME_ONCE:
-            return time_once
-        elif valstr == TIME_WHENEVER:
-            return time_whenever
-        else:
-            mg = _timestamp_re.match(valstr).groups()
-            if mg[3]:
-                dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M:%S.%f")
-            elif mg[2]:
-                dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M:%S")
-            elif mg[1]:
-                dt = datetime.strptime(valstr, "%Y-%m-%d %H:%M")
-            else:
-                dt = datetime.strptime(valstr, "%Y-%m-%d")
-            return dt
+        return parse_time(valstr)
     
     def unparse(self, val):
-        if val is None:
-            return VALUE_NONE
-        if isinstance(val, datetime):
-            return val.strftime("%Y-%m-%d %H:%M:%S.%f")
-        else:
-            return str(val)
+        return unparse_time(val)
 
 prim_string = StringPrimitive()
 prim_natural = NaturalPrimitive()
@@ -864,7 +1211,7 @@ class RangeConstraint(Constraint):
     def __init__(self, prim, sval=None, a=None, b=None):
         super(RangeConstraint, self).__init__(prim)
         if sval is not None:
-            (astr, bstr) = sval.split(CONSTRAINT_RANGESEP)
+            (astr, bstr) = sval.split(RANGE_SEP)
             self.a = prim.parse(astr)
             self.b = prim.parse(bstr)
         elif a is not None and b is not None:
@@ -880,7 +1227,7 @@ class RangeConstraint(Constraint):
     def __str__(self):
         """Represent this RangeConstraint as a string."""
         return self._prim.unparse(self.a) + \
-               CONSTRAINT_RANGESEP + \
+               RANGE_SEP + \
                self._prim.unparse(self.b)
 
     def __repr__(self):
@@ -902,7 +1249,7 @@ class SetConstraint(Constraint):
     def __init__(self, prim, sval=None, vs=None):
         super(SetConstraint, self).__init__(prim)
         if sval is not None:
-            self.vs = set(map(self._prim.parse, sval.split(CONSTRAINT_SETSEP)))
+            self.vs = set(map(self._prim.parse, sval.split(SET_SEP)))
         elif vs is not None:
             self.vs = vs
         else:
@@ -910,7 +1257,7 @@ class SetConstraint(Constraint):
 
     def __str__(self):
         """Represent this SetConstraint as a string."""
-        return CONSTRAINT_SETSEP.join(map(self._prim.unparse, self.vs))
+        return SET_SEP.join(map(self._prim.unparse, self.vs))
 
     def __repr__(self):
         return "mplane.model.SetConstraint("+repr(self._prim)+\
@@ -929,7 +1276,7 @@ class SetConstraint(Constraint):
 def parse_constraint(prim, sval):
     if sval == CONSTRAINT_ALL:
         return constraint_all
-    elif sval.find(CONSTRAINT_RANGESEP) > 0:
+    elif sval.find(RANGE_SEP) > 0:
         return RangeConstraint(prim=prim, sval=sval)
     else:
         return SetConstraint(prim=prim, sval=sval)
@@ -1090,6 +1437,7 @@ class Statement(object):
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None):
         super(Statement, self).__init__()
         # Make a blank statement
+        self._when = when_infinite
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -1100,7 +1448,6 @@ class Statement(object):
             self._from_dict(dictval)
         else:
             self._verb = verb;
-
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
@@ -1180,10 +1527,23 @@ class Statement(object):
                    [len(col) for col in self._resultcolumns.values()], 0)
 
     def get_link(self):
+        """
+        Get the statement's link, which specifies where the next message 
+        in the workflow should be sent to or retrieved from.
+        """
         return self._link
 
     def set_link(self, link):
+        """Set the statement's link"""
         self._link = link
+
+    def when(self):
+        """Get the statement's temporal scope"""
+        return self._when
+
+    def set_when(self, when):
+        """Set the statement's temporal scope"""
+        self._when = when
 
     def _schema_hash(self, lim=None):
         """
@@ -1278,23 +1638,25 @@ class Statement(object):
         d[self.kind_str()] = self._verb
 
         if self._link is not None:
-          d[SECTION_LINK] = self._link
+          d[KEY_LINK] = self._link
 
         if self._token is not None:
-          d[SECTION_TOKEN] = self._token
+          d[KEY_TOKEN] = self._token
+
+        d[KEY_WHEN] = str(self._when)
 
         if self.count_parameters() > 0:
-            d[SECTION_PARAMETERS] = {t[0] : t[1] for t in [v.as_tuple() 
+            d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v.as_tuple() 
                                         for v in self._params.values()]}
 
         if self.count_metadata() > 0:
-            d[SECTION_METADATA] = {t[0] : t[1] for t in [v.as_tuple() 
+            d[KEY_METADATA] = {t[0] : t[1] for t in [v.as_tuple() 
                                         for v in self._metadata.values()]}
 
         if self.count_result_columns() > 0:
-            d[SECTION_RESULTS] = [k for k in self._resultcolumns.keys()]
+            d[KEY_RESULTS] = [k for k in self._resultcolumns.keys()]
             if self.count_result_rows() > 0:
-                d[SECTION_RESULTVALUES] = self._result_rows()
+                d[KEY_RESULTVALUES] = self._result_rows()
 
         return d
 
@@ -1316,21 +1678,24 @@ class Statement(object):
         """
         self._verb = d[self.kind_str()]
 
-        if SECTION_LINK in d:
-          self._link = d[SECTION_LINK]
+        if KEY_LINK in d:
+          self._link = d[KEY_LINK]
 
-        if SECTION_TOKEN in d:
-          self._token = d[SECTION_TOKEN]
+        if KEY_TOKEN in d:
+          self._token = d[KEY_TOKEN]
 
-        if SECTION_PARAMETERS in d:
-            self._params_from_dict(d[SECTION_PARAMETERS])
+        if KEY_WHEN in d:
+            self._when = When(valstr=d[KEY_WHEN])
 
-        if SECTION_METADATA in d:
-            for (k, v) in d[SECTION_METADATA].items():
+        if KEY_PARAMETERS in d:
+            self._params_from_dict(d[KEY_PARAMETERS])
+
+        if KEY_METADATA in d:
+            for (k, v) in d[KEY_METADATA].items():
                 self.add_metadata(k, v)
 
-        if SECTION_RESULTS in d:
-            for v in d[SECTION_RESULTS]:
+        if KEY_RESULTS in d:
+            for v in d[KEY_RESULTS]:
                 self.add_result_column(v)
 
     def _clear_constraints(self):
@@ -1400,13 +1765,15 @@ class Specification(Statement):
     [FIXME document how this works once it's written]
 
     """
-    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None):
+    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, schedule=None):
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and capability is not None:
+            # Build a statement from a capabilitiy
             self._verb = capability._verb
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            self._schedule = schedule
             # set values that are constrained to a single choice
             for param in self._params.values():
                 param.set_single_value()
@@ -1430,52 +1797,6 @@ class Specification(Statement):
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
 
-    def job_delay(self):
-        """
-        Return the current delay required before running this 
-        specification, in seconds.
-
-        Returns 0 if the specification should start immediately. 
-        """
-        start = self.get_parameter_value(PARAM_START)
-        if start is time_present or start is time_whenever:
-            return 0
-        elif isinstance(start, datetime):
-            return max(0, (start - datetime.utcnow()).total_seconds())
-        else:
-            raise ValueError("Invalid "+PARAM_START+" value")
-
-    def job_duration(self):
-        """
-        Return the duration of this specification, in seconds.
-
-        Returns 0 if the specification should run once, 
-        and None if the specification should run forever.
-
-        """
-        start = self.get_parameter_value(PARAM_START)
-        end = self.get_parameter_value(PARAM_END)
-
-        if end is time_once:
-            return 0
-        elif end is time_future:
-            return None
-        elif not isinstance(end, datetime):
-            raise ValueError("Invalid "+PARAM_END+" value")
-
-        if start is time_present or start is time_whenever:
-            start = datetime.utcnow()
-
-        return (end - start).total_seconds()
-
-    def job_once(self):
-        """
-        Return True if the specification should only 
-        run a single measurement.
-
-        """
-        return self.get_parameter_value(PARAM_END) is time_once
-
     def fulfills(self, cap):
         """
         Determine whether this specification fulfills a given capability
@@ -1483,11 +1804,33 @@ class Specification(Statement):
         the constraints)
 
         """
-        #FIXME maybe do this without schema hashing?
-        return self._schema_hash() == cap._schema_hash()
+        # Check matching schema hash first
+        if self._schema_hash() != cap._schema_hash():
+            return False
+
+        # Verify that the specification is within the capability's temporal scope
+        if not cap.when().overlap_scope(self._when):
+            return False
+
+        # Works for me.
+        return True
 
     def _default_token(self):
         return self._pv_hash()
+
+    def to_dict(self):
+        d = super(Specification,self).to_dict(d)
+
+        if self._schedule is not None:
+            d[KEY_SCHEDULE] = self._schedule.to_dict()
+
+        return d
+
+    def _from_dict(self, d):
+        super(Specification,self)._from_dict(d)
+
+        if KEY_SCHEDULE in d:
+            self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
 
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
@@ -1522,6 +1865,9 @@ class Result(Statement):
         if (not pval):
             raise ValueError("Results must have parameter values.")
 
+        if (not self._when.is_definite()):
+            raise ValueError("Results must have definite temporal scope.")
+
     def _from_dict(self, d):
         """
         Fill in this Result with values from a dictionary
@@ -1532,8 +1878,8 @@ class Result(Statement):
 
         column_key = list(self._resultcolumns.keys())
 
-        if SECTION_RESULTVALUES in d:
-            for i, row in enumerate(d[SECTION_RESULTVALUES]):
+        if KEY_RESULTVALUES in d:
+            for i, row in enumerate(d[KEY_RESULTVALUES]):
                 for j, val in enumerate(row):
                     self._resultcolumns[column_key[j]][i] = val
 
@@ -1586,12 +1932,12 @@ class Exception(BareNotification):
     def to_dict(self):
         d = collections.OrderedDict()
         d[KIND_EXCEPTION] = self._token
-        d[SECTION_MESSAGE] = self._errmsg
+        d[KEY_MESSAGE] = self._errmsg
         return d
 
     def _from_dict(self, d):
         self._token = d[KIND_EXCEPTION]
-        self._errmsg = d[SECTION_MESSAGE]
+        self._errmsg = d[KEY_MESSAGE]
 
 class StatementNotification(Statement):
     """
@@ -1616,7 +1962,7 @@ class StatementNotification(Statement):
         d = super(StatementNotification, self).to_dict()
 
         if token_only and self._token is not None:
-            for sk in (SECTION_PARAMETERS, SECTION_METADATA, SECTION_RESULTS, SECTION_LINK):
+            for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK):
                 try:
                     del(d[sk])
                 except KeyError:
