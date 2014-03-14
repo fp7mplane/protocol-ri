@@ -670,11 +670,13 @@ class When(object):
         """
         return self.sort_scope(t, tzero) == 0
 
-    def overlap_scope(self, w, tzero=None):
+    def follows(self, w, tzero=None):
         """
-        Return true if there is an overlap between this scope and another.
+        Return True if this scope follows (is contained by) another.
 
         """
+        # FIXME this just checks for overlap, need to be smarter than that.
+
         if w.in_scope(self._a):
             return True
         elif self._b and w.in_scope(self._b):
@@ -1420,15 +1422,19 @@ class Statement(object):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None):
+    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
         super(Statement, self).__init__()
         # Make a blank statement
-        self._when = when_infinite
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
         self._token = token
         self._link = None
+
+        # Default temporal scope if not given
+        if when is None:
+            when = when_infinite
+        self._when = when
 
         if dictval is not None:
             self._from_dict(dictval)
@@ -1711,8 +1717,8 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None):
-        super(Capability, self).__init__(dictval=dictval, verb=verb, token=token)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
+        super(Capability, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
 
     def __repr__(self):
         return "<Capability: "+self._verb+\
@@ -1759,16 +1765,22 @@ class Specification(Statement):
     [FIXME document how this works once it's written]
 
     """
-    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, schedule=None):
+    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and capability is not None:
             # Build a statement from a capabilitiy
             self._verb = capability._verb
-            self._when = capability._when
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+
+            # handle temporal scope
+            if when is not None:
+                self._when = when
+            else:
+                self._when = capability._when
             self._schedule = schedule
+
             # set values that are constrained to a single choice
             for param in self._params.values():
                 param.set_single_value()
@@ -1785,7 +1797,13 @@ class Specification(Statement):
     def kind_str(self):
         return KIND_SPECIFICATION
 
-    def validate(self):
+    def validate(self, capability=None):
+        """
+        Check that this is a valid specification; 
+        if capability given, further check to ensure the specification fulfills
+        the given capability.
+        """
+
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -1793,23 +1811,20 @@ class Specification(Statement):
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
 
-    def fulfills(self, cap):
-        """
-        Determine whether this specification fulfills a given capability
-        (i.e. that the schemas match and that the parameter values match
-        the constraints)
+        # short circuit no fulfillment validation
+        if capability is None:
+            return True
 
-        """
-        # Check matching schema hash first
-        if self._schema_hash() != cap._schema_hash():
+        if self._schema_hash() != capability._schema_hash():
             return False
 
         # Verify that the specification is within the capability's temporal scope
-        if not cap.when().overlap_scope(self._when):
+        if not self._when.follows(cap.when())
             return False
 
         # Works for me.
         return True
+ 
 
     def _default_token(self):
         return self._pv_hash()
@@ -1855,7 +1870,7 @@ class Result(Statement):
     def kind_str(self):
         return KIND_RESULT
 
-    def validate(self):
+    def validate(self, specification=None):
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -1865,6 +1880,8 @@ class Result(Statement):
 
         if (not self._when.is_definite()):
             raise ValueError("Results must have definite temporal scope.")
+
+        # FIXME check to make sure the result matches the spec
 
     def _from_dict(self, d):
         """
