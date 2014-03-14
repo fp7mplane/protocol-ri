@@ -100,7 +100,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.message_from_dict(json.loads(capjson))
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure token 428eff92 schema 21e2a15a p(v)/m/r 2(1)/0/5>
+<Specification: measure when now ... future / 1s token ea839b56 schema 21e2a15a p(v)/m/r 2(1)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters 
 (one of which has a value), no metadata, and five result columns.
@@ -131,10 +131,9 @@ the component from which we got the capability:
 >>> specjson = json.dumps(spec.to_dict())
 >>> specjson # doctest: +SKIP
 '{"specification": "measure", 
+  "token": "ea839b56bc3f6004e95d780d7a64d899", 
+  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
-                 "period.s": "1", 
-                 "end": "2014-12-24 22:19:42.000000", 
-                 "start": "2014-12-24 22:18:42.000000", 
                  "destination.ip4": "10.0.37.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
@@ -152,16 +151,15 @@ run by the specification, then extract the necessary parameter values, e.g.:
 
 >>> comspec.get_parameter_value("destination.ip4")
 IPv4Address('10.0.37.2')
->>> comspec.get_parameter_value("period.s")
-1
+>>> comspec.when().period()
+datetime.timedelta(0, 1)
 
 After running the measurement, the component would return the results
 by assigning values to parameters which changed and result columns
 measured:
 
 >>> res = mplane.model.Result(specification=comspec)
->>> res.set_parameter_value("start", "2014-12-24 22:18:42.993000")
->>> res.set_parameter_value("end", "2014-12-24 22:19:42.991000")
+>>> res.set_when("2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000")
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
@@ -173,23 +171,22 @@ The result can then be serialized and sent back to the client:
 >>> resjson = json.dumps(res.to_dict())
 >>> resjson # doctest: +SKIP
 '{"result": "measure", 
+  "token": "ea839b56bc3f6004e95d780d7a64d899", 
+  "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
   "parameters": {"source.ip4": "10.0.27.2", 
-                 "period.s": "1", 
-                 "end": "2014-12-24 22:19:42.99100", 
-                 "start": "2014-12-24 22:18:42.993000", 
-                 "destination.ip4": "10.0.37.2"}, 
+                 "destination.ip4": "10.0.37.2"},
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
               "delay.twoway.icmp.us.count", 
-              "packets.lost"], 
+              "packets.lost"],  
   "resultvalues": [["33155", "192307", "55166", "58220", "2"]]}'
 
 which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure token db63083e schema 6c6f8524 p/m/r(r) 5/0/5(1)>
+<Result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token ea839b56 schema 21e2a15a p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -200,7 +197,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'db63083eec411c16654cf4e65532f4c7'
+'ea839b56bc3f6004e95d780d7a64d899'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -211,18 +208,16 @@ which can be used to quickly identify it in the future.
 
 >>> jsonrcpt = json.dumps(rcpt.to_dict())
 >>> jsonrcpt # doctest: +SKIP
-'{"receipt": "measure", 
-  "parameters": {"period.s": "1", 
-                 "destination.ip4": "10.0.37.2", 
-                 "source.ip4": "10.0.27.2", 
-                 "end": "2014-12-24 22:19:42.000000", 
-                 "start": "2014-12-24 22:18:42.000000"}, 
+'{"receipt": "measure",
+  "token": "ea839b56bc3f6004e95d780d7a64d899", 
+  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
+  "parameters": {"destination.ip4": "10.0.37.2", 
+                 "source.ip4": "10.0.27.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
               "delay.twoway.icmp.us.count", 
-              "packets.lost"], 
-  "token": "db63083eec411c16654cf4e65532f4c7"}'
+              "packets.lost"],}'
 
 The component keeps the receipt, keyed by token, and returns it to the
 client in a message. The client then which generates a future redemption 
@@ -230,17 +225,17 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<Receipt: db63083eec411c16654cf4e65532f4c7>
+<Receipt: ea839b56bc3f6004e95d780d7a64d899>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<Redemption: db63083eec411c16654cf4e65532f4c7>
+<Redemption: ea839b56bc3f6004e95d780d7a64d899>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "db63083eec411c16654cf4e65532f4c7"}'
+'{"redemption": "measure", "token": "ea839b56bc3f6004e95d780d7a64d899"}'
 
 .. note:: We should document and test interrupts and withdrawals, as well.
 
@@ -1819,7 +1814,7 @@ class Specification(Statement):
             return False
 
         # Verify that the specification is within the capability's temporal scope
-        if not self._when.follows(cap.when())
+        if not self._when.follows(cap.when()):
             return False
 
         # Works for me.
@@ -1830,7 +1825,7 @@ class Specification(Statement):
         return self._pv_hash()
 
     def to_dict(self):
-        d = super(Specification,self).to_dict(d)
+        d = super(Specification,self).to_dict()
 
         if self._schedule is not None:
             d[KEY_SCHEDULE] = self._schedule.to_dict()
@@ -1968,6 +1963,7 @@ class StatementNotification(Statement):
         super(StatementNotification, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
             self._verb = statement._verb
+            self._when = statement._when
             self._metadata = statement._metadata
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
@@ -1977,7 +1973,7 @@ class StatementNotification(Statement):
         d = super(StatementNotification, self).to_dict()
 
         if token_only and self._token is not None:
-            for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK):
+            for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK, KEY_WHEN):
                 try:
                     del(d[sk])
                 except KeyError:
