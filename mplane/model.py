@@ -1764,6 +1764,7 @@ class Specification(Statement):
         if dictval is None and capability is not None:
             # Build a statement from a capabilitiy
             self._verb = capability._verb
+            self._when = capability._when
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
@@ -1833,6 +1834,7 @@ class Result(Statement):
         super(Result, self).__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and specification is not None:
             self._verb = specification._verb
+            self._when = specification._when
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
