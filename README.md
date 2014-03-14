@@ -8,7 +8,7 @@ Measurement statements are fundamentally based on schemas divided into Parameter
 
 This document defines the terminology for the mPlane protocol in section 2, describes the architecture used by the protocol in section 3, defines the Information Model in detail in section 4 and bindings to session protocols in section 5. Section 6 outlines concrete workflows which can be used by the protocol.
 
-Section 7 outlines additional features of the Reference Implementation which, while not providing a normative reference for the mPlane protocol 
+Section 7 outlines additional features of the Reference Implementation which, while not providing a normative reference for the mPlane protocol, are useful for using this module to demonstrate how mPlane works.
 
 # Terminology
 

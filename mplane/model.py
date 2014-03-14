@@ -54,24 +54,19 @@ empty Capability:
 >>> mplane.model.initialize_registry()
 >>> cap = mplane.model.Capability()
 
-Probe components generally advertise a temporal scope from the
-present stretching into the indeterminate future:
+First we set a temporal scope for the capability. Probe components 
+generally advertise a temporal scope from the present stretching 
+into the indeterminate future. In this case, we advertise that the 
+measurement performed is periodic, by setting the minimum period 
+supported by the capability: one ping per second.
 
->>> cap.add_parameter("start", "now...+inf")
->>> cap.add_parameter("end", "now...+inf")
+>>> cap.set_when("now ... future / 1s")
 
 We can only ping from one IPv4 address, to any IPv4 address. 
 Adding a parameter without a constraint makes it unconstrained:
 
 >>> cap.add_parameter("source.ip4", "10.0.27.2")
 >>> cap.add_parameter("destination.ip4")
-
-We'll allow the client to set a period between one second and one hour,
-which allows relatively long running measurements as well as more
-immediate ones, without allowing an individual probe to be used for
-flooding or DoS attacks:
-
->>> cap.add_parameter("period.s", "1...3600")
 
 Then we define the result columns this measurement can produce. Here,
 we want quick reporting of min, max, and mean delays, as well as a
@@ -285,9 +280,9 @@ SET_SEP = ","
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
 
-TIME_PAST = "-inf"
+TIME_PAST = "past"
 TIME_NOW = "now"
-TIME_FUTURE = "+inf"
+TIME_FUTURE = "future"
 
 VERB_MEASURE = "measure"
 VERB_QUERY = "query"
@@ -1376,7 +1371,6 @@ class Metavalue(Element):
     def as_tuple(self):
         return (self._name, self._prim.unparse(self._val))
 
-
 class ResultColumn(Element):
     """
     A ResultColumn is an element which can take an array of values. 
@@ -1542,7 +1536,12 @@ class Statement(object):
         return self._when
 
     def set_when(self, when):
-        """Set the statement's temporal scope"""
+        """
+        Set the statement's temporal scope. Takes either an instance of
+        mplane.model.When, or a string describing the scope.
+        """
+        if isinstance(when, str):
+            when = When(when)
         self._when = when
 
     def _schema_hash(self, lim=None):
