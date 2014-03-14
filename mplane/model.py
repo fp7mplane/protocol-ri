@@ -85,11 +85,9 @@ download or configuration:
 >>> capjson = json.dumps(cap.to_dict())
 >>> capjson # doctest: +SKIP
 '{"capability": "measure", 
-  "parameters": {"end": "now...+inf", 
-                 "period.s": "1...3600", 
-                 "source.ip4": "10.0.27.2", 
-                 "destination.ip4": "*", 
-                 "start": "now...+inf"}, 
+  "when": "now ... future / 1s", 
+  "parameters": {"source.ip4": "10.0.27.2", 
+                 "destination.ip4": "*"},
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
@@ -102,9 +100,9 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.message_from_dict(json.loads(capjson))
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure token db63083e schema 6c6f8524 p(v)/m/r 5(1)/0/5>
+<Specification: measure token 428eff92 schema 21e2a15a p(v)/m/r 2(1)/0/5>
 
-Here we have a specification with a given token, schema, and 5 parameters 
+Here we have a specification with a given token, schema, and 2 parameters 
 (one of which has a value), no metadata, and five result columns.
 
 .. note:: The schema of the statement is identified by a
@@ -117,21 +115,15 @@ Here we have a specification with a given token, schema, and 5 parameters
           workflow with mPlane, any parameters with constraints only allowing
           a single value will be automatically filled in.
 
-So let's fill in some parameters; note that strings are accepted and
+First let's fill in a specific temporal scope for the measurement:
+
+>>> spec.set_when("2014-12-24 22:18:42 + 1m / 1s")
+
+And then let's fill in some parameters; note that strings are accepted and
 automatically parsed using each parameter's primitive type:
 
->>> spec.set_parameter_value("start", "2014-12-24 22:18:42")
->>> spec.set_parameter_value("end", "2014-12-24 22:19:42")
->>> spec.set_parameter_value("period.s", 1)
 >>> spec.set_parameter_value("source.ip4", "10.0.27.2")
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
-
-.. note:: Presently, the protocol only supports absolute temporal scopes. 
-          We almost certainly need relative scopes ("now + 1m") as well,
-          to make it easier to state a specification has a duration as
-          opposed to hard limits. This functionality will be added concurrently
-          with the scheduling features in mplane.component, which themselves
-          should follow current work in the LMAP WG.
 
 And now we can transform this specification and send it back to
 the component from which we got the capability:
@@ -393,7 +385,7 @@ def unparse_dur(valtd):
     valsec = int(valtd.total_seconds())
     valstr = ""
     for i in range(4):
-        if valsec > _dur_seclabel[i][0]:
+        if valsec >= _dur_seclabel[i][0]:
             valunit = int(valsec / _dur_seclabel[i][0])
             valstr += str(valunit) + _dur_seclabel[i][1]
             valsec -= valunit * _dur_seclabel[i][0]
@@ -1445,6 +1437,7 @@ class Statement(object):
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
+               " when "+str(self._when)+\
                " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+">"
 
     def kind_str(self):
@@ -1561,13 +1554,13 @@ class Statement(object):
     def _pv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
-        parameter values, and result columns of this statement. Used as
-        a specification key.
+        temporal scope, parameter values, and result columns 
+        of this statement. Used as a specification key.
 
         """
         spk = sorted(self._params.keys())
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
-        tstr = self._verb + \
+        tstr = self._verb + " w " + str(self._when) +\
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
@@ -1580,6 +1573,7 @@ class Statement(object):
     def _mpcv_hash(self, lim=None):
         """
         Return a hex string uniquely identifying the set of parameters,
+        temporal scope,
         parameter constraints, parameter values, metadata, metadata values, 
         and result columns (the extended specification) of this statement.
         Used as a complete token for statements.
@@ -1590,7 +1584,7 @@ class Statement(object):
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
         smk = sorted(self._metadata.keys())
         smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
-        tstr = self._verb + \
+        tstr = self._verb + " w " + str(self._when) +\
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
@@ -1722,6 +1716,7 @@ class Capability(Statement):
 
     def __repr__(self):
         return "<Capability: "+self._verb+\
+               " when "+str(self._when)+\
                " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p/m/r "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
@@ -1779,6 +1774,7 @@ class Specification(Statement):
 
     def __repr__(self):
         return "<Specification: "+self._verb+\
+               " when "+str(self._when)+\
                " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p(v)/m/r "+str(self.count_parameters())+"("+\
                str(self.count_parameter_values())+")/"+\
@@ -1847,6 +1843,7 @@ class Result(Statement):
 
     def __repr__(self):
         return "<Result: "+self._verb+\
+               " when "+str(self._when)+\
                " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
                " p/m/r(r) "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
