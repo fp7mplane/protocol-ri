@@ -185,6 +185,7 @@ class ClientShell(cmd.Cmd):
     def preloop(self):
         self._client = None
         self._defaults = {}
+        self._when = None
 
     def do_connect(self, arg):
         """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
@@ -244,11 +245,15 @@ class ClientShell(cmd.Cmd):
         """
         # Retrieve a capability and create a specification
 #        try:
+        cap = self._client.capability_at(int(arg.split()[0]))
         spec = mplane.model.Specification(
-                    capability=self._client.capability_at(int(arg.split()[0])))
+                    capability=cap)
 #        except:
 #            print ("No such capability "+arg)
 #            return
+
+        # Set temporal scope
+        spec.set_when(self._when)
 
         # Fill in parameter values
         for pname in spec.parameter_names():
@@ -264,6 +269,9 @@ class ClientShell(cmd.Cmd):
             else:
                 # FIXME we really want to unparse this
                 print("|param| "+pname+" = "+str(spec.get_parameter_value(pname)))
+
+        # Validate specification against capability
+        spec.validate(cap)
 
         # And send it to the server
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))
@@ -299,6 +307,16 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't set default "+arg)
 
+    def do_when(self, arg):
+        """Set a default temporal scope"""
+        if len(arg) > 0:
+            try:
+                self._when = mplane.model.When(arg)
+            except:
+                print("Invalid temporal scope "+arg)
+        else:
+            print("when = "+str(self._when))
+
     def do_unset(self, arg):
         """Unset a default parameter value"""
         try:
@@ -307,16 +325,6 @@ class ClientShell(cmd.Cmd):
                 del self._defaults[key]
         except:
             print("Couldn't unset default(s) "+arg)
-
-    def do_tsreset(self, arg):
-        """Reset the temporal scope to run for 30 seconds 30 seconds from now"""
-        st = datetime.utcnow()
-        st += timedelta(seconds=30)
-        et = st + timedelta(seconds=30)
-        self._defaults["start"] = st.strftime("%Y-%m-%d %H:%M:%S")
-        print("start = "+self._defaults["start"])
-        self._defaults["end"] = et.strftime("%Y-%m-%d %H:%M:%S")
-        print("end = "+self._defaults["end"])
 
     def do_EOF(self, arg):
         """Exit the shell by typing ^D"""

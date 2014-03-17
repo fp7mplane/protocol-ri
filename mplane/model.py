@@ -1444,7 +1444,7 @@ class Statement(object):
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
-    def validate(self):
+    def validate(self, other_statement=None):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
@@ -1529,13 +1529,20 @@ class Statement(object):
         """Get the statement's temporal scope"""
         return self._when
 
-    def set_when(self, when):
+    def set_when(self, when, force=False):
         """
-        Set the statement's temporal scope. Takes either an instance of
+        Set the statement's temporal scope. Ensures that the temporal scope is
+        within the previous temporal scope unless force is True.
+        Takes either an instance of
         mplane.model.When, or a string describing the scope.
         """
         if isinstance(when, str):
             when = When(when)
+        if not force and \
+           (self._when is not None) and \
+           not when.follows(self._when):
+            raise ValueError("Cannot set temporal scope "+str(when)+
+                             " within "+str(self._when))
         self._when = when
 
     def _schema_hash(self, lim=None):
@@ -1726,6 +1733,10 @@ class Capability(Statement):
     def kind_str(self):
         return KIND_CAPABILITY
 
+    def set_when(self, when, force=True):
+        """By default, changes to capability temporal scopes are always forced."""
+        super(Capability, self).set_when(when, force)
+
     def validate(self):
         pval = functools.reduce(operator.__or__, 
                                 (p.has_value() for p in self._params.values()),
@@ -1810,6 +1821,7 @@ class Specification(Statement):
         if capability is None:
             return True
 
+        # verify that the schema hash is equal 
         if self._schema_hash() != capability._schema_hash():
             return False
 
