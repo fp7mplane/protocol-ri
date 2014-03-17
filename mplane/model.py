@@ -1442,6 +1442,8 @@ class Statement(object):
         # Default temporal scope if not given
         if when is None:
             when = when_infinite
+        if isinstance(when, str):
+            when = When(when)
         self._when = when
 
         if dictval is not None:
@@ -1698,7 +1700,7 @@ class Statement(object):
           self._token = d[KEY_TOKEN]
 
         if KEY_WHEN in d:
-            self._when = When(valstr=d[KEY_WHEN])
+            self._when = When(d[KEY_WHEN])
 
         if KEY_PARAMETERS in d:
             self._params_from_dict(d[KEY_PARAMETERS])
@@ -1785,23 +1787,23 @@ class Specification(Statement):
     """
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token)
+        # handle temporal scope
+        self._schedule = schedule
+        self._when = when
+
+        # fill in from capability
         if dictval is None and capability is not None:
             # Build a statement from a capabilitiy
             self._verb = capability._verb
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
-
-            # handle temporal scope
-            if when is not None:
-                self._when = when
-            else:
+            if self._when is None:
                 self._when = capability._when
-            self._schedule = schedule
 
-            # set values that are constrained to a single choice
-            for param in self._params.values():
-                param.set_single_value()
+        # set values that are constrained to a single choice
+        for param in self._params.values():
+            param.set_single_value()
 
     def __repr__(self):
         return "<Specification: "+self._verb+\
@@ -1814,6 +1816,18 @@ class Specification(Statement):
 
     def kind_str(self):
         return KIND_SPECIFICATION
+
+    def fulfills(self, capability):
+        # verify that the schema hash is equal 
+        if self._schema_hash() != capability._schema_hash():
+            return False
+
+        # Verify that the specification is within the capability's temporal scope
+        if not self._when.follows(capability.when()):
+            return False
+
+        # Works for me.
+        return True
 
     def validate(self, capability=None):
         """
@@ -1832,18 +1846,8 @@ class Specification(Statement):
         # short circuit no fulfillment validation
         if capability is None:
             return True
-
-        # verify that the schema hash is equal 
-        if self._schema_hash() != capability._schema_hash():
-            return False
-
-        # Verify that the specification is within the capability's temporal scope
-        if not self._when.follows(capability.when()):
-            return False
-
-        # Works for me.
-        return True
- 
+        else:
+            return self.fulfills(capability)
 
     def _default_token(self):
         return self._pv_hash()
