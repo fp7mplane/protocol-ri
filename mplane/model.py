@@ -1786,18 +1786,20 @@ class Specification(Statement):
 
     """
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
-        super(Specification, self).__init__(dictval=dictval, verb=verb, token=token)
-        # handle temporal scope
+        # handle schedule (for specifications only)
         self._schedule = schedule
-        self._when = when
 
-        # fill in from capability
+        # then initialize the rest of the statement stuff
+        super(Specification, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
+
+        # fill in from capability if given
         if dictval is None and capability is not None:
             # Build a statement from a capabilitiy
             self._verb = capability._verb
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            # inherit from capability only when necessary
             if self._when is None:
                 self._when = capability._when
 
@@ -1871,18 +1873,21 @@ class Specification(Statement):
 
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
-    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, token=None):
-        super(Result, self).__init__(dictval=dictval, verb=verb, token=token)
+    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, token=None, when=None):
+        super(Result, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
         if dictval is None and specification is not None:
             self._verb = specification._verb
-            self._when = specification._when
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
             # assign token from specification
             self._token = specification.get_token()
-            # allow parameters to take values other than
+            # allow parameters to take values other than constrained
             self._clear_constraints()
+            # inherit from specification only when necessary
+            if self._when is not None:
+                self._when = specification._when
+
 
     def __repr__(self):
         return "<Result: "+self._verb+\
