@@ -566,6 +566,8 @@ class When(object):
 
         if self._a is time_now:
             start = tzero
+        elif self._a is time_past:
+            start = None
         else:
             start = self._a
 
@@ -589,7 +591,8 @@ class When(object):
         elif self._b is time_future:
             return None
         else:
-            return self._b - self._datetimes(tzero)
+            (start, end) = self._datetimes(tzero)
+            return end - start
 
     def period(self):
         return self._p
@@ -649,6 +652,17 @@ class When(object):
         or > 0 if time t falls after this scope. 
 
         """
+
+        # Special handling for "now"
+        if t is time_now:
+            if self._a is time_now or self._b is time_now:
+                return 0
+            else:
+                if tzero is None:
+                    tzero = datetime.utcnow()
+                t = tzero
+
+        # Get concrete time range
         (start, end) = self._datetimes(tzero=tzero)
 
         if start and t < start:
@@ -665,16 +679,15 @@ class When(object):
         """
         return self.sort_scope(t, tzero) == 0
 
-    def follows(self, w, tzero=None):
+    def follows(self, s, tzero=None):
         """
         Return True if this scope follows (is contained by) another.
 
         """
-        # FIXME this just checks for overlap, need to be smarter than that.
 
-        if w.in_scope(self._a):
+        if s.in_scope(self._a):
             return True
-        elif self._b and w.in_scope(self._b):
+        if isinstance(self._b, datetime) and s.in_scope(self._b):
             return True
         else:
             return False
@@ -1825,7 +1838,7 @@ class Specification(Statement):
             return False
 
         # Verify that the specification is within the capability's temporal scope
-        if not self._when.follows(cap.when()):
+        if not self._when.follows(capability.when()):
             return False
 
         # Works for me.
