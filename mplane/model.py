@@ -806,7 +806,44 @@ class Schedule(object):
 
 def test_tscope():
     """Test When and Schedule"""
-    assert False
+    # Definite scope
+    wdef = When("2009-02-20 13:00:00 ... 2009-02-20 15:00:00")
+    assert wdef.duration() == timedelta(0,7200)
+    assert wdef.period() is None
+    assert wdef.is_definite()
+    assert not wdef.is_infinite()
+    assert wdef.in_scope(parse_time("2009-02-20 14:15:16"))
+    assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
+    assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
+    assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
+    (wdefa, wdefb) == wdef._datetimes()
+    assert wdefa == parse_time("2009-02-20 13:00:00")
+    assert wdefb == parse_time("2009-02-20 15:00:00")
+    (wdefst, wdefet) == wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00"))
+    assert wdefst == timedelta(0,3600)
+    assert wdefet == timedelta(0,10800)
+
+    # Immediate scope with period
+    wrel = When("now + 30m / 15s")
+    assert wrel.duration() == timedelta(0,1800)
+    assert wrel.period() == timedelta(0,15)
+    assert not wrel.is_definite() 
+    assert wrel.is_immediate()
+    assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+    (wrela, wrelb) = wrel._datetimes()
+    assert wrela == parse_time("2009-02-20 13:30:00")
+    assert wrelb == parse_time("2009-02-20 14:00:00")
+    assert wrel.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    (wrelst, wrelet) == wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00"))
+    assert wrelst == timedelta(0,0)
+    assert wrelet == timedelta(0,7200)
+
+    # Infinite scope
+    assert when_infinite.duration() is None
+    assert when_infinite.period() is None
+    assert wdef.follows(when_infinite)
+    assert wrel.follows(when_infinite)
+    assert (when_infinite._datetimes()) == (None, None)
 
 #######################################################################
 # Primitive Types
@@ -1036,15 +1073,11 @@ def test_primitives():
     assert prim_time.unparse(datetime(2013, 7, 30, 23, 19, 42)) == \
            '2013-07-30 23:19:42.000000'
     assert prim_time.parse("now") is time_present
-    assert prim_time.parse("-inf") is time_past
-    assert prim_time.parse("+inf") is time_future
-    assert prim_time.parse("once") is time_once
-    assert prim_time.parse("whenever") is time_whenever
+    assert prim_time.parse("past") is time_past
+    assert prim_time.parse("future") is time_future
     assert prim_time.unparse(time_present) == "now"
-    assert prim_time.unparse(time_past) == "-inf"
-    assert prim_time.unparse(time_future) == "+inf"
-    assert prim_time.unparse(time_once) == "once"
-    assert prim_time.unparse(time_whenever) == "whenever"
+    assert prim_time.unparse(time_past) == "past"
+    assert prim_time.unparse(time_future) == "future"
 
 #
 # Element classes
@@ -1310,6 +1343,8 @@ class Parameter(Element):
     """
     def __init__(self, parent_element, constraint=constraint_all, val=None):
         super(Parameter, self).__init__(parent_element._name, parent_element._prim)
+        self._val = None
+        
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
         else:
@@ -1318,7 +1353,7 @@ class Parameter(Element):
         self.set_value(val)
 
     def __repr__(self):
-        return "<Parameter "+str(self)+" "+repr(self._prim)+\
+        return "<Parameter "+str(self)+" "+repr(self._prim)+" "+\
                str(self._constraint)+" value "+repr(self._val)+">"
 
     def has_value(self):
@@ -1332,6 +1367,7 @@ class Parameter(Element):
             val = self._prim.parse(val)
 
         if (val is None) or self._constraint.met_by(val):
+            print("setting value of "+repr(self)+" to "+repr(val))
             self._val = val
         else:
             raise ValueError(repr(self) + " cannot take value " + repr(val))
@@ -1436,20 +1472,21 @@ class Statement(object):
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
-        self._token = token
         self._link = None
 
-        # Default temporal scope if not given
-        if when is None:
-            when = when_infinite
-        if isinstance(when, str):
-            when = When(when)
-        self._when = when
-
         if dictval is not None:
+            # Fill in from dictionary
             self._from_dict(dictval)
         else:
+            # Fill in from defaults
             self._verb = verb;
+            self._token = token
+            if when is None:
+                when = when_infinite
+            elif isinstance(when, str):
+                when = When(when)           
+            self._when = when
+
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
@@ -1691,6 +1728,8 @@ class Statement(object):
         Ignores result values; these are handled by :func:`Result._from_dict()
 
         """
+        print("in Statement._from_dict")
+
         self._verb = d[self.kind_str()]
 
         if KEY_LINK in d:
@@ -1703,6 +1742,7 @@ class Statement(object):
             self._when = When(d[KEY_WHEN])
 
         if KEY_PARAMETERS in d:
+            print("parameters from dictionary: "+repr(d[KEY_PARAMETERS]))
             self._params_from_dict(d[KEY_PARAMETERS])
 
         if KEY_METADATA in d:
@@ -1786,22 +1826,19 @@ class Specification(Statement):
 
     """
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
-        # handle schedule (for specifications only)
-        self._schedule = schedule
-
-        # then initialize the rest of the statement stuff
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
 
-        # fill in from capability if given
-        if dictval is None and capability is not None:
-            # Build a statement from a capabilitiy
-            self._verb = capability._verb
-            self._metadata = capability._metadata
-            self._params = deepcopy(capability._params)
-            self._resultcolumns = deepcopy(capability._resultcolumns)
-            # inherit from capability only when necessary
-            if self._when is None:
+        if dictval is None:
+            # No dictionary, fill in schedule
+            self._schedule = schedule
+
+            if capability is not None:
+                # Build a statement from a capabilitiy
+                self._verb = capability._verb
                 self._when = capability._when
+                self._metadata = capability._metadata
+                self._params = deepcopy(capability._params)
+                self._resultcolumns = deepcopy(capability._resultcolumns)
 
         # set values that are constrained to a single choice
         for param in self._params.values():
@@ -1862,6 +1899,7 @@ class Specification(Statement):
     def _from_dict(self, d):
         super(Specification,self)._from_dict(d)
 
+        print("in Specification._from_dict")
         if KEY_SCHEDULE in d:
             self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
 

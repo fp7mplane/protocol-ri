@@ -225,7 +225,7 @@ def parse_args():
                         help="Ping from the given IPv6 address")
     args = parser.parse_args()
 
-def test_ping():
+def manually_test_ping():
     svc = PingService(ping4_aggregate_capability(LOOP4))
     spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip4", LOOP4)
