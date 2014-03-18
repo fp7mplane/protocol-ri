@@ -270,8 +270,8 @@ class ClientShell(cmd.Cmd):
                 # FIXME we really want to unparse this
                 print("|param| "+pname+" = "+str(spec.get_parameter_value(pname)))
 
-        # Validate specification against capability
-        spec.validate(cap)
+        # Validate specification
+        spec.validate()
 
         # And send it to the server
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))

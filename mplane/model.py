@@ -1459,7 +1459,7 @@ class Statement(object):
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
-    def validate(self, other_statement=None):
+    def validate(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
@@ -1831,7 +1831,7 @@ class Specification(Statement):
         # Works for me.
         return True
 
-    def validate(self, capability=None):
+    def validate(self):
         """
         Check that this is a valid specification; 
         if capability given, further check to ensure the specification fulfills
@@ -1844,12 +1844,6 @@ class Specification(Statement):
 
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
-
-        # short circuit no fulfillment validation
-        if capability is None:
-            return True
-        else:
-            return self.fulfills(capability)
 
     def _default_token(self):
         return self._pv_hash()
@@ -1901,7 +1895,7 @@ class Result(Statement):
     def kind_str(self):
         return KIND_RESULT
 
-    def validate(self, specification=None):
+    def validate(self):
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -1911,8 +1905,6 @@ class Result(Statement):
 
         if (not self._when.is_definite()):
             raise ValueError("Results must have definite temporal scope.")
-
-        # FIXME check to make sure the result matches the spec
 
     def _from_dict(self, d):
         """
