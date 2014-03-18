@@ -1473,7 +1473,8 @@ class Statement(object):
     _verb = None
     _when = None
     _token = None
-
+    _schedule = None # completely ignored unless this is a specification
+    
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
         super(Statement, self).__init__()
         # Make a blank statement
@@ -1733,7 +1734,8 @@ class Statement(object):
         """
         Fill in this Statement with values from a dictionary
         produced with to_dict (i.e., as taken from JSON or YAML).
-        Ignores result values; these are handled by :func:`Result._from_dict()
+        Ignores result values, as these are handled by :func:`Result._from_dict()`; 
+        ignores the schedule section, as this is handled in :func:`Specification._from_dict()`.
 
         """
 
@@ -1831,8 +1833,6 @@ class Specification(Statement):
     [FIXME document how this works once it's written]
 
     """
-    # Additional member variables
-    _schedule = None
 
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
@@ -1844,10 +1844,13 @@ class Specification(Statement):
             if capability is not None:
                 # Build a statement from a capabilitiy
                 self._verb = capability._verb
-                self._when = capability._when
                 self._metadata = capability._metadata
                 self._params = deepcopy(capability._params)
                 self._resultcolumns = deepcopy(capability._resultcolumns)
+
+                # inherit from capability only when necessary
+                if when is None:
+                    self._when = capability._when
 
         # set values that are constrained to a single choice
         for param in self._params.values():
@@ -1861,6 +1864,12 @@ class Specification(Statement):
                str(self.count_parameter_values())+")/"+\
                str(self.count_metadata())+"/"+\
                str(self.count_result_columns())+">"
+
+    def _debug(self):
+        return repr(self) + "\n" +\
+               "\n".join(map(repr,self._schedule)) + "\n" +\
+               "\n".join(map(repr,self._params)) + "\n" +\
+               "\n".join(map(repr,self._resultcolumns))
 
     def kind_str(self):
         return KIND_SPECIFICATION
@@ -1925,7 +1934,7 @@ class Result(Statement):
             # allow parameters to take values other than constrained
             self._clear_constraints()
             # inherit from specification only when necessary
-            if self._when is not None:
+            if when is not None:
                 self._when = specification._when
 
 
