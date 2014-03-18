@@ -1344,7 +1344,7 @@ class Parameter(Element):
     def __init__(self, parent_element, constraint=constraint_all, val=None):
         super(Parameter, self).__init__(parent_element._name, parent_element._prim)
         self._val = None
-        
+
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
         else:
@@ -1367,7 +1367,6 @@ class Parameter(Element):
             val = self._prim.parse(val)
 
         if (val is None) or self._constraint.met_by(val):
-            print("setting value of "+repr(self)+" to "+repr(val))
             self._val = val
         else:
             raise ValueError(repr(self) + " cannot take value " + repr(val))
@@ -1465,6 +1464,15 @@ class Statement(object):
     and :class:`mplane.model.Result` classes instead.
 
     """
+
+    # Member variables
+    _params = None
+    _metadata = None
+    _resultcolumns = None
+    _link = None
+    _verb = None
+    _when = None
+    _token = None
 
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
         super(Statement, self).__init__()
@@ -1728,7 +1736,6 @@ class Statement(object):
         Ignores result values; these are handled by :func:`Result._from_dict()
 
         """
-        print("in Statement._from_dict")
 
         self._verb = d[self.kind_str()]
 
@@ -1742,7 +1749,6 @@ class Statement(object):
             self._when = When(d[KEY_WHEN])
 
         if KEY_PARAMETERS in d:
-            print("parameters from dictionary: "+repr(d[KEY_PARAMETERS]))
             self._params_from_dict(d[KEY_PARAMETERS])
 
         if KEY_METADATA in d:
@@ -1825,6 +1831,9 @@ class Specification(Statement):
     [FIXME document how this works once it's written]
 
     """
+    # Additional member variables
+    _schedule = None
+
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
         super(Specification, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
 
@@ -1899,7 +1908,6 @@ class Specification(Statement):
     def _from_dict(self, d):
         super(Specification,self)._from_dict(d)
 
-        print("in Specification._from_dict")
         if KEY_SCHEDULE in d:
             self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
 
