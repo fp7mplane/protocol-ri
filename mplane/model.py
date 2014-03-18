@@ -82,7 +82,7 @@ Now we have a capability we could transform into JSON and make
 available to clients via the mPlane protocol, or via static 
 download or configuration:
 
->>> capjson = json.dumps(cap.to_dict())
+>>> capjson = mplane.model.unparse_json(cap)
 >>> capjson # doctest: +SKIP
 '{"capability": "measure", 
   "when": "now ... future / 1s", 
@@ -97,7 +97,7 @@ download or configuration:
 On the client side, we'd receive this capability as a JSON object and turn it
 into a capability, from which we generate a specification:
 
->>> clicap = mplane.model.message_from_dict(json.loads(capjson))
+>>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
 <Specification: measure when now ... future / 1s token ea839b56 schema 21e2a15a p(v)/m/r 2(1)/0/5>
@@ -128,7 +128,7 @@ automatically parsed using each parameter's primitive type:
 And now we can transform this specification and send it back to
 the component from which we got the capability:
 
->>> specjson = json.dumps(spec.to_dict())
+>>> specjson = mplane.model.unparse_json(spec)
 >>> specjson # doctest: +SKIP
 '{"specification": "measure", 
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
@@ -144,7 +144,7 @@ the component from which we got the capability:
 On the component side, likewise, we'd receive this specification as a JSON
 object and turn it back into a specification:
 
->>> comspec = mplane.model.message_from_dict(json.loads(specjson))
+>>> comspec = mplane.model.parse_json(specjson)
 
 The component would determine the measurement, query, or other operation to
 run by the specification, then extract the necessary parameter values, e.g.:
@@ -466,7 +466,7 @@ class When(object):
 
     """
     def __init__(self, valstr=None, a=None, b=None, d=None, p=None):
-        super(When, self).__init__()
+        super().__init__()
         self._a = a
         self._b = b
         self._d = d
@@ -685,9 +685,9 @@ class When(object):
 
         """
 
-        if s.in_scope(self._a):
+        if s.in_scope(self._a, tzero):
             return True
-        if isinstance(self._b, datetime) and s.in_scope(self._b):
+        if isinstance(self._b, datetime) and s.in_scope(self._b, tzero):
             return True
         else:
             return False
@@ -700,9 +700,13 @@ class Schedule(object):
     sets of months, days, days of weeks, hours, minutes, and seconds.
     Used to specify repetitions of single measurements in a Specification.
     Designed to be broadly compatible with LMAP calendar-based scheduling.
+
+    This class is not yet fully implemented or integrated into the
+    information model.
+
     """
     def __init__(self, dictval=None, when=None):
-        super(Schedule, self).__init__()
+        super().__init__()
         self._when = when
         self._months = set()
         self._days = set()
@@ -805,7 +809,7 @@ class Schedule(object):
             yield t
 
 def test_tscope():
-    """Test When and Schedule"""
+    """Test When"""
     # Definite scope
     wdef = When("2009-02-20 13:00:00 ... 2009-02-20 15:00:00")
     assert wdef.duration() == timedelta(0,7200)
@@ -816,12 +820,9 @@ def test_tscope():
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
     assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
-    (wdefa, wdefb) == wdef._datetimes()
-    assert wdefa == parse_time("2009-02-20 13:00:00")
-    assert wdefb == parse_time("2009-02-20 15:00:00")
-    (wdefst, wdefet) == wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00"))
-    assert wdefst == timedelta(0,3600)
-    assert wdefet == timedelta(0,10800)
+    assert wdef._datetimes() == (parse_time("2009-02-20 13:00:00"), 
+                                 parse_time("2009-02-20 15:00:00"))
+    assert wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (3600, 10800)
 
     # Immediate scope with period
     wrel = When("now + 30m / 15s")
@@ -830,13 +831,10 @@ def test_tscope():
     assert not wrel.is_definite() 
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
-    (wrela, wrelb) = wrel._datetimes()
-    assert wrela == parse_time("2009-02-20 13:30:00")
-    assert wrelb == parse_time("2009-02-20 14:00:00")
+    assert wrel._datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
     assert wrel.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
-    (wrelst, wrelet) == wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00"))
-    assert wrelst == timedelta(0,0)
-    assert wrelet == timedelta(0,7200)
+    assert wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
 
     # Infinite scope
     assert when_infinite.duration() is None
@@ -844,6 +842,7 @@ def test_tscope():
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
     assert (when_infinite._datetimes()) == (None, None)
+
 
 #######################################################################
 # Primitive Types
@@ -861,7 +860,7 @@ class Primitive(object):
 
     """
     def __init__(self, name):
-        super(Primitive, self).__init__()
+        super().__init__()
         self.name = name
 
     def __str__(self):
@@ -920,7 +919,7 @@ class NaturalPrimitive(Primitive):
 
     """
     def __init__(self):
-        super(NaturalPrimitive, self).__init__("natural")
+        super().__init__("natural")
 
     def __repr__(self):                
         return "mplane.model.prim_natural"
@@ -942,7 +941,7 @@ class RealPrimitive(Primitive):
 
     """
     def __init__(self):
-        super(RealPrimitive, self).__init__("real")
+        super().__init__("real")
     
     def __repr__(self):                
         return "mplane.model.prim_real"
@@ -989,7 +988,7 @@ class AddressPrimitive(Primitive):
 
     """
     def __init__(self):
-        super(AddressPrimitive, self).__init__("address")
+        super().__init__("address")
     
     def __repr__(self):                
         return "mplane.model.prim_address"
@@ -1072,10 +1071,10 @@ def test_primitives():
            datetime(2013, 7, 30, 23, 19, 42)
     assert prim_time.unparse(datetime(2013, 7, 30, 23, 19, 42)) == \
            '2013-07-30 23:19:42.000000'
-    assert prim_time.parse("now") is time_present
+    assert prim_time.parse("now") is time_now
     assert prim_time.parse("past") is time_past
     assert prim_time.parse("future") is time_future
-    assert prim_time.unparse(time_present) == "now"
+    assert prim_time.unparse(time_now) == "now"
     assert prim_time.unparse(time_past) == "past"
     assert prim_time.unparse(time_future) == "future"
 
@@ -1097,7 +1096,7 @@ class Element(object):
 
     """
     def __init__(self, name, prim, desc=None):
-        super(Element, self).__init__()
+        super().__init__()
         self._name = name
         self._prim = prim
         self.desc = desc
@@ -1216,7 +1215,7 @@ class Constraint(object):
 
     """
     def __init__(self, prim):
-        super(Constraint, self).__init__()
+        super().__init__()
         self._prim = prim
 
     def __str__(self):
@@ -1239,7 +1238,7 @@ class RangeConstraint(Constraint):
     """Represents acceptable values for an element as an inclusive range"""
 
     def __init__(self, prim, sval=None, a=None, b=None):
-        super(RangeConstraint, self).__init__(prim)
+        super().__init__(prim)
         if sval is not None:
             (astr, bstr) = sval.split(RANGE_SEP)
             self.a = prim.parse(astr)
@@ -1277,7 +1276,7 @@ class RangeConstraint(Constraint):
 class SetConstraint(Constraint):
     """Represents acceptable values as a discrete set."""
     def __init__(self, prim, sval=None, vs=None):
-        super(SetConstraint, self).__init__(prim)
+        super().__init__(prim)
         if sval is not None:
             self.vs = set(map(self._prim.parse, sval.split(SET_SEP)))
         elif vs is not None:
@@ -1317,13 +1316,13 @@ def test_constraints():
     assert constraint_all.met_by("whatever")
     assert constraint_all.met_by(None)
 
-    rc = parse_constraint(prim_natural,"0...99")
+    rc = parse_constraint(prim_natural,"0 ... 99")
     assert not rc.met_by(-1)
     assert rc.met_by(0)
     assert rc.met_by(33)
     assert rc.met_by(99)
     assert not rc.met_by(100)
-    assert str(rc) == "0...99"
+    assert str(rc) == "0 ... 99"
 
     sc = parse_constraint(prim_address,"10.0.27.100,10.0.28.103")
     assert sc.met_by(ip_address('10.0.28.103'))
@@ -1342,7 +1341,7 @@ class Parameter(Element):
 
     """
     def __init__(self, parent_element, constraint=constraint_all, val=None):
-        super(Parameter, self).__init__(parent_element._name, parent_element._prim)
+        super().__init__(parent_element._name, parent_element._prim)
         self._val = None
 
         if isinstance(constraint, str):
@@ -1360,7 +1359,8 @@ class Parameter(Element):
         return self._val is not None
 
     def set_single_value(self):
-        self._val = self._constraint.single_value()
+        if not self.has_value():
+            self._val = self._constraint.single_value()
 
     def set_value(self, val):
         if isinstance(val, str):
@@ -1390,7 +1390,7 @@ class Metavalue(Element):
 
     """
     def __init__(self, parent_element, val):
-        super(Metavalue, self).__init__(parent_element._name, parent_element._prim)
+        super().__init__(parent_element._name, parent_element._prim)
         self.set_value(val)
 
     def __repr__(self):
@@ -1417,7 +1417,7 @@ class ResultColumn(Element):
 
     """
     def __init__(self, parent_element):
-        super(ResultColumn, self).__init__(parent_element._name, parent_element._prim)
+        super().__init__(parent_element._name, parent_element._prim)
         self._vals = []
 
     def __repr__(self):
@@ -1476,7 +1476,7 @@ class Statement(object):
     _schedule = None # completely ignored unless this is a specification
     
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
-        super(Statement, self).__init__()
+        super().__init__()
         # Make a blank statement
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
@@ -1495,7 +1495,6 @@ class Statement(object):
             elif isinstance(when, str):
                 when = When(when)           
             self._when = when
-
 
     def __repr__(self):
         return "<Statement "+self.kind_str()+": "+self._verb+\
@@ -1726,6 +1725,7 @@ class Statement(object):
         Fill in parameters from a dictionary; used internally.
         The default implementation interprets dictionary values
         as parameter values.
+
         """
         for (k, v) in d.items():
             self.add_parameter(k, val=v)
@@ -1738,7 +1738,6 @@ class Statement(object):
         ignores the schedule section, as this is handled in :func:`Specification._from_dict()`.
 
         """
-
         self._verb = d[self.kind_str()]
 
         if KEY_LINK in d:
@@ -1782,7 +1781,7 @@ class Capability(Statement):
     """
 
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
-        super(Capability, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
+        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
 
     def __repr__(self):
         return "<Capability: "+self._verb+\
@@ -1797,7 +1796,7 @@ class Capability(Statement):
 
     def set_when(self, when, force=True):
         """By default, changes to capability temporal scopes are always forced."""
-        super(Capability, self).set_when(when, force)
+        super().set_when(when, force)
 
     def validate(self):
         pval = functools.reduce(operator.__or__, 
@@ -1813,6 +1812,7 @@ class Capability(Statement):
         Fill in parameters from a dictionary; used internally.
         The Capability implementation interprets dictionary values
         as constraints.
+
         """
         for (k, v) in d.items():
             self.add_parameter(k, constraint=v)
@@ -1835,7 +1835,7 @@ class Specification(Statement):
     """
 
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
-        super(Specification, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
+        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
 
         if dictval is None:
             # No dictionary, fill in schedule
@@ -1852,9 +1852,9 @@ class Specification(Statement):
                 if when is None:
                     self._when = capability._when
 
-        # set values that are constrained to a single choice
-        for param in self._params.values():
-            param.set_single_value()
+                # set values that are constrained to a single choice
+                for param in self._params.values():
+                    param.set_single_value()
 
     def __repr__(self):
         return "<Specification: "+self._verb+\
@@ -1864,12 +1864,6 @@ class Specification(Statement):
                str(self.count_parameter_values())+")/"+\
                str(self.count_metadata())+"/"+\
                str(self.count_result_columns())+">"
-
-    def _debug(self):
-        return repr(self) + "\n" +\
-               "\n".join(map(repr,self._schedule)) + "\n" +\
-               "\n".join(map(repr,self._params)) + "\n" +\
-               "\n".join(map(repr,self._resultcolumns))
 
     def kind_str(self):
         return KIND_SPECIFICATION
@@ -1907,7 +1901,7 @@ class Specification(Statement):
         return self._schedule is not None
 
     def to_dict(self):
-        d = super(Specification,self).to_dict()
+        d = super().to_dict()
 
         if self._schedule is not None:
             d[KEY_SCHEDULE] = self._schedule.to_dict()
@@ -1915,7 +1909,7 @@ class Specification(Statement):
         return d
 
     def _from_dict(self, d):
-        super(Specification,self)._from_dict(d)
+        super()._from_dict(d)
 
         if KEY_SCHEDULE in d:
             self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
@@ -1923,7 +1917,7 @@ class Specification(Statement):
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, token=None, when=None):
-        super(Result, self).__init__(dictval=dictval, verb=verb, token=token, when=when)
+        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
         if dictval is None and specification is not None:
             self._verb = specification._verb
             self._metadata = specification._metadata
@@ -1967,7 +1961,7 @@ class Result(Statement):
         produced with to_dict().
 
         """
-        super(Result,self)._from_dict(d)
+        super()._from_dict(d)
 
         column_key = list(self._resultcolumns.keys())
 
@@ -1997,7 +1991,7 @@ class BareNotification(object):
 
     """
     def __init__(self, dictval=None, token=None):
-        super(BareNotification, self).__init__()
+        super().__init__()
         if dictval is not None:
             self._from_dict(dictval)
 
@@ -2011,7 +2005,7 @@ class Exception(BareNotification):
 
     """
     def __init__(self, dictval=None, token=None, errmsg=None):
-        super(Exception, self).__init__(dictval=dictval, token=token)
+        super().__init__(dictval=dictval, token=token)
         if errmsg is None and dictval is None:
             errmsg = "Unspecified exception"
         self._errmsg = errmsg
@@ -2043,7 +2037,7 @@ class StatementNotification(Statement):
 
     """
     def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE, token=None):
-        super(StatementNotification, self).__init__(dictval=dictval, verb=verb, token=token)
+        super().__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
             self._verb = statement._verb
             self._when = statement._when
@@ -2053,7 +2047,7 @@ class StatementNotification(Statement):
             self._token = statement.get_token()
 
     def to_dict(self, token_only=False):
-        d = super(StatementNotification, self).to_dict()
+        d = super().to_dict()
 
         if token_only and self._token is not None:
             for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK, KEY_WHEN):
@@ -2070,7 +2064,7 @@ class Receipt(StatementNotification):
     result will not be available in a reasonable amount of time; or to confirm
     a Specification """
     def __init__(self, dictval=None, specification=None, token=None):
-        super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
+        super().__init__(dictval=dictval, statement=specification, token=token)
 
     def __repr__(self):
         return "<Receipt: "+self.get_token()+">"
@@ -2088,7 +2082,7 @@ class Redemption(StatementNotification):
 
     """
     def __init__(self, dictval=None, receipt=None, token=None):
-        super(Redemption,self).__init__(dictval=dictval, statement=receipt, token=token)
+        super().__init__(dictval=dictval, statement=receipt, token=token)
         if receipt is not None and token is None:
             self._token = receipt.get_token()
 
@@ -2104,7 +2098,7 @@ class Redemption(StatementNotification):
 class Withdrawal(StatementNotification):
     """A Withdrawal cancels a Capability"""
     def __init__(self, dictval=None, capability=None, token=None):
-        super(Withdrawal,self).__init__(dictval=dictval, statement=capability, token=token)
+        super().__init__(dictval=dictval, statement=capability, token=token)
 
     def __repr__(self):
         return "<Withdrawal: "+self.get_token()+">"
@@ -2118,7 +2112,7 @@ class Withdrawal(StatementNotification):
 class Interrupt(StatementNotification):
     """An Interrupt cancels a Specification"""
     def __init__(self, dictval=None, specification=None, token=None):
-        super(Receipt,self).__init__(dictval=dictval, statement=specification, token=token)
+        super().__init__(dictval=dictval, statement=specification, token=token)
 
     def __repr__(self):
         return "<Interrupt: "+self.get_token()+">"
