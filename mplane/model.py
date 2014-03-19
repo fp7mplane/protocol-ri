@@ -100,10 +100,10 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure when now ... future / 1s token ea839b56 schema 21e2a15a p(v)/m/r 2(1)/0/5>
+<Specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5>
 
-Here we have a specification with a given token, schema, and 2 parameters 
-(one of which has a value), no metadata, and five result columns.
+Here we have a specification with a given token, schema, and 2 parameters, 
+no metadata, and five result columns.
 
 .. note:: The schema of the statement is identified by a
           schema hash, the first eight hex digits of which are shown for 
@@ -111,18 +111,18 @@ Here we have a specification with a given token, schema, and 2 parameters
           and columns (schemas) will have identical schema hashes. Likewise,
           the token is defined by the schema as well as the parameter values.
 
-.. note:: When creating a Specification from a Capability, which is the normal
-          workflow with mPlane, any parameters with constraints only allowing
-          a single value will be automatically filled in.
-
 First let's fill in a specific temporal scope for the measurement:
 
 >>> spec.set_when("2014-12-24 22:18:42 + 1m / 1s")
 
-And then let's fill in some parameters; note that strings are accepted and
+And then let's fill in some parameters. First, we can fill in all parameters whose
+single values are already given by their constraints (in this case, source.ip4)
+
+>>> spec.set_single_values()
+
+Then let's set a destination. Note that strings are accepted and
 automatically parsed using each parameter's primitive type:
 
->>> spec.set_parameter_value("source.ip4", "10.0.27.2")
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
 
 And now we can transform this specification and send it back to
@@ -186,7 +186,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token ea839b56 schema 21e2a15a p/m/r(r) 2/0/5(1)>
+<Result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -197,7 +197,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'ea839b56bc3f6004e95d780d7a64d899'
+'48d7393c75aec14043c3a5af4f461013'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -209,7 +209,7 @@ which can be used to quickly identify it in the future.
 >>> jsonrcpt = json.dumps(rcpt.to_dict())
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
-  "token": "ea839b56bc3f6004e95d780d7a64d899", 
+  "token": "48d7393c75aec14043c3a5af4f461013", 
   "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
@@ -225,17 +225,17 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<Receipt: ea839b56bc3f6004e95d780d7a64d899>
+<Receipt: 48d7393c75aec14043c3a5af4f461013>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<Redemption: ea839b56bc3f6004e95d780d7a64d899>
+<Redemption: 48d7393c75aec14043c3a5af4f461013>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "ea839b56bc3f6004e95d780d7a64d899"}'
+'{"redemption": "measure", "token": "48d7393c75aec14043c3a5af4f461013"}'
 
 .. note:: We should document and test interrupts and withdrawals, as well.
 
@@ -584,6 +584,10 @@ class When(object):
         return (start, end)
 
     def duration(self, tzero=None):
+        """
+        Return the duration of this temporal scope as a timedelta.
+
+        """
         if self._d is not None:
             return self._d
         elif self._b is None:
@@ -733,6 +737,10 @@ class Schedule(object):
         return rs
 
     def to_dict(self):
+        """
+        Represents this schedule as a dictionary (for serialization).
+
+        """
         d = {}
         if self._when:
             d[KEY_WHEN] = str(self._when)
@@ -864,11 +872,9 @@ class Primitive(object):
         self.name = name
 
     def __str__(self):
-        """Primitive's string representation is its name"""
         return self.name
 
     def __repr__(self):                
-        """Primitive's repr string is the name of its instance"""
         return "<special mplane primitive "+self.name+">"
 
     def parse(self, sval):
@@ -1230,6 +1236,12 @@ class Constraint(object):
         return True
 
     def single_value(self):
+        """
+        If this constraint only allows a single value, return it. 
+        Otherwise, return None. The default constraint allows all values,
+        so this always returns None.
+
+        """
         return None
 
 constraint_all = Constraint(None)
@@ -1254,7 +1266,6 @@ class RangeConstraint(Constraint):
             (self.a, self.b) = (self.b, self.a)
 
     def __str__(self):
-        """Represent this RangeConstraint as a string."""
         return self._prim.unparse(self.a) + \
                RANGE_SEP + \
                self._prim.unparse(self.b)
@@ -1268,6 +1279,7 @@ class RangeConstraint(Constraint):
         return (val >= self.a) and (val <= self.b)
 
     def single_value(self):
+        """If this constraint only allows a single value, return it. Otherwise, return None."""
         if self.a == self.b:
             return self.a
         else:
@@ -1285,7 +1297,6 @@ class SetConstraint(Constraint):
             self.vs = set()
 
     def __str__(self):
-        """Represent this SetConstraint as a string."""
         return SET_SEP.join(map(self._prim.unparse, self.vs))
 
     def __repr__(self):
@@ -1297,12 +1308,19 @@ class SetConstraint(Constraint):
         return val in self.vs
 
     def single_value(self):
+        """If this constraint only allows a single value, return it. Otherwise, return None."""
         if len(self.vs) == 1:
             return list(self.vs)[0]
         else:
             return None
 
 def parse_constraint(prim, sval):
+    """
+    Given a primitive and a string value, parse a constraint 
+    string (returned via str(constraint)) into an instance of an 
+    appropriate Constraint class.
+
+    """
     if sval == CONSTRAINT_ALL:
         return constraint_all
     elif sval.find(RANGE_SEP) > 0:
@@ -1356,13 +1374,28 @@ class Parameter(Element):
                str(self._constraint)+" value "+repr(self._val)+">"
 
     def has_value(self):
+        """Return True if this component has a value."""
         return self._val is not None
 
     def set_single_value(self):
+        """
+        If this Parameter's Constraint allows only a single value, and this
+        Paramater does not yet have a value, set the value to the only one
+        allowed by the Constraint.
+
+        """
         if not self.has_value():
             self._val = self._constraint.single_value()
 
     def set_value(self, val):
+        """
+        Set the value of the Parameter. 
+        Either takes a value of the correct type for the associated Primitive, or 
+        a string, which will be parsed to a value of the correct type.
+
+        Raises ValueError if the value is not allowable for the Constraint.
+
+        """
         if isinstance(val, str):
             val = self._prim.parse(val)
 
@@ -1372,9 +1405,10 @@ class Parameter(Element):
             raise ValueError(repr(self) + " cannot take value " + repr(val))
 
     def get_value(self):
+        """Return this Parameter's value"""
         return self._val
 
-    def as_tuple(self):
+    def _as_tuple(self):
         if self._val is not None:
             return (self._name, self._prim.unparse(self._val))
         else:
@@ -1405,7 +1439,7 @@ class Metavalue(Element):
     def get_value(self):
         return self._val
 
-    def as_tuple(self):
+    def _as_tuple(self):
         return (self._name, self._prim.unparse(self._val))
 
 class ResultColumn(Element):
@@ -1706,11 +1740,11 @@ class Statement(object):
         d[KEY_WHEN] = str(self._when)
 
         if self.count_parameters() > 0:
-            d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v.as_tuple() 
+            d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
                                         for v in self._params.values()]}
 
         if self.count_metadata() > 0:
-            d[KEY_METADATA] = {t[0] : t[1] for t in [v.as_tuple() 
+            d[KEY_METADATA] = {t[0] : t[1] for t in [v._as_tuple() 
                                         for v in self._metadata.values()]}
 
         if self.count_result_columns() > 0:
@@ -1852,10 +1886,6 @@ class Specification(Statement):
                 if when is None:
                     self._when = capability._when
 
-                # set values that are constrained to a single choice
-                for param in self._params.values():
-                    param.set_single_value()
-
     def __repr__(self):
         return "<Specification: "+self._verb+\
                " when "+str(self._when)+\
@@ -1882,9 +1912,8 @@ class Specification(Statement):
 
     def validate(self):
         """
-        Check that this is a valid specification; 
-        if capability given, further check to ensure the specification fulfills
-        the given capability.
+        Check that this is a valid Specification; i.e., that all parameters have values.
+
         """
 
         pval = functools.reduce(operator.__and__, 
@@ -1896,6 +1925,11 @@ class Specification(Statement):
 
     def _default_token(self):
         return self._pv_hash()
+
+    def set_single_values(self):
+        """Fill in values for all parameters whose constraints allow only one value."""
+        for param in self._params.values():
+            param.set_single_value()
 
     def has_schedule(self):
         return self._schedule is not None

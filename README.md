@@ -1,16 +1,30 @@
 # protocol-ri Introduction
 
-This document describes the mPlane Protocol, which is implemented by the reference implementation in this module (protocol-ri). The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which Capabilities are published by Components, which can accept Specifications for measurements based on these Capabilities, and provide Results, either inline or via an indirect export mechanism negotiated using the protocol. 
+This document describes the mPlane Protocol reference implementation in this module, as well as the protocol it implements. 
+
+The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which Capabilities are published by Components, which can accept Specifications for measurements based on these Capabilities, and provide Results, either inline or via an indirect export mechanism negotiated using the protocol. 
 
 The reference impelementation in the module is the normative reference for the mPlane protocol until such time as it is deemed stable by the mPlane consortium (presently scheduled for November 2014), at which time the document derived from this README will contain the normative reference for the protocol.
 
 Measurement statements are fundamentally based on schemas divided into Parameters, representing information required to run a measurement or query; and Result Columns, the information produced by the measurement or query. Measurement interoperability is provided at the element level; that is, measurements containing the same Parameters and Result Columns are considered to be of the same type and therefore comparable.
 
-This document defines the terminology for the mPlane protocol in section 2, describes the architecture used by the protocol in section 3, defines the Information Model in detail in section 4 and bindings to session protocols in section 5. Section 6 outlines concrete workflows which can be used by the protocol.
+This document is under construction. 
 
-Section 7 outlines additional features of the Reference Implementation which, while not providing a normative reference for the mPlane protocol, are useful for using this module to demonstrate how mPlane works.
+# Using the Reference Implementation
 
-# Terminology
+## Core Classes
+
+The core classes are documented using Sphinx. Sphinx documentation can be read [here](https://fp7mplane.github.io/protocol-ri).
+
+## Building HTTP Components
+
+## mPlane Client Shell
+
+## Example Ping Application
+
+# mPlane Protocol Specification
+
+## Terminology
 
 ### Component
 
@@ -58,49 +72,38 @@ Section 7 outlines additional features of the Reference Implementation which, wh
 
 ### Exception
 
-# Architecture
+## mPlane Architecture
 
-## Principles
+### Principles
 
-## Components and Clients
+### Components and Clients
 
-## Supervisors and Federation
+### Supervisors and Federation
 
-# Protocol Information Model
+## Protocol Information Model
 
-## Statements
+### Statements
 
-## Capabilities
+### Capabilities
 
-## Specifications
+### Specifications
 
-## Results
+### Results
 
-## Receipts and Redemptions
+### Receipts and Redemptions
 
-## Indirections
+### Indirections
 
-# Session Protocols
+## Session Protocols
 
-## JSON representation
+### JSON representation
 
-## mPlane over HTTPS
+### mPlane over HTTPS
 
-## mPlane over SSH
+### mPlane over SSH
 
-# Workflows in mPlane
+## Workflows in mPlane
 
-# Reference Implementation Features
+### Component Push
 
-## Core Classes
-
-## mPlane Client Shell
-
-The mPlane client shell (in the mplane.client module) is a generic command-line shell for 
-
-## ICMP Ping Application
-
-### Component Server
-
-### Supervisor
-
+### Component Pull

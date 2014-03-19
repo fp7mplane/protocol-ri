@@ -6,22 +6,20 @@ organized into layers. :mod:`mplane.model` implements the mPlane protocol
 information model: message types, the element registry, and various support
 classes. 
 
-On top of the information model, the mplane.client module defines interfaces 
-for building mPlane clients, and the mplane.component module for building
-mPlane components and component proxies.
+On top of the information model, the :mod:`mplane.scheduler` module defines
+a framework for binding :class:`mplane.model.Capability` classes to runnable
+code, and for invoking that code on the receipt of mPlane statements; this is
+used to build components and frameworks. 
 
-.. note:: mplane.client and mplane.component are not yet implemented
+The :mod:`mplane.client` module
+defines interfaces for building clients, as well as providing a CLI
+to a completely generic mPlane HTTP client.
 
-The mplane.super module contains a simple supervisor implementation, built
-atop the client and component modules, for demonstration purposes. Specifically,
-this simple supervisor contains no reasoner.
+The :mod:`mplane.httpsrv` module binds the Information Model to the Tornado
+web application framework, for building component-push HTTP components.
 
-.. note:: mplane.super is not yet implemented
-
-The mplane.cli module contains a simple command-line interface for controlling
-supervisors and components.
-
-.. note:: mplane.cli is not yet implemented
+The :mod:`mplane.ping` module implements an example ping application using 
+the mPlane reference implementation.
 
 This software is copyright 2013 the mPlane Consortium. 
 It is made available under the terms of the 

@@ -9,11 +9,21 @@ mPlane Protocol Reference Implementation
 .. automodule:: mplane
    :members:
 
-.. warning:: This document describes an extremely prerelease version of the mPlane protocol reference implementation. The intention is for the introduction to this document to eventually replace D1.3 as the present normative reference for the protocol specification.
+.. warning:: This document describes an extremely prerelease version of the mPlane protocol reference implementation. See README.md for a description of the protocol.
 
 module mplane.model
 -------------------
 .. automodule:: mplane.model
+   :members:
+
+module mplane.scheduler
+-------------------
+.. automodule:: mplane.scheduler
+   :members:
+
+module mplane.client
+-------------------
+.. automodule:: mplane.client
    :members:
 
 

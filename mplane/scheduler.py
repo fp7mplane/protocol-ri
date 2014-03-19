@@ -136,19 +136,18 @@ class Job(object):
             self._schedule_now()
 
     def interrupt(self):
-        """
-        Interrupt this job.
-
-        """
+        """Interrupt this job."""
         self._interrupt.set()
 
     def finished(self):
+        """Return True if the job is complete."""
         return self.result is not None
 
     def get_reply(self):
         """
-        If a result is available for this Job (i.e., if the job is done running), 
-        return it. Otherwise, create a receipt from the specification and return that.
+        If a result is available for this Job (i.e., if the job is 
+        done running), return it. Otherwise, create a receipt from 
+        the Specification and return that.
 
         """
         self._replied_at = datetime.utcnow()
@@ -175,8 +174,8 @@ class Scheduler(object):
     """
     Scheduler implements the common runtime of a Component within the
     reference implementation. Components register Services bound to
-    Capabilities with add_service, and submit jobs for scheduling using
-    submit_job 
+    Capabilities with add_service(), and submit jobs for scheduling using
+    submit_job().
 
     """
     def __init__(self):
@@ -207,24 +206,31 @@ class Scheduler(object):
         return reply
 
     def add_service(self, service):
+        """Add a service to this Scheduler"""
         print("Added "+repr(service))
         self.services.append(service)
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
 
     def capability_keys(self):
+        """
+        Return keys (tokens) for the set of cached capabilities 
+        provided by this scheduler's services.
+
+        """
         return self._capability_cache.keys()
 
     def capability_for_key(self, key):
+        """
+        Return a capability for a given key.
+        """
         return self._capability_cache[key]
 
     def submit_job(self, specification, session=None):
         """
-        Search the available Services for one which can service the statement, 
-        then create and schedule a new Job to execute the statement. 
-
-        If the statement has a schedule section, 
-        create a new MultiJob and 
+        Search the available Services for one which can 
+        service the given Specification, then create and schedule 
+        a new Job to execute the statement. 
 
         """
         # linearly search the available services
@@ -260,7 +266,18 @@ class Scheduler(object):
                     errmsg="No service registered for specification")
 
     def job_for_message(self, msg):
+        """
+        Given a message (generally a Redemption), 
+        return the Job matching its token.
+
+        """
         return self.jobs[msg.get_token()]
 
     def prune_jobs(self):
+        """
+        Currently does nothing. Will remove Jobs which are 
+        finished and whose Results have been retrieved 
+        from the scheduler in a future version.
+
+        """
         pass
