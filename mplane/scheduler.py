@@ -2,8 +2,8 @@
 # mPlane Protocol Reference Implementation
 # Component and Client Job Scheduling
 #
-# (c) 2013 mPlane Consortium (http://www.ict-mplane.eu)
-#          Author: Brian Trammell <brian@trammell.ch>
+# (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
+#               Author: Brian Trammell <brian@trammell.ch>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -31,7 +31,7 @@ import mplane.model
 
 class Service(object):
     """
-    A Service is a binding of some runnable code to an 
+    A Service binds some runnable code to an 
     mplane.model.Capability provided by a component.
 
     To use services with an mPlane scheduler, inherit from 
@@ -71,10 +71,13 @@ class Service(object):
 
 class Job(object):
     """
-    A Job is a binding of some running code to an
-    mPlane.model.Specification within a component. A Job can
-    be thought of as a specific instance of a Service presently
-    running, or ready to run at some point in the future.
+    A Job binds some running code to an mPlane.model.Specification 
+    within a component. A Job can be thought of as a specific 
+    instance of a Service presently running, or ready to run at some 
+    point in the future.
+
+    Each Job will result in a single Result; Specifications with a
+    schedule: section are represented by MultiJob.
 
     """
     def __init__(self, service, specification, session=None):
@@ -107,40 +110,44 @@ class Job(object):
         """
         # spawn a thread to run the service
         threading.Thread(target=self._run).start()
-
-        # set up interrupt timer if necessary
-        duration = self.specification.job_duration()
-        if duration is not None and duration > 0:
-            threading.Timer(duration, self.interrupt).start()
         
     def schedule(self):
         """
         Schedule this job to run.
         """
-        delay = self.specification.job_delay()
+        # Get delay to start and end timers
+        (start_delay, end_delay) = self.specification.when().timer_delays()
 
-        # start a timer to schedule in the future if we have delay
-        if delay > 0:
-            print("Scheduling "+repr(self)+" after "+str(delay)+" sec")
-            threading.Timer(delay, self._schedule_now).start()
+        # Short-circuit on expired temporal scope
+        if start_delay is None:
+            return
+
+        # start interrupt timer
+        if end_delay is not None:
+            threading.Timer(end_delay, self.interrupt).start()
+            print("Will interrupt "+repr(self)+" after "+str(end_delay)+" sec")
+
+        # start start timer
+        if start_delay > 0:            
+            print("Scheduling "+repr(self)+" after "+str(start_delay)+" sec")
+            threading.timer(start_delay, self._schedule_now).start()
         else:
             print("Scheduling "+repr(self)+" immediately")
             self._schedule_now()
 
     def interrupt(self):
-        """
-        Interrupt this job.
-
-        """
+        """Interrupt this job."""
         self._interrupt.set()
 
     def finished(self):
+        """Return True if the job is complete."""
         return self.result is not None
 
     def get_reply(self):
         """
-        If a result is available for this Job (i.e., if the job is done running), 
-        return it. Otherwise, create a receipt from the specification and return that.
+        If a result is available for this Job (i.e., if the job is 
+        done running), return it. Otherwise, create a receipt from 
+        the Specification and return that.
 
         """
         self._replied_at = datetime.utcnow()
@@ -152,17 +159,29 @@ class Job(object):
     def __repr__(self):
         return "<Job for "+repr(self.specification)+">"
 
+class MultiJob(Job):
+    """
+    Represents a job that runs on a schedule and produces multiple Results.
+    Implementation pending. Currently, submitting a MultiJob will cause
+    the scheduled job to run once according to its inner temporal scope.
+
+    """
+    def __init__(self, service, specification, session=None):
+        super(MultiJob, self).__init(self, service, specification, session)
+
 
 class Scheduler(object):
     """
-    documentation for scheduler goes here
+    Scheduler implements the common runtime of a Component within the
+    reference implementation. Components register Services bound to
+    Capabilities with add_service(), and submit jobs for scheduling using
+    submit_job().
 
     """
     def __init__(self):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = {}
-        self.next_job_serial = 0
         self._capability_cache = {}
 
     def receive_message(self, msg, session=None):
@@ -173,7 +192,7 @@ class Scheduler(object):
         """
         reply = None
         if isinstance(msg, mplane.model.Specification):
-            reply = self.start_job(specification=msg, session=session)
+            reply = self.submit_job(specification=msg, session=session)
         elif isinstance (msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
@@ -187,21 +206,31 @@ class Scheduler(object):
         return reply
 
     def add_service(self, service):
+        """Add a service to this Scheduler"""
         print("Added "+repr(service))
         self.services.append(service)
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
 
     def capability_keys(self):
+        """
+        Return keys (tokens) for the set of cached capabilities 
+        provided by this scheduler's services.
+
+        """
         return self._capability_cache.keys()
 
     def capability_for_key(self, key):
+        """
+        Return a capability for a given key.
+        """
         return self._capability_cache[key]
 
-    def start_job(self, specification, session=None):
+    def submit_job(self, specification, session=None):
         """
-        Search the available Services for one which can service the statement, 
-        then create and schedule a new job to execute the statement.
+        Search the available Services for one which can 
+        service the given Specification, then create and schedule 
+        a new Job to execute the statement. 
 
         """
         # linearly search the available services
@@ -209,9 +238,14 @@ class Scheduler(object):
             if specification.fulfills(service.capability()):
                 # Found. Create a new job.
                 print(repr(service)+" matches "+repr(specification))
-                new_job = Job(service=service, \
-                              specification=specification, \
-                              session=session)
+                if (specification.has_schedule()):
+                    new_job = MultiJob(service=service,
+                                       specification=specification,
+                                       session=session)
+                else:
+                    new_job = Job(service=service,
+                                  specification=specification,
+                                  session=session)
 
                 # Key by the receipt's token, and return
                 job_key = new_job.receipt.get_token()
@@ -232,7 +266,18 @@ class Scheduler(object):
                     errmsg="No service registered for specification")
 
     def job_for_message(self, msg):
+        """
+        Given a message (generally a Redemption), 
+        return the Job matching its token.
+
+        """
         return self.jobs[msg.get_token()]
 
     def prune_jobs(self):
+        """
+        Currently does nothing. Will remove Jobs which are 
+        finished and whose Results have been retrieved 
+        from the scheduler in a future version.
+
+        """
         pass

@@ -31,7 +31,18 @@ from datetime import datetime, timedelta
 
 CAPABILITY_PATH_ELEM = "capability"
 
+"""
+Generic mPlane client for HTTP component-push workflows.
+
+"""
+
 class CrawlParser(html.parser.HTMLParser):
+    """
+    HTML parser class to extract all URLS in a href attributes in
+    an HTML page. Used to extract links to Capabilities exposed
+    as link collections.
+
+    """
     def __init__(self, **kwargs):
         super(CrawlParser, self).__init__(**kwargs)
         self.urls = []
@@ -43,7 +54,12 @@ class CrawlParser(html.parser.HTMLParser):
 
 class HttpClient(object):
     """
-    HTTP client endpoint. More docs go here.
+    Implements an mPlane HTTP client endpoint for component-push workflows. 
+    This client endpoint can retrieve capabilities from a given URL, then post 
+    Specifications to the component and retrieve Results or Receipts; it can
+    also present Redeptions to retrieve Results.
+
+    Caches retrieved Capabilities, Receipts, and Results.
 
     """
     def __init__(self, posturl, capurl=None):
@@ -65,6 +81,14 @@ class HttpClient(object):
         self._results = []
 
     def get_mplane_reply(self, url=None, postmsg=None):
+        """
+        Given a URL, parses the object at the URL as an mPlane 
+        message and processes it.
+
+        Given a message to POST, sends the message to the given 
+        URL and processes the reply as an mPlane message.
+
+        """
         if postmsg is not None:
             if url is None:
                 url = self._posturl
@@ -76,7 +100,8 @@ class HttpClient(object):
             req = urllib.request.Request(url)
 
         with urllib.request.urlopen(req) as res:
-            print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("Content-Type"))
+            print("get_mplane_reply "+url+" "+str(res.status)+
+                  " Content-Type "+res.getheader("Content-Type"))
             if res.status == 200 and \
                res.getheader("Content-Type") == "application/x-mplane+json":
                 print("parsing json")
@@ -86,6 +111,11 @@ class HttpClient(object):
                 return None
 
     def handle_message(self, msg):
+        """
+        Processes a message. Caches capabilities, receipts, 
+        and results, and handles Exceptions.
+
+        """
         print("got message:")
         print(mplane.model.unparse_yaml(msg))
 
@@ -96,7 +126,7 @@ class HttpClient(object):
         elif isinstance(msg, mplane.model.Result):
             self.add_result(msg)
         elif isinstance(msg, mplane.model.Exception):
-            self.handle_exception(msg)
+            self._handle_exception(msg)
         else:
             # FIXME do something diagnostic here
             pass
@@ -106,17 +136,25 @@ class HttpClient(object):
         yield from self._capabilities
 
     def capability_at(self, index):
+        """Retrieve a capability at a given index"""
         return self._capabilities[index]
 
     def add_capability(self, cap):
+        """Add a capability to the capability cache"""
         print("adding "+repr(cap))
         self._capabilities.append(cap)
 
     def clear_capabilities(self):
+        """Clear the capability cache"""
         self._capabilities.clear()
 
     def retrieve_capabilities(self, listurl=None):
-        # By default, use the stored capabilities 
+        """
+        Given a URL, retrieves an object, parses it as an HTML page, 
+        extracts links to capabilities, and retrieves and processes them
+        into the capability cache.
+
+        """
         if listurl is None:
             listurl = self._capurl
             self.clear_capabilities()
@@ -146,10 +184,15 @@ class HttpClient(object):
         self.handle_message(self.get_mplane_reply(postmsg=mplane.model.Redemption(receipt=msg)))
 
     def redeem_receipts(self):
+        """
+        Send all pending receipts to the Component,
+        attempting to retrieve results.
+
+        """
         for receipt in self.receipts():
             self.redeem_receipt(receipt)
 
-    def delete_receipt_for(self, token):
+    def _delete_receipt_for(self, token):
         self._receipts = list(filter(lambda msg: msg.get_token() != token, self._receipts))
 
     def results(self):
@@ -160,7 +203,7 @@ class HttpClient(object):
         """Add a receipt. Check for duplicates."""
         if msg.get_token() not in [result.get_token() for results in self.results()]:
             self._results.append(msg)
-            self.delete_receipt_for(msg.get_token())
+            self._delete_receipt_for(msg.get_token())
 
     def measurements(self):
         """Iterate over all measurements (receipts and results)"""
@@ -168,13 +211,14 @@ class HttpClient(object):
         yield from self._receipts
 
     def measurement_at(index):
+        """Retrieve a measurement at a given index"""
         if index >= len(self._results):
             index -= len(self._results)
             return self._receipts[index]
         else:
             return self._results[index]
 
-    def handle_exception(self, exc):
+    def _handle_exception(self, exc):
         print(repr(exc))
 
 class ClientShell(cmd.Cmd):
@@ -185,6 +229,7 @@ class ClientShell(cmd.Cmd):
     def preloop(self):
         self._client = None
         self._defaults = {}
+        self._when = None
 
     def do_connect(self, arg):
         """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
@@ -199,16 +244,21 @@ class ClientShell(cmd.Cmd):
         self._client.retrieve_capabilities()
 
     def do_listcap(self, arg):
-        """List available capabilities by number"""
+        """List available capabilities by index"""
         for i, cap in enumerate(self._client.capabilities()):
             print ("%4u: %s" % (i, repr(cap)))
 
     def do_listmeas(self, arg):
-        """List running/completed measurements by number"""
+        """List running/completed measurements by index"""
         for i, meas in enumerate(self._client.measurements()):
             print ("%4u: %s" % (i, repr(meas)))
 
     def do_showcap(self, arg):
+        """
+        Show a capability given a capability index; 
+        without an index, shows all capabilities
+
+        """
         if len(arg) > 0:
             try:
                 self._show_stmt(self._client.capability_at(int(arg.split()[0])))
@@ -220,7 +270,7 @@ class ClientShell(cmd.Cmd):
                 self._show_stmt(cap)
 
     def do_showmeas(self, arg):
-        """Show receipt/results for a measurement, given a number"""
+        """Show receipt/results for a measurement, given a measurement index"""
         if len(arg) > 0:
             try:
                 self._show_stmt(self._client.measurement_at(int(arg.split()[0])))
@@ -232,23 +282,28 @@ class ClientShell(cmd.Cmd):
                 self._show_stmt(meas)
 
     def _show_stmt(self, stmt):
-        """Internal statement/result printer"""
         print(mplane.model.unparse_yaml(stmt))
 
     def do_runcap(self, arg):
         """
-        Run a capability given a number, 
-        filling in defaults for parameters, 
-        and prompting for parameters not yet entered
+        Run a capability given an index, filling in temporal 
+        scope and defaults for parameters. Prompts for parameters 
+        not yet entered.
 
         """
         # Retrieve a capability and create a specification
 #        try:
-        spec = mplane.model.Specification(
-                    capability=self._client.capability_at(int(arg.split()[0])))
+        cap = self._client.capability_at(int(arg.split()[0]))
+        spec = mplane.model.Specification(capability=cap)
 #        except:
 #            print ("No such capability "+arg)
 #            return
+
+        # Set temporal scope
+        spec.set_when(self._when)
+
+        # Fill in single values
+        spec.set_single_values()
 
         # Fill in parameter values
         for pname in spec.parameter_names():
@@ -264,6 +319,9 @@ class ClientShell(cmd.Cmd):
             else:
                 # FIXME we really want to unparse this
                 print("|param| "+pname+" = "+str(spec.get_parameter_value(pname)))
+
+        # Validate specification
+        spec.validate()
 
         # And send it to the server
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))
@@ -299,6 +357,16 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't set default "+arg)
 
+    def do_when(self, arg):
+        """Set a default temporal scope"""
+        if len(arg) > 0:
+            try:
+                self._when = mplane.model.When(arg)
+            except:
+                print("Invalid temporal scope "+arg)
+        else:
+            print("when = "+str(self._when))
+
     def do_unset(self, arg):
         """Unset a default parameter value"""
         try:
@@ -307,16 +375,6 @@ class ClientShell(cmd.Cmd):
                 del self._defaults[key]
         except:
             print("Couldn't unset default(s) "+arg)
-
-    def do_tsreset(self, arg):
-        """Reset the temporal scope to run for 30 seconds 30 seconds from now"""
-        st = datetime.utcnow()
-        st += timedelta(seconds=30)
-        et = st + timedelta(seconds=30)
-        self._defaults["start"] = st.strftime("%Y-%m-%d %H:%M:%S")
-        print("start = "+self._defaults["start"])
-        self._defaults["end"] = et.strftime("%Y-%m-%d %H:%M:%S")
-        print("end = "+self._defaults["end"])
 
     def do_EOF(self, arg):
         """Exit the shell by typing ^D"""

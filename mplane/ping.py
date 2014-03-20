@@ -1,6 +1,6 @@
 
 # mPlane Protocol Reference Implementation
-# ICMP Ping component code
+# ICMP Ping probe component code
 #
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell <brian@trammell.ch>
@@ -99,12 +99,9 @@ def pings_end_time(pings):
     return pings[-1].time
 
 def ping4_aggregate_capability(ipaddr):
-    cap = mplane.model.Capability()
-    cap.add_parameter("start","now...+inf")
-    cap.add_parameter("end","now...+inf")
+    cap = mplane.model.Capability(label="ping-average-ip4", when = "now ... future / 1s")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_parameter("period.s")
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
@@ -112,23 +109,17 @@ def ping4_aggregate_capability(ipaddr):
     return cap
 
 def ping4_singleton_capability(ipaddr):
-    cap = mplane.model.Capability()
-    cap.add_parameter("start","now...+inf")
-    cap.add_parameter("end","now...+inf")
+    cap = mplane.model.Capability(label="ping-detail-ip4", when = "now ... future / 1s")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_parameter("period.s")
     cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
     return cap
 
 def ping6_aggregate_capability(ipaddr):
-    cap = mplane.model.Capability()
-    cap.add_parameter("start","now...+inf")
-    cap.add_parameter("end","now...+inf")
+    cap = mplane.model.Capability(label="ping-average-ip6", when = "now ... future / 1s")
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_parameter("period.s")
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
@@ -136,12 +127,9 @@ def ping6_aggregate_capability(ipaddr):
     return cap
 
 def ping6_singleton_capability(ipaddr):
-    cap = mplane.model.Capability()
-    cap.add_parameter("start","now...+inf")
-    cap.add_parameter("end","now...+inf")
+    cap = mplane.model.Capability(label="ping-detail-ip6", when = "now ... future / 1s")
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_parameter("period.s")
     cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
     return cap
@@ -153,7 +141,6 @@ class PingService(mplane.scheduler.Service):
                  cap.has_parameter("source.ip6")) and
                 (cap.has_parameter("destination.ip4") or 
                  cap.has_parameter("destination.ip6")) and
-                cap.has_parameter("period.s") and
                 (cap.has_result_column("delay.twoway.icmp.us") or
                  cap.has_result_column("delay.twoway.icmp.us.min") or
                  cap.has_result_column("delay.twoway.icmp.us.mean") or                
@@ -164,8 +151,8 @@ class PingService(mplane.scheduler.Service):
 
     def run(self, spec, check_interrupt):
         # unpack parameters
-        period = spec.get_parameter_value("period.s")
-        duration = spec.job_duration()
+        period = spec.when().period().total_seconds()
+        duration = spec.when().duration().total_seconds()
         if duration is not None and duration > 0:
             count = int(duration / period)
         else:
@@ -203,8 +190,7 @@ class PingService(mplane.scheduler.Service):
         res = mplane.model.Result(specification=spec)
 
         # put actual start and end time into result
-        res.set_parameter_value("start", pings_start_time(pings))
-        res.set_parameter_value("end", pings_end_time(pings))
+        res.set_when(mplane.model.When(a = pings_start_time(pings), b = pings_end_time(pings)))
 
         # are we returning aggregates or raw numbers?
         if res.has_result_column("delay.twoway.icmp.us"):
@@ -239,13 +225,11 @@ def parse_args():
                         help="Ping from the given IPv6 address")
     args = parser.parse_args()
 
-def test_ping():
+def manually_test_ping():
     svc = PingService(ping4_aggregate_capability(LOOP4))
     spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip4", LOOP4)
-    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
-    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
-    spec.set_parameter_value("period.s", 1)
+    spec.set_when("now + 5s / 1s")
 
     res = svc.run(spec, lambda: False)
     print(repr(res))
@@ -254,9 +238,7 @@ def test_ping():
     svc = PingService(ping4_singleton_capability(LOOP4))
     spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip4", LOOP4)
-    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
-    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
-    spec.set_parameter_value("period.s", 1)
+    spec.set_when("now + 5s / 1s")
 
     res = svc.run(spec, lambda: False)
     print(repr(res))
@@ -265,9 +247,7 @@ def test_ping():
     svc = PingService(ping6_aggregate_capability(LOOP6))
     spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip6", LOOP6)
-    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
-    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
-    spec.set_parameter_value("period.s", 1)
+    spec.set_when("now + 5s / 1s")
 
     res = svc.run(spec, lambda: False)
     print(repr(res))
@@ -276,9 +256,7 @@ def test_ping():
     svc = PingService(ping6_singleton_capability(LOOP6))
     spec = mplane.model.Specification(capability=svc.capability())
     spec.set_parameter_value("destination.ip6", LOOP6)
-    spec.set_parameter_value("start", datetime.utcnow() + timedelta(seconds=1) )
-    spec.set_parameter_value("end", datetime.utcnow() + timedelta(seconds=6) )
-    spec.set_parameter_value("period.s", 1)
+    spec.set_when("now + 5s / 1s")
 
     res = svc.run(spec, lambda: False)
     print(repr(res))
