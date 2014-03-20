@@ -99,7 +99,7 @@ def pings_end_time(pings):
     return pings[-1].time
 
 def ping4_aggregate_capability(ipaddr):
-    cap = mplane.model.Capability(when = "now ... future / 1s")
+    cap = mplane.model.Capability(label="ping-average-ip4", when = "now ... future / 1s")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
     cap.add_result_column("delay.twoway.icmp.us.min")
@@ -109,7 +109,7 @@ def ping4_aggregate_capability(ipaddr):
     return cap
 
 def ping4_singleton_capability(ipaddr):
-    cap = mplane.model.Capability(when = "now ... future / 1s")
+    cap = mplane.model.Capability(label="ping-detail-ip4", when = "now ... future / 1s")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
     cap.add_result_column("time")
@@ -117,7 +117,7 @@ def ping4_singleton_capability(ipaddr):
     return cap
 
 def ping6_aggregate_capability(ipaddr):
-    cap = mplane.model.Capability(when = "now ... future / 1s")
+    cap = mplane.model.Capability(label="ping-average-ip6", when = "now ... future / 1s")
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
     cap.add_result_column("delay.twoway.icmp.us.min")
@@ -127,7 +127,7 @@ def ping6_aggregate_capability(ipaddr):
     return cap
 
 def ping6_singleton_capability(ipaddr):
-    cap = mplane.model.Capability(when = "now ... future / 1s")
+    cap = mplane.model.Capability(label="ping-detail-ip6", when = "now ... future / 1s")
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
     cap.add_result_column("time")

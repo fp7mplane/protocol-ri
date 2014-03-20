@@ -1544,7 +1544,7 @@ class Statement(object):
         if self._label is None:
             return ""
         else:
-            return "("+self._label+") "
+            return " ("+self._label+")"
 
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
@@ -1834,8 +1834,8 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
-        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
 
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
@@ -1885,8 +1885,8 @@ class Specification(Statement):
 
     """
 
-    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, token=None, when=None, schedule=None):
-        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
+    def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, label=None, token=None, when=None, schedule=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
 
         if dictval is None:
             # No dictionary, fill in schedule
@@ -1965,8 +1965,8 @@ class Specification(Statement):
 
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
-    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, token=None, when=None):
-        super().__init__(dictval=dictval, verb=verb, token=token, when=when)
+    def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
         if dictval is None and specification is not None:
             self._verb = specification._verb
             self._label = specification._label
