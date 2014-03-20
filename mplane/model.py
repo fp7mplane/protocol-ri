@@ -47,7 +47,7 @@ To see how all this fits together, let's simulate the message exchange
 in a simple ping measurement. First, we load the registry and 
 programatically create a new Capability, as would be advertised by
 the component. First, we initialize the registry and create a new 
-empty Capability:
+empty Capability.
 
 >>> import mplane
 >>> import json
@@ -100,7 +100,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<Specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters, 
 no metadata, and five result columns.
@@ -186,7 +186,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<Result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)>
+<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -225,10 +225,10 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<Receipt: 48d7393c75aec14043c3a5af4f461013>
+<receipt: 48d7393c75aec14043c3a5af4f461013>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<Redemption: 48d7393c75aec14043c3a5af4f461013>
+<redemption: 48d7393c75aec14043c3a5af4f461013>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
@@ -286,6 +286,7 @@ KEY_LINK = "link"
 KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
+KEY_LABEL = "label"
 
 KEY_MONTHS = "months"
 KEY_DAYS = "days"
@@ -406,7 +407,6 @@ class PastTime:
 
     def strftime(self, ign):
         return str(self)
-
 
 time_past = PastTime()
 
@@ -1018,8 +1018,6 @@ class URLPrimitive(Primitive):
     def __repr__(self):                
         return "mplane.model.prim_url"
 
-_timestamp_re = re.compile('(\d+-\d+-\d+)(\s+\d+:\d+(:\d+(\.\d+)?)?)?')
-
 class TimePrimitive(Primitive):
     """
     Represents a UTC timestamp with arbitrary precision.
@@ -1084,9 +1082,10 @@ def test_primitives():
     assert prim_time.unparse(time_past) == "past"
     assert prim_time.unparse(time_future) == "future"
 
-#
+#######################################################################
 # Element classes
-#
+#######################################################################
+
 class Element(object):
     """
     An Element represents a name for a particular type of data with 
@@ -1505,11 +1504,12 @@ class Statement(object):
     _resultcolumns = None
     _link = None
     _verb = None
+    _label = None
     _when = None
     _token = None
     _schedule = None # completely ignored unless this is a specification
     
-    def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__()
         # Make a blank statement
         self._params = collections.OrderedDict()
@@ -1522,7 +1522,8 @@ class Statement(object):
             self._from_dict(dictval)
         else:
             # Fill in from defaults
-            self._verb = verb;
+            self._verb = verb
+            self._label = label
             self._token = token
             if when is None:
                 when = when_infinite
@@ -1531,9 +1532,19 @@ class Statement(object):
             self._when = when
 
     def __repr__(self):
-        return "<Statement "+self.kind_str()+": "+self._verb+\
+        return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
                " when "+str(self._when)+\
-               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+">"
+               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
+               self._more_repr()+">"
+
+    def _more_repr(self):
+        return ""
+
+    def _label_repr(self):
+        if self._label is None:
+            return ""
+        else:
+            return "("+self._label+") "
 
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
@@ -1618,6 +1629,9 @@ class Statement(object):
     def set_link(self, link):
         """Set the statement's link"""
         self._link = link
+
+    def get_label(self):
+        """Return the statement's label"""
 
     def when(self):
         """Get the statement's temporal scope"""
@@ -1731,6 +1745,9 @@ class Statement(object):
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
+        if self._label is not None:
+            d[KEY_LABEL] = self._label
+
         if self._link is not None:
           d[KEY_LINK] = self._link
 
@@ -1773,6 +1790,9 @@ class Statement(object):
 
         """
         self._verb = d[self.kind_str()]
+
+        if KEY_LABEL in d:
+            self._label = d[KEY_LABEL]
 
         if KEY_LINK in d:
           self._link = d[KEY_LINK]
@@ -1817,13 +1837,10 @@ class Capability(Statement):
     def __init__(self, dictval=None, verb=VERB_MEASURE, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, token=token, when=when)
 
-    def __repr__(self):
-        return "<Capability: "+self._verb+\
-               " when "+str(self._when)+\
-               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
-               " p/m/r "+str(self.count_parameters())+"/"+\
+    def _more_repr(self):
+        return " p/m/r "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
-               str(self.count_result_columns())+">"
+               str(self.count_result_columns())
 
     def kind_str(self):
         return KIND_CAPABILITY
@@ -1878,6 +1895,7 @@ class Specification(Statement):
             if capability is not None:
                 # Build a statement from a capabilitiy
                 self._verb = capability._verb
+                self._label = capability._label
                 self._metadata = capability._metadata
                 self._params = deepcopy(capability._params)
                 self._resultcolumns = deepcopy(capability._resultcolumns)
@@ -1886,14 +1904,11 @@ class Specification(Statement):
                 if when is None:
                     self._when = capability._when
 
-    def __repr__(self):
-        return "<Specification: "+self._verb+\
-               " when "+str(self._when)+\
-               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
-               " p(v)/m/r "+str(self.count_parameters())+"("+\
+    def _more_repr(self):
+        return " p(v)/m/r "+str(self.count_parameters())+"("+\
                str(self.count_parameter_values())+")/"+\
                str(self.count_metadata())+"/"+\
-               str(self.count_result_columns())+">"
+               str(self.count_result_columns())
 
     def kind_str(self):
         return KIND_SPECIFICATION
@@ -1954,6 +1969,7 @@ class Result(Statement):
         super().__init__(dictval=dictval, verb=verb, token=token, when=when)
         if dictval is None and specification is not None:
             self._verb = specification._verb
+            self._label = specification._label
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
@@ -1966,14 +1982,11 @@ class Result(Statement):
                 self._when = specification._when
 
 
-    def __repr__(self):
-        return "<Result: "+self._verb+\
-               " when "+str(self._when)+\
-               " token "+self.get_token(REPHL)+" schema "+self._schema_hash(REPHL)+\
-               " p/m/r(r) "+str(self.count_parameters())+"/"+\
+    def _more_repr(self):
+        return " p/m/r(r) "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
                str(self.count_result_columns())+"("+\
-               str(self.count_result_rows())+")>"
+               str(self.count_result_rows())+")"
 
     def kind_str(self):
         return KIND_RESULT
@@ -2080,6 +2093,9 @@ class StatementNotification(Statement):
             self._resultcolumns = deepcopy(statement._resultcolumns)
             self._token = statement.get_token()
 
+    def __repr__(self):
+        return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
+
     def to_dict(self, token_only=False):
         d = super().to_dict()
 
@@ -2092,6 +2108,9 @@ class StatementNotification(Statement):
 
         return d
 
+    def kind_str(self):
+        raise NotImplementedError("Cannot instantiate a raw StatementNotification")
+
 class Receipt(StatementNotification):
     """
     A component presents a receipt to a Client in lieu of a result, when the
@@ -2099,9 +2118,6 @@ class Receipt(StatementNotification):
     a Specification """
     def __init__(self, dictval=None, specification=None, token=None):
         super().__init__(dictval=dictval, statement=specification, token=token)
-
-    def __repr__(self):
-        return "<Receipt: "+self.get_token()+">"
 
     def kind_str(self):
         return KIND_RECEIPT
@@ -2120,9 +2136,6 @@ class Redemption(StatementNotification):
         if receipt is not None and token is None:
             self._token = receipt.get_token()
 
-    def __repr__(self):
-        return "<Redemption: "+self.get_token()+">"
-
     def kind_str(self):
         return KIND_REDEMPTION
 
@@ -2134,9 +2147,6 @@ class Withdrawal(StatementNotification):
     def __init__(self, dictval=None, capability=None, token=None):
         super().__init__(dictval=dictval, statement=capability, token=token)
 
-    def __repr__(self):
-        return "<Withdrawal: "+self.get_token()+">"
-
     def kind_str(self):
         return KIND_WITHDRAWAL
 
@@ -2147,9 +2157,6 @@ class Interrupt(StatementNotification):
     """An Interrupt cancels a Specification"""
     def __init__(self, dictval=None, specification=None, token=None):
         super().__init__(dictval=dictval, statement=specification, token=token)
-
-    def __repr__(self):
-        return "<Interrupt: "+self.get_token()+">"
 
     def kind_str(self):
         return KIND_INTERRUPT

@@ -1,6 +1,6 @@
 
 # mPlane Protocol Reference Implementation
-# ICMP Ping component code
+# ICMP Ping probe component code
 #
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell <brian@trammell.ch>
