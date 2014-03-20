@@ -1,0 +1,1278 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mPlane Protocol Reference Implementation &mdash; mPlane Protocol RI 0.9.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="mPlane Protocol RI 0.9.0 documentation" href="#" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="#">
+          <span>mPlane Protocol RI 0.9.0 documentation</span></a></h1>
+        <h2 class="heading"><span>mPlane Protocol Reference Implementation</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="#">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="module-mplane">
+<span id="mplane-protocol-reference-implementation"></span><h1>mPlane Protocol Reference Implementation<a class="headerlink" href="#module-mplane" title="Permalink to this headline">¶</a></h1>
+<p>This module provides a reference implementation of the mPlane protocol. It is
+organized into layers. <a class="reference internal" href="#module-mplane.model" title="mplane.model"><tt class="xref py py-mod docutils literal"><span class="pre">mplane.model</span></tt></a> implements the mPlane protocol 
+information model: message types, the element registry, and various support
+classes.</p>
+<p>On top of the information model, the <a class="reference internal" href="#module-mplane.scheduler" title="mplane.scheduler"><tt class="xref py py-mod docutils literal"><span class="pre">mplane.scheduler</span></tt></a> module defines
+a framework for binding <a class="reference internal" href="#mplane.model.Capability" title="mplane.model.Capability"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Capability</span></tt></a> classes to runnable
+code, and for invoking that code on the receipt of mPlane statements; this is
+used to build components and frameworks.</p>
+<p>The <a class="reference internal" href="#module-mplane.client" title="mplane.client"><tt class="xref py py-mod docutils literal"><span class="pre">mplane.client</span></tt></a> module
+defines interfaces for building clients, as well as providing a CLI
+to a completely generic mPlane HTTP client.</p>
+<p>The <tt class="xref py py-mod docutils literal"><span class="pre">mplane.httpsrv</span></tt> module binds the Information Model to the Tornado
+web application framework, for building component-push HTTP components.</p>
+<p>The <tt class="xref py py-mod docutils literal"><span class="pre">mplane.ping</span></tt> module implements an example ping application using 
+the mPlane reference implementation.</p>
+<p>This software is copyright 2013 the mPlane Consortium. 
+It is made available under the terms of the 
+<a class="reference external" href="http://www.gnu.org/licenses/lgpl.html">GNU Lesser General Public License</a>, 
+version 3 or, at your option, any later version.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This document describes an extremely prerelease version of the mPlane protocol reference implementation. See README.md for a description of the protocol.</p>
+</div>
+<div class="section" id="module-mplane.model">
+<span id="module-mplane-model"></span><h2>module mplane.model<a class="headerlink" href="#module-mplane.model" title="Permalink to this headline">¶</a></h2>
+<p>Information model and element registry for the mPlane protocol.</p>
+<p>This module implements Statements and Notifications, the core
+messages used by the mPlane protocol, the Elements these
+use to describe measurement and query schemas, and various
+other classes to support them.</p>
+<p>There are three kinds of Statement:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Capability represents something a component can do</li>
+<li>Specification tells a component to do something it
+advertised a Capability for</li>
+<li>Result returns the results for a Specification in-band</li>
+</ul>
+</div></blockquote>
+<p>Notifications are used to transfer other information between
+components and clients. There are four kinds of Notification:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Receipt notifies that a Result is not yet ready or
+that the results of an operation will be indirectly exported.</li>
+<li>Redemption is a subsequent attempt to redeem a Receipt.</li>
+<li>Withdrawal notifies that a Capability is no longer available.</li>
+<li>Interrupt notifies that a running Specification should be stopped.</li>
+</ul>
+</div></blockquote>
+<p>To see how all this fits together, let&#8217;s simulate the message exchange
+in a simple ping measurement. First, we load the registry and 
+programatically create a new Capability, as would be advertised by
+the component. First, we initialize the registry and create a new 
+empty Capability.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">mplane</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">json</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize_registry</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Capability</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>First we set a temporal scope for the capability. Probe components 
+generally advertise a temporal scope from the present stretching 
+into the indeterminate future. In this case, we advertise that the 
+measurement performed is periodic, by setting the minimum period 
+supported by the capability: one ping per second.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">set_when</span><span class="p">(</span><span class="s">&quot;now ... future / 1s&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can only ping from one IPv4 address, to any IPv4 address. 
+Adding a parameter without a constraint makes it unconstrained:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s">&quot;source.ip4&quot;</span><span class="p">,</span> <span class="s">&quot;10.0.27.2&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s">&quot;destination.ip4&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then we define the result columns this measurement can produce. Here,
+we want quick reporting of min, max, and mean delays, as well as a
+total count of singleton measurements taken and packets lost:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_result_column</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.min&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_result_column</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.max&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_result_column</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.mean&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_result_column</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.count&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cap</span><span class="o">.</span><span class="n">add_result_column</span><span class="p">(</span><span class="s">&quot;packets.lost&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now we have a capability we could transform into JSON and make 
+available to clients via the mPlane protocol, or via static 
+download or configuration:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">capjson</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">capjson</span> 
+<span class="go">&#39;{&quot;capability&quot;: &quot;measure&quot;, </span>
+<span class="go">  &quot;when&quot;: &quot;now ... future / 1s&quot;, </span>
+<span class="go">  &quot;parameters&quot;: {&quot;source.ip4&quot;: &quot;10.0.27.2&quot;, </span>
+<span class="go">                 &quot;destination.ip4&quot;: &quot;*&quot;},</span>
+<span class="go">  &quot;results&quot;: [&quot;delay.twoway.icmp.us.min&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.max&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.mean&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.count&quot;, </span>
+<span class="go">              &quot;packets.lost&quot;]}&#39;</span>
+</pre></div>
+</div>
+<p>On the client side, we&#8217;d receive this capability as a JSON object and turn it
+into a capability, from which we generate a specification:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">clicap</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parse_json</span><span class="p">(</span><span class="n">capjson</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">spec</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Specification</span><span class="p">(</span><span class="n">capability</span><span class="o">=</span><span class="n">clicap</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">spec</span>
+<span class="go">&lt;specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5&gt;</span>
+</pre></div>
+</div>
+<p>Here we have a specification with a given token, schema, and 2 parameters, 
+no metadata, and five result columns.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The schema of the statement is identified by a
+schema hash, the first eight hex digits of which are shown for 
+diagnostic purposes. Statements with identical sets of parameters 
+and columns (schemas) will have identical schema hashes. Likewise,
+the token is defined by the schema as well as the parameter values.</p>
+</div>
+<p>First let&#8217;s fill in a specific temporal scope for the measurement:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">spec</span><span class="o">.</span><span class="n">set_when</span><span class="p">(</span><span class="s">&quot;2014-12-24 22:18:42 + 1m / 1s&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And then let&#8217;s fill in some parameters. First, we can fill in all parameters whose
+single values are already given by their constraints (in this case, source.ip4)</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">spec</span><span class="o">.</span><span class="n">set_single_values</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Then let&#8217;s set a destination. Note that strings are accepted and
+automatically parsed using each parameter&#8217;s primitive type:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">spec</span><span class="o">.</span><span class="n">set_parameter_value</span><span class="p">(</span><span class="s">&quot;destination.ip4&quot;</span><span class="p">,</span> <span class="s">&quot;10.0.37.2&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And now we can transform this specification and send it back to
+the component from which we got the capability:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">specjson</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">specjson</span> 
+<span class="go">&#39;{&quot;specification&quot;: &quot;measure&quot;, </span>
+<span class="go">  &quot;token&quot;: &quot;ea839b56bc3f6004e95d780d7a64d899&quot;, </span>
+<span class="go">  &quot;when&quot;: &quot;2014-12-24 22:18:42.000000 + 1m / 1s&quot;, </span>
+<span class="go">  &quot;parameters&quot;: {&quot;source.ip4&quot;: &quot;10.0.27.2&quot;, </span>
+<span class="go">                 &quot;destination.ip4&quot;: &quot;10.0.37.2&quot;}, </span>
+<span class="go">  &quot;results&quot;: [&quot;delay.twoway.icmp.us.min&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.max&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.mean&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.count&quot;, </span>
+<span class="go">              &quot;packets.lost&quot;]}&#39;</span>
+</pre></div>
+</div>
+<p>On the component side, likewise, we&#8217;d receive this specification as a JSON
+object and turn it back into a specification:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">comspec</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parse_json</span><span class="p">(</span><span class="n">specjson</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The component would determine the measurement, query, or other operation to
+run by the specification, then extract the necessary parameter values, e.g.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">comspec</span><span class="o">.</span><span class="n">get_parameter_value</span><span class="p">(</span><span class="s">&quot;destination.ip4&quot;</span><span class="p">)</span>
+<span class="go">IPv4Address(&#39;10.0.37.2&#39;)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">comspec</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">period</span><span class="p">()</span>
+<span class="go">datetime.timedelta(0, 1)</span>
+</pre></div>
+</div>
+<p>After running the measurement, the component would return the results
+by assigning values to parameters which changed and result columns
+measured:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Result</span><span class="p">(</span><span class="n">specification</span><span class="o">=</span><span class="n">comspec</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_when</span><span class="p">(</span><span class="s">&quot;2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_result_value</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.min&quot;</span><span class="p">,</span> <span class="mi">33155</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_result_value</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.mean&quot;</span><span class="p">,</span> <span class="mi">55166</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_result_value</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.max&quot;</span><span class="p">,</span> <span class="mi">192307</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_result_value</span><span class="p">(</span><span class="s">&quot;delay.twoway.icmp.us.count&quot;</span><span class="p">,</span> <span class="mi">58220</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">set_result_value</span><span class="p">(</span><span class="s">&quot;packets.lost&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The result can then be serialized and sent back to the client:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">resjson</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resjson</span> 
+<span class="go">&#39;{&quot;result&quot;: &quot;measure&quot;, </span>
+<span class="go">  &quot;token&quot;: &quot;ea839b56bc3f6004e95d780d7a64d899&quot;, </span>
+<span class="go">  &quot;when&quot;: &quot;2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000&quot;, </span>
+<span class="go">  &quot;parameters&quot;: {&quot;source.ip4&quot;: &quot;10.0.27.2&quot;, </span>
+<span class="go">                 &quot;destination.ip4&quot;: &quot;10.0.37.2&quot;},</span>
+<span class="go">  &quot;results&quot;: [&quot;delay.twoway.icmp.us.min&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.max&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.mean&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.count&quot;, </span>
+<span class="go">              &quot;packets.lost&quot;],  </span>
+<span class="go">  &quot;resultvalues&quot;: [[&quot;33155&quot;, &quot;192307&quot;, &quot;55166&quot;, &quot;58220&quot;, &quot;2&quot;]]}&#39;</span>
+</pre></div>
+</div>
+<p>which can transform them back to a result and extract the values:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">clires</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">message_from_dict</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resjson</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clires</span>
+<span class="go">&lt;result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)&gt;</span>
+</pre></div>
+</div>
+<p>If the component cannot return results immediately (for example, because
+the measurement will take some time), it can return a receipt instead:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">rcpt</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Receipt</span><span class="p">(</span><span class="n">specification</span><span class="o">=</span><span class="n">comspec</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This receipt contains all the information in the specification, as well as a token
+which can be used to quickly identify it in the future.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">rcpt</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
+<span class="go">&#39;48d7393c75aec14043c3a5af4f461013&#39;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The mPlane protocol specification allows components to assign tokens
+however they like. In the reference implementation, the default token
+is based on a hash like the schema hash: statements with the same verb,
+schema, parameter values, and metadata will have identical default tokens.
+A component could, however, assign serial-number based tokens, or tokens
+mapping to structures in its own filesystem, etc.</p>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">jsonrcpt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">rcpt</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">jsonrcpt</span> 
+<span class="go">&#39;{&quot;receipt&quot;: &quot;measure&quot;,</span>
+<span class="go">  &quot;token&quot;: &quot;48d7393c75aec14043c3a5af4f461013&quot;, </span>
+<span class="go">  &quot;when&quot;: &quot;2014-12-24 22:18:42.000000 + 1m / 1s&quot;, </span>
+<span class="go">  &quot;parameters&quot;: {&quot;destination.ip4&quot;: &quot;10.0.37.2&quot;, </span>
+<span class="go">                 &quot;source.ip4&quot;: &quot;10.0.27.2&quot;}, </span>
+<span class="go">  &quot;results&quot;: [&quot;delay.twoway.icmp.us.min&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.max&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.mean&quot;, </span>
+<span class="go">              &quot;delay.twoway.icmp.us.count&quot;, </span>
+<span class="go">              &quot;packets.lost&quot;],}&#39;</span>
+</pre></div>
+</div>
+<p>The component keeps the receipt, keyed by token, and returns it to the
+client in a message. The client then which generates a future redemption 
+referring to this receipt to retrieve the results:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">clircpt</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">message_from_dict</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">jsonrcpt</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clircpt</span>
+<span class="go">&lt;receipt: 48d7393c75aec14043c3a5af4f461013&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rdpt</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Redemption</span><span class="p">(</span><span class="n">receipt</span><span class="o">=</span><span class="n">clircpt</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rdpt</span>
+<span class="go">&lt;redemption: 48d7393c75aec14043c3a5af4f461013&gt;</span>
+</pre></div>
+</div>
+<p>Note here that the redemption has the same token as the receipt; 
+just the token may be sent back to the component to retrieve the 
+results:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">rdpt</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">token_only</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+<span class="go">&#39;{&quot;redemption&quot;: &quot;measure&quot;, &quot;token&quot;: &quot;48d7393c75aec14043c3a5af4f461013&quot;}&#39;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We should document and test interrupts and withdrawals, as well.</p>
+</div>
+<dl class="class">
+<dt id="mplane.model.AddressPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">AddressPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#AddressPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.AddressPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a IPv4 or IPv6 host or network address.</p>
+<p>Uses the Python standard library ipaddress module
+for the native representation.</p>
+<dl class="method">
+<dt id="mplane.model.AddressPrimitive.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#AddressPrimitive.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.AddressPrimitive.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to an address value.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.BareNotification">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">BareNotification</tt><big>(</big><em>dictval=None</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#BareNotification"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.BareNotification" title="Permalink to this definition">¶</a></dt>
+<dd><p>Notifications are used to send additional information between
+mPlane clients and components other than measurement statements.
+Notifications can either be part of a normal measurement workflow
+(as Receipts and Redemptions) or signal exceptional conditions
+(as Withdrawals and Interrupts).</p>
+<p>This class contains implementation common to all Notifications
+which do not contain any information from a related Capability
+or Specification.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.BooleanPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">BooleanPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#BooleanPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.BooleanPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a real number (floating point).</p>
+<p>Uses a Python bool as the native representation.
+If necessary, use the prim_boolean instance of this class;
+in general, however, this is used internally by Element.</p>
+<dl class="method">
+<dt id="mplane.model.BooleanPrimitive.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#BooleanPrimitive.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.BooleanPrimitive.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to a boolean value.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Capability">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Capability</tt><big>(</big><em>dictval=None</em>, <em>verb='measure'</em>, <em>label=None</em>, <em>token=None</em>, <em>when=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Capability"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Capability" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Capability represents something an mPlane component can do.
+Capabilities contain verbs (strings identifying the thing the
+component can do), parameters (which must be given by a client
+in a Specification in order for the component to do that thing),
+metadata (additional information about the process used to do
+that thing), and result columns (the data that thing will return).</p>
+<p>Capabilities can either be created programatically, using the
+add_parameter(), add_metadata(), and add_result_column()
+methods, or by reading from a JSON or YAML object [FIXME document
+how this works once it&#8217;s written]</p>
+<dl class="method">
+<dt id="mplane.model.Capability.set_when">
+<tt class="descname">set_when</tt><big>(</big><em>when</em>, <em>force=True</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Capability.set_when"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Capability.set_when" title="Permalink to this definition">¶</a></dt>
+<dd><p>By default, changes to capability temporal scopes are always forced.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Constraint">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Constraint</tt><big>(</big><em>prim</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Constraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Constraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a set of acceptable values for an element.
+The default constraint accepts everything; use
+the special instance constraint_all for this.</p>
+<p>Clients and components will generally interact with the 
+Constraint classes through Parameters.</p>
+<dl class="method">
+<dt id="mplane.model.Constraint.met_by">
+<tt class="descname">met_by</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Constraint.met_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Constraint.met_by" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if this constraint is met by a given value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Constraint.single_value">
+<tt class="descname">single_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Constraint.single_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Constraint.single_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this constraint only allows a single value, return it. 
+Otherwise, return None. The default constraint allows all values,
+so this always returns None.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Element">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Element</tt><big>(</big><em>name</em>, <em>prim</em>, <em>desc=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Element" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Element represents a name for a particular type of data with 
+a specific semantic meaning; it is analogous to an IPFIX Information 
+Element, or a named column in a relational database.</p>
+<p>An Element has a Name by which it can be compared to other Elements,
+and a primitive type, which it uses to convert values to and from
+strings.</p>
+<p>The mPlane reference implementation includes a default registry of
+elements; use initialize_registry() to use these.</p>
+<dl class="method">
+<dt id="mplane.model.Element.compatible_with">
+<tt class="descname">compatible_with</tt><big>(</big><em>rval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Element.compatible_with"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Element.compatible_with" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine based on naming rules if this element is compatible with
+element rval; that is, if transformation_to will return a function
+for turning a value of this element to the other. Compatibility based
+on name structure is a future feature; this method currently checks for
+name equality only.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Element.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Element.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Element.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to a value for this Element; delegates to primitive.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Element.transformation_to">
+<tt class="descname">transformation_to</tt><big>(</big><em>rval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Element.transformation_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Element.transformation_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a function which will transform values of this element
+into values of element rval; used to support unit conversions.
+This is a future feature, and is currently a no-op. 
+Only valid if compatible_with returns True.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Element.unparse">
+<tt class="descname">unparse</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Element.unparse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Element.unparse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a value to a string for this Element; delegates to primitive.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Exception">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Exception</tt><big>(</big><em>dictval=None</em>, <em>token=None</em>, <em>errmsg=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Exception"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Exception" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Component sends an Exception to a Client, or a Client to a 
+Component, to present a human-readable message about a failure
+or non-nominal condition</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.FutureTime">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">FutureTime</tt><a class="reference internal" href="_modules/mplane/model.html#FutureTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.FutureTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class representing the indeterminate future.
+Do not instantiate; use the time_future instance of this class.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Interrupt">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Interrupt</tt><big>(</big><em>dictval=None</em>, <em>specification=None</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Interrupt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Interrupt" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Interrupt cancels a Specification</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Metavalue">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Metavalue</tt><big>(</big><em>parent_element</em>, <em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Metavalue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Metavalue" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Metavalue is an element which can take an unconstrained value.
+Metavalues are used in statement metadata sections.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.NaturalPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">NaturalPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#NaturalPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.NaturalPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a natural number (unsigned integer).</p>
+<p>Uses a Python int as the native representation.
+If necessary, use the prim_natural instance of this class;
+in general, however, this is used internally by Element.</p>
+<dl class="method">
+<dt id="mplane.model.NaturalPrimitive.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#NaturalPrimitive.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.NaturalPrimitive.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to a natural value.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.NowTime">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">NowTime</tt><a class="reference internal" href="_modules/mplane/model.html#NowTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.NowTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class representing the present.
+Do not instantiate; use the time_now instance of this class.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Parameter">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Parameter</tt><big>(</big><em>parent_element</em>, <em>constraint=mplane.model.constraint_all</em>, <em>val=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Parameter is an element which can take a constraint and a value. 
+In Capabilities, Parameters have constraints and no value; in
+Specifications and Results, Parameters have both constraints and
+values.</p>
+<dl class="method">
+<dt id="mplane.model.Parameter.get_value">
+<tt class="descname">get_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Parameter.get_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Parameter.get_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return this Parameter&#8217;s value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Parameter.has_value">
+<tt class="descname">has_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Parameter.has_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Parameter.has_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this component has a value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Parameter.set_single_value">
+<tt class="descname">set_single_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Parameter.set_single_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Parameter.set_single_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this Parameter&#8217;s Constraint allows only a single value, and this
+Paramater does not yet have a value, set the value to the only one
+allowed by the Constraint.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Parameter.set_value">
+<tt class="descname">set_value</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Parameter.set_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Parameter.set_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the value of the Parameter. 
+Either takes a value of the correct type for the associated Primitive, or 
+a string, which will be parsed to a value of the correct type.</p>
+<p>Raises ValueError if the value is not allowable for the Constraint.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.PastTime">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">PastTime</tt><a class="reference internal" href="_modules/mplane/model.html#PastTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.PastTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class representing the indeterminate past. 
+Do not instantiate; use the time_past instance of this class.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Primitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Primitive</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Primitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Primitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a primitive mPlane data type. Primitive types define
+textual and native representations for data elements, and convert
+between the two.</p>
+<p>In general, client code will not need to interact with Primitives;
+conversion between strings and values is handled automatically by
+the Statement and Notification classes.</p>
+<dl class="method">
+<dt id="mplane.model.Primitive.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Primitive.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Primitive.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to a value; default implementation
+returns the string directly, returning None for the
+special string &#8220;*&#8221;, which represents &#8220;all values&#8221; in 
+mPlane.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Primitive.unparse">
+<tt class="descname">unparse</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Primitive.unparse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Primitive.unparse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a value to a string; default implementation
+uses native __str__ representation, replaces None with a
+the special string &#8220;*&#8221;, representing all values.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.RangeConstraint">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">RangeConstraint</tt><big>(</big><em>prim</em>, <em>sval=None</em>, <em>a=None</em>, <em>b=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#RangeConstraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.RangeConstraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents acceptable values for an element as an inclusive range</p>
+<dl class="method">
+<dt id="mplane.model.RangeConstraint.met_by">
+<tt class="descname">met_by</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#RangeConstraint.met_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.RangeConstraint.met_by" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if the value is within the range</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.RangeConstraint.single_value">
+<tt class="descname">single_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#RangeConstraint.single_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.RangeConstraint.single_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this constraint only allows a single value, return it. Otherwise, return None.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.RealPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">RealPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#RealPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.RealPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a real number (floating point).</p>
+<p>Uses a Python float as the native representation.
+If necessary, use the prim_real instance of this class;
+in general, however, this is used internally by Element.</p>
+<dl class="method">
+<dt id="mplane.model.RealPrimitive.parse">
+<tt class="descname">parse</tt><big>(</big><em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#RealPrimitive.parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.RealPrimitive.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a string to a floating point value.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Receipt">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Receipt</tt><big>(</big><em>dictval=None</em>, <em>specification=None</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Receipt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Receipt" title="Permalink to this definition">¶</a></dt>
+<dd><p>A component presents a receipt to a Client in lieu of a result, when the
+result will not be available in a reasonable amount of time; or to confirm
+a Specification</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Redemption">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Redemption</tt><big>(</big><em>dictval=None</em>, <em>receipt=None</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Redemption"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Redemption" title="Permalink to this definition">¶</a></dt>
+<dd><p>A client presents a Redemption to a component from which it has received
+a Receipt in order to get the associated Result.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Result">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Result</tt><big>(</big><em>dictval=None</em>, <em>specification=None</em>, <em>verb='measure'</em>, <em>label=None</em>, <em>token=None</em>, <em>when=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Result" title="Permalink to this definition">¶</a></dt>
+<dd><p>docstring for Result: note the token is generally inherited from the specification</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.ResultColumn">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">ResultColumn</tt><big>(</big><em>parent_element</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#ResultColumn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.ResultColumn" title="Permalink to this definition">¶</a></dt>
+<dd><p>A ResultColumn is an element which can take an array of values. 
+In Capabilities and Specifications, this array is empty, while in
+Results it has one or more values, such that all the ResultColumns
+in the Result have the same number of values.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Schedule">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Schedule</tt><big>(</big><em>dictval=None</em>, <em>when=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a schedule for repeated operations based on crontab-like
+sets of months, days, days of weeks, hours, minutes, and seconds.
+Used to specify repetitions of single measurements in a Specification.
+Designed to be broadly compatible with LMAP calendar-based scheduling.</p>
+<p>This class is not yet fully implemented or integrated into the
+information model.</p>
+<dl class="method">
+<dt id="mplane.model.Schedule.datetime_iterator">
+<tt class="descname">datetime_iterator</tt><big>(</big><em>t=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Schedule.datetime_iterator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Schedule.datetime_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an iterator over datetimes generated by the schedule 
+and period.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Schedule.to_dict">
+<tt class="descname">to_dict</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Schedule.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Schedule.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents this schedule as a dictionary (for serialization).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.SetConstraint">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">SetConstraint</tt><big>(</big><em>prim</em>, <em>sval=None</em>, <em>vs=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#SetConstraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.SetConstraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents acceptable values as a discrete set.</p>
+<dl class="method">
+<dt id="mplane.model.SetConstraint.met_by">
+<tt class="descname">met_by</tt><big>(</big><em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#SetConstraint.met_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.SetConstraint.met_by" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if the value is a mamber of the set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.SetConstraint.single_value">
+<tt class="descname">single_value</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#SetConstraint.single_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.SetConstraint.single_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this constraint only allows a single value, return it. Otherwise, return None.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Specification">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Specification</tt><big>(</big><em>dictval=None</em>, <em>capability=None</em>, <em>verb='measure'</em>, <em>label=None</em>, <em>token=None</em>, <em>when=None</em>, <em>schedule=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Specification"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Specification" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Specification represents a request for an mPlane component to do 
+something it has advertised in a Capability.  
+Capabilities contain verbs (strings identifying the thing the
+component can do), parameters (which must be given by a client
+in a Specification in order for the component to do that thing),
+metadata (additional information about the process used to do
+that thing), and result columns (the data that thing will return).</p>
+<p>Specifications are created either by passing a Capability the
+Specification is intended to use as the capability= argument of
+the constructor, or by reading from a JSON or YAML object 
+[FIXME document how this works once it&#8217;s written]</p>
+<dl class="method">
+<dt id="mplane.model.Specification.set_single_values">
+<tt class="descname">set_single_values</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Specification.set_single_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Specification.set_single_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fill in values for all parameters whose constraints allow only one value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Specification.validate">
+<tt class="descname">validate</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Specification.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Specification.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check that this is a valid Specification; i.e., that all parameters have values.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Statement">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Statement</tt><big>(</big><em>dictval=None</em>, <em>verb='measure'</em>, <em>label=None</em>, <em>token=None</em>, <em>when=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Statement is an assertion about the properties of a measurement
+or other action performed by an mPlane component. This class 
+contains common implementation for the three kinds of mPlane
+statement. Clients and components should use the
+<a class="reference internal" href="#mplane.model.Capability" title="mplane.model.Capability"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Capability</span></tt></a>, <a class="reference internal" href="#mplane.model.Specification" title="mplane.model.Specification"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Specification</span></tt></a>, 
+and <a class="reference internal" href="#mplane.model.Result" title="mplane.model.Result"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Result</span></tt></a> classes instead.</p>
+<dl class="method">
+<dt id="mplane.model.Statement.add_metadata">
+<tt class="descname">add_metadata</tt><big>(</big><em>elem_name</em>, <em>val</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.add_metadata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.add_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Programatically add a metadata element to this statement.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.add_parameter">
+<tt class="descname">add_parameter</tt><big>(</big><em>elem_name</em>, <em>constraint=mplane.model.constraint_all</em>, <em>val=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.add_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.add_parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Programatically add a parameter to this statement.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.add_result_column">
+<tt class="descname">add_result_column</tt><big>(</big><em>elem_name</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.add_result_column"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.add_result_column" title="Permalink to this definition">¶</a></dt>
+<dd><p>Programatically add a result column to this Statement.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.count_metadata">
+<tt class="descname">count_metadata</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.count_metadata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.count_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of metavalues in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.count_parameter_values">
+<tt class="descname">count_parameter_values</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.count_parameter_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.count_parameter_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of parameters with values in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.count_parameters">
+<tt class="descname">count_parameters</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.count_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.count_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of parameters in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.count_result_columns">
+<tt class="descname">count_result_columns</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.count_result_columns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.count_result_columns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of result columns in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.count_result_rows">
+<tt class="descname">count_result_rows</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.count_result_rows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.count_result_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of result rows in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.get_label">
+<tt class="descname">get_label</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.get_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.get_label" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the statement&#8217;s label</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.get_link">
+<tt class="descname">get_link</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.get_link"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.get_link" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the statement&#8217;s link, which specifies where the next message 
+in the workflow should be sent to or retrieved from.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.get_parameter_value">
+<tt class="descname">get_parameter_value</tt><big>(</big><em>elem_name</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.get_parameter_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.get_parameter_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the value for a named parameter on this Statement.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.has_metadata">
+<tt class="descname">has_metadata</tt><big>(</big><em>elem_name</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.has_metadata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.has_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the statement has a metadata element with the given name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.has_parameter">
+<tt class="descname">has_parameter</tt><big>(</big><em>elem_name</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.has_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.has_parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the statement has a parameter with the given name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.metadata_names">
+<tt class="descname">metadata_names</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.metadata_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.metadata_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over the names of metadata elements in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.parameter_names">
+<tt class="descname">parameter_names</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.parameter_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.parameter_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over the names of parameters in this Statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.result_column_names">
+<tt class="descname">result_column_names</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.result_column_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.result_column_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over the names of result columns in this statement</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.set_link">
+<tt class="descname">set_link</tt><big>(</big><em>link</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.set_link"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.set_link" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the statement&#8217;s link</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.set_parameter_value">
+<tt class="descname">set_parameter_value</tt><big>(</big><em>elem_name</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.set_parameter_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.set_parameter_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Programatically set a value for a parameter on this Statement.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.set_when">
+<tt class="descname">set_when</tt><big>(</big><em>when</em>, <em>force=False</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.set_when"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.set_when" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the statement&#8217;s temporal scope. Ensures that the temporal scope is
+within the previous temporal scope unless force is True.
+Takes either an instance of
+mplane.model.When, or a string describing the scope.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.to_dict">
+<tt class="descname">to_dict</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a Statement to a dictionary (for further conversion 
+to JSON or YAML), which can be passed as the dictval
+argument of the appropriate statement constructor.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.Statement.when">
+<tt class="descname">when</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Statement.when"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Statement.when" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the statement&#8217;s temporal scope</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.StatementNotification">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">StatementNotification</tt><big>(</big><em>dictval=None</em>, <em>statement=None</em>, <em>verb='measure'</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#StatementNotification"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.StatementNotification" title="Permalink to this definition">¶</a></dt>
+<dd><p>Common implementation superclass for notifications that 
+may contain all or part of a related Capability or Specification.</p>
+<p>Clients and components should use <a class="reference internal" href="#mplane.model.Receipt" title="mplane.model.Receipt"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Receipt</span></tt></a>,
+<a class="reference internal" href="#mplane.model.Redemption" title="mplane.model.Redemption"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Redemption</span></tt></a>, and <a class="reference internal" href="#mplane.model.Withdrawal" title="mplane.model.Withdrawal"><tt class="xref py py-class docutils literal"><span class="pre">mplane.model.Withdrawal</span></tt></a>
+directly</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.StringPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">StringPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#StringPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.StringPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a string. Uses the default implementation.
+If necessary, use the prim_string instance of this class;
+in general, however, this is used internally by Element.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.TimePrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">TimePrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#TimePrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.TimePrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a UTC timestamp with arbitrary precision.
+Also handles special-purpose mPlane timestamps.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.URLPrimitive">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">URLPrimitive</tt><a class="reference internal" href="_modules/mplane/model.html#URLPrimitive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.URLPrimitive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a URL. For now, URLs are implemented only as strings,
+without any parsing or validation.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.When">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">When</tt><big>(</big><em>valstr=None</em>, <em>a=None</em>, <em>b=None</em>, <em>d=None</em>, <em>p=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines the temporal scopes for capabilities, results, or 
+single measurement specifications.</p>
+<dl class="method">
+<dt id="mplane.model.When.duration">
+<tt class="descname">duration</tt><big>(</big><em>tzero=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.duration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.duration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the duration of this temporal scope as a timedelta.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.follows">
+<tt class="descname">follows</tt><big>(</big><em>s</em>, <em>tzero=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.follows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.follows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this scope follows (is contained by) another.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.in_scope">
+<tt class="descname">in_scope</tt><big>(</big><em>t</em>, <em>tzero=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.in_scope"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.in_scope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if time t falls within this scope.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_definite">
+<tt class="descname">is_definite</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_definite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_definite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this scope defines a definite time 
+or a definite time interval.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_forever">
+<tt class="descname">is_forever</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_forever"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_forever" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this scope ends in the indeterminate future</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_future">
+<tt class="descname">is_future</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_future"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_future" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this is an indefinite future scope</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_immediate">
+<tt class="descname">is_immediate</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_immediate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_immediate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this is an immediate scope (i.e., starts now)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_infinite">
+<tt class="descname">is_infinite</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_infinite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_infinite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this scope is completely infinite 
+(from the infinite past to the infinite future)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_past">
+<tt class="descname">is_past</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_past"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_past" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this is an indefinite past scope</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.is_singleton">
+<tt class="descname">is_singleton</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.is_singleton"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.is_singleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if this temporal scope refers to a
+singleton measurement. Used in scheduling an enclosing
+Specification; has no meaning for Capabilities 
+or Results.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.sort_scope">
+<tt class="descname">sort_scope</tt><big>(</big><em>t</em>, <em>tzero=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.sort_scope"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.sort_scope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return &lt; 0 if time t falls before this scope,
+0 if time t falls within the scope, 
+or &gt; 0 if time t falls after this scope.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.model.When.timer_delays">
+<tt class="descname">timer_delays</tt><big>(</big><em>tzero=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#When.timer_delays"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.When.timer_delays" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a tuple with delays for timers to signal the start and end of
+a temporal scope, given a specified time zero, which defaults to the
+current system time.</p>
+<p>The start delay is defined to be zero if the scheduled start time has
+already passed or the temporal scope is immediate (i.e., starts now).
+The start delay is None if the temporal scope has expired (that is,
+the current time is after the calculated end time)</p>
+<p>The end delay is defined to be None if the temporal scope has already
+expired, or if the temporal scope has no scheduled end (is infinite or
+a singleton). End delays are calculated to give priority to duration 
+when a temporal scope is expressed in terms of duration, and to 
+prioritize end time otherwise.</p>
+<p>Used in scheduling an enclosing Specification for execution. 
+Has no meaning for Capabilities or Results.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.model.Withdrawal">
+<em class="property">class </em><tt class="descclassname">mplane.model.</tt><tt class="descname">Withdrawal</tt><big>(</big><em>dictval=None</em>, <em>capability=None</em>, <em>token=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#Withdrawal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.Withdrawal" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Withdrawal cancels a Capability</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.initialize_registry">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">initialize_registry</tt><big>(</big><em>filename=None</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#initialize_registry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.initialize_registry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes the mPlane registry from a file; if no filename is given,
+initializes the registry from the internal set of Elements.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.message_from_dict">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">message_from_dict</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#message_from_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.message_from_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a dictionary returned from to_dict(), return a decoded
+mPlane message (statement or notification).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.parse_constraint">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">parse_constraint</tt><big>(</big><em>prim</em>, <em>sval</em><big>)</big><a class="reference internal" href="_modules/mplane/model.html#parse_constraint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.parse_constraint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a primitive and a string value, parse a constraint 
+string (returned via str(constraint)) into an instance of an 
+appropriate Constraint class.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.test_constraints">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">test_constraints</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#test_constraints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.test_constraints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test range and set constraints</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.test_primitives">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">test_primitives</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#test_primitives"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.test_primitives" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test primitive parsing and unparsing</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mplane.model.test_tscope">
+<tt class="descclassname">mplane.model.</tt><tt class="descname">test_tscope</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/model.html#test_tscope"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.model.test_tscope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test When</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-mplane-scheduler">
+<h2>module mplane.scheduler<a class="headerlink" href="#module-mplane-scheduler" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-mplane.scheduler"></span><p>Implements the dynamics of capabilities, specifications, and 
+results within the mPlane reference component.</p>
+<dl class="class">
+<dt id="mplane.scheduler.Job">
+<em class="property">class </em><tt class="descclassname">mplane.scheduler.</tt><tt class="descname">Job</tt><big>(</big><em>service</em>, <em>specification</em>, <em>session=None</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Job binds some running code to an mPlane.model.Specification 
+within a component. A Job can be thought of as a specific 
+instance of a Service presently running, or ready to run at some 
+point in the future.</p>
+<p>Each Job will result in a single Result; Specifications with a
+schedule: section are represented by MultiJob.</p>
+<dl class="method">
+<dt id="mplane.scheduler.Job.finished">
+<tt class="descname">finished</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Job.finished"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Job.finished" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the job is complete.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Job.get_reply">
+<tt class="descname">get_reply</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Job.get_reply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Job.get_reply" title="Permalink to this definition">¶</a></dt>
+<dd><p>If a result is available for this Job (i.e., if the job is 
+done running), return it. Otherwise, create a receipt from 
+the Specification and return that.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Job.interrupt">
+<tt class="descname">interrupt</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Job.interrupt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Job.interrupt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interrupt this job.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Job.schedule">
+<tt class="descname">schedule</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Job.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Job.schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Schedule this job to run.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.scheduler.MultiJob">
+<em class="property">class </em><tt class="descclassname">mplane.scheduler.</tt><tt class="descname">MultiJob</tt><big>(</big><em>service</em>, <em>specification</em>, <em>session=None</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#MultiJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.MultiJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a job that runs on a schedule and produces multiple Results.
+Implementation pending. Currently, submitting a MultiJob will cause
+the scheduled job to run once according to its inner temporal scope.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.scheduler.Scheduler">
+<em class="property">class </em><tt class="descclassname">mplane.scheduler.</tt><tt class="descname">Scheduler</tt><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scheduler implements the common runtime of a Component within the
+reference implementation. Components register Services bound to
+Capabilities with add_service(), and submit jobs for scheduling using
+submit_job().</p>
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.add_service">
+<tt class="descname">add_service</tt><big>(</big><em>service</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.add_service"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.add_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a service to this Scheduler</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.capability_for_key">
+<tt class="descname">capability_for_key</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.capability_for_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.capability_for_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a capability for a given key.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.capability_keys">
+<tt class="descname">capability_keys</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.capability_keys"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.capability_keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return keys (tokens) for the set of cached capabilities 
+provided by this scheduler&#8217;s services.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.job_for_message">
+<tt class="descname">job_for_message</tt><big>(</big><em>msg</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.job_for_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.job_for_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a message (generally a Redemption), 
+return the Job matching its token.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.prune_jobs">
+<tt class="descname">prune_jobs</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.prune_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.prune_jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Currently does nothing. Will remove Jobs which are 
+finished and whose Results have been retrieved 
+from the scheduler in a future version.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.receive_message">
+<tt class="descname">receive_message</tt><big>(</big><em>msg</em>, <em>session=None</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.receive_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.receive_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive and process a message. 
+Returns a message to send in reply.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.scheduler.Scheduler.submit_job">
+<tt class="descname">submit_job</tt><big>(</big><em>specification</em>, <em>session=None</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Scheduler.submit_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Scheduler.submit_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Search the available Services for one which can 
+service the given Specification, then create and schedule 
+a new Job to execute the statement.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.scheduler.Service">
+<em class="property">class </em><tt class="descclassname">mplane.scheduler.</tt><tt class="descname">Service</tt><big>(</big><em>capability</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Service"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Service" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Service binds some runnable code to an 
+mplane.model.Capability provided by a component.</p>
+<p>To use services with an mPlane scheduler, inherit from 
+mplane.scheduler.Service or one of its subclasses 
+and implement run().</p>
+<dl class="method">
+<dt id="mplane.scheduler.Service.run">
+<tt class="descname">run</tt><big>(</big><em>specification</em>, <em>check_interrupt</em><big>)</big><a class="reference internal" href="_modules/mplane/scheduler.html#Service.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.scheduler.Service.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run this service given a specification which matches the capability.
+This is called by the scheduler, and should be implemented by
+a concrete subclass of Service.</p>
+<p>The implementation should extract its parameters from a given
+mplane.model.Specification, and return its result values in a 
+mplane.model.Result derived therefrom.</p>
+<p>After each row or logically grouped set of rows, the implementation
+should call the check_interrupt function to determine whether it 
+should stop; if this function returns True, the implementation should 
+terminate its processing in an orderly fashion and return its results.</p>
+<p>Each method will be called within its own thread and/or process.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-mplane-client">
+<h2>module mplane.client<a class="headerlink" href="#module-mplane-client" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-mplane.client"></span><dl class="class">
+<dt id="mplane.client.CrawlParser">
+<em class="property">class </em><tt class="descclassname">mplane.client.</tt><tt class="descname">CrawlParser</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#CrawlParser"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.CrawlParser" title="Permalink to this definition">¶</a></dt>
+<dd><p>HTML parser class to extract all URLS in a href attributes in
+an HTML page. Used to extract links to Capabilities exposed
+as link collections.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="mplane.client.HttpClient">
+<em class="property">class </em><tt class="descclassname">mplane.client.</tt><tt class="descname">HttpClient</tt><big>(</big><em>posturl</em>, <em>capurl=None</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements an mPlane HTTP client endpoint for component-push workflows. 
+This client endpoint can retrieve capabilities from a given URL, then post 
+Specifications to the component and retrieve Results or Receipts; it can
+also present Redeptions to retrieve Results.</p>
+<p>Caches retrieved Capabilities, Receipts, and Results.</p>
+<dl class="method">
+<dt id="mplane.client.HttpClient.add_capability">
+<tt class="descname">add_capability</tt><big>(</big><em>cap</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.add_capability"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.add_capability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a capability to the capability cache</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.add_receipt">
+<tt class="descname">add_receipt</tt><big>(</big><em>msg</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.add_receipt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.add_receipt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a receipt. Check for duplicates.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.add_result">
+<tt class="descname">add_result</tt><big>(</big><em>msg</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.add_result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.add_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a receipt. Check for duplicates.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.capabilities">
+<tt class="descname">capabilities</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.capabilities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.capabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over capabilities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.capability_at">
+<tt class="descname">capability_at</tt><big>(</big><em>index</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.capability_at"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.capability_at" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a capability at a given index</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.clear_capabilities">
+<tt class="descname">clear_capabilities</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.clear_capabilities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.clear_capabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the capability cache</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.get_mplane_reply">
+<tt class="descname">get_mplane_reply</tt><big>(</big><em>url=None</em>, <em>postmsg=None</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.get_mplane_reply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.get_mplane_reply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a URL, parses the object at the URL as an mPlane 
+message and processes it.</p>
+<p>Given a message to POST, sends the message to the given 
+URL and processes the reply as an mPlane message.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.handle_message">
+<tt class="descname">handle_message</tt><big>(</big><em>msg</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.handle_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.handle_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Processes a message. Caches capabilities, receipts, 
+and results, and handles Exceptions.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.measurement_at">
+<tt class="descname">measurement_at</tt><big>(</big><em>index</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.measurement_at"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.measurement_at" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a measurement at a given index</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.measurements">
+<tt class="descname">measurements</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.measurements"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.measurements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over all measurements (receipts and results)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.receipts">
+<tt class="descname">receipts</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.receipts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.receipts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over receipts (pending measurements)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.redeem_receipts">
+<tt class="descname">redeem_receipts</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.redeem_receipts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.redeem_receipts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send all pending receipts to the Component,
+attempting to retrieve results.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.results">
+<tt class="descname">results</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over receipts (pending measurements)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mplane.client.HttpClient.retrieve_capabilities">
+<tt class="descname">retrieve_capabilities</tt><big>(</big><em>listurl=None</em><big>)</big><a class="reference internal" href="_modules/mplane/client.html#HttpClient.retrieve_capabilities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mplane.client.HttpClient.retrieve_capabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a URL, retrieves an object, parses it as an HTML page, 
+extracts links to capabilities, and retrieves and processes them
+into the capability cache.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="#">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, Brian Trammell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mplane.client &mdash; mPlane Protocol RI 0.9.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/theme_extras.js"></script>
+    <link rel="top" title="mPlane Protocol RI 0.9.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>mPlane Protocol RI 0.9.0 documentation</span></a></h1>
+        <h2 class="heading"><span>mplane.client</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for mplane.client</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c"># mPlane Protocol Reference Implementation</span>
+<span class="c"># Simple mPlane client and CLI (JSON over HTTP)</span>
+<span class="c">#</span>
+<span class="c"># (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)</span>
+<span class="c">#               Author: Brian Trammell &lt;brian@trammell.ch&gt;</span>
+<span class="c">#</span>
+<span class="c"># This program is free software: you can redistribute it and/or modify it under</span>
+<span class="c"># the terms of the GNU Lesser General Public License as published by the Free</span>
+<span class="c"># Software Foundation, either version 3 of the License, or (at your option) any</span>
+<span class="c"># later version.</span>
+<span class="c">#</span>
+<span class="c"># This program is distributed in the hope that it will be useful, but WITHOUT</span>
+<span class="c"># ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span>
+<span class="c"># FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more</span>
+<span class="c"># details.</span>
+<span class="c">#</span>
+<span class="c"># You should have received a copy of the GNU General Public License along with</span>
+<span class="c"># this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c">#</span>
+
+<span class="kn">import</span> <span class="nn">mplane.model</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">cmd</span>
+<span class="kn">import</span> <span class="nn">readline</span>
+<span class="kn">import</span> <span class="nn">urllib.request</span>
+<span class="kn">import</span> <span class="nn">html.parser</span>
+<span class="kn">import</span> <span class="nn">urllib.parse</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+
+<span class="n">CAPABILITY_PATH_ELEM</span> <span class="o">=</span> <span class="s">&quot;capability&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Generic mPlane client for HTTP component-push workflows.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CrawlParser"><a class="viewcode-back" href="../../index.html#mplane.client.CrawlParser">[docs]</a><span class="k">class</span> <span class="nc">CrawlParser</span><span class="p">(</span><span class="n">html</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">HTMLParser</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    HTML parser class to extract all URLS in a href attributes in</span>
+<span class="sd">    an HTML page. Used to extract links to Capabilities exposed</span>
+<span class="sd">    as link collections.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CrawlParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">urls</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">handle_starttag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&quot;a&quot;</span> <span class="ow">and</span> <span class="s">&quot;href&quot;</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attrs</span><span class="p">[</span><span class="s">&quot;href&quot;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="HttpClient"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient">[docs]</a><span class="k">class</span> <span class="nc">HttpClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implements an mPlane HTTP client endpoint for component-push workflows. </span>
+<span class="sd">    This client endpoint can retrieve capabilities from a given URL, then post </span>
+<span class="sd">    Specifications to the component and retrieve Results or Receipts; it can</span>
+<span class="sd">    also present Redeptions to retrieve Results.</span>
+
+<span class="sd">    Caches retrieved Capabilities, Receipts, and Results.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">posturl</span><span class="p">,</span> <span class="n">capurl</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c"># store urls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_posturl</span> <span class="o">=</span> <span class="n">posturl</span>
+        <span class="k">if</span> <span class="n">capurl</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span> <span class="o">=</span> <span class="n">capurl</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_posturl</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&quot;/&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span> <span class="o">+=</span> <span class="s">&quot;/&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span> <span class="o">+=</span> <span class="n">CAPABILITY_PATH_ELEM</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;new client: &quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_posturl</span><span class="o">+</span><span class="s">&quot; &quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span><span class="p">)</span>
+
+        <span class="c"># empty capability and measurement lists</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="HttpClient.get_mplane_reply"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.get_mplane_reply">[docs]</a>    <span class="k">def</span> <span class="nf">get_mplane_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">postmsg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a URL, parses the object at the URL as an mPlane </span>
+<span class="sd">        message and processes it.</span>
+
+<span class="sd">        Given a message to POST, sends the message to the given </span>
+<span class="sd">        URL and processes the reply as an mPlane message.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">postmsg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_posturl</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> 
+                    <span class="n">data</span><span class="o">=</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">postmsg</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">),</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">},</span> 
+                    <span class="n">method</span><span class="o">=</span><span class="s">&quot;POST&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span> <span class="k">as</span> <span class="n">res</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;get_mplane_reply &quot;</span><span class="o">+</span><span class="n">url</span><span class="o">+</span><span class="s">&quot; &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">)</span><span class="o">+</span>
+                  <span class="s">&quot; Content-Type &quot;</span><span class="o">+</span><span class="n">res</span><span class="o">.</span><span class="n">getheader</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span> <span class="ow">and</span> \
+               <span class="n">res</span><span class="o">.</span><span class="n">getheader</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;parsing json&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parse_json</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;giving up&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="HttpClient.handle_message"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.handle_message">[docs]</a>    <span class="k">def</span> <span class="nf">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Processes a message. Caches capabilities, receipts, </span>
+<span class="sd">        and results, and handles Exceptions.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;got message:&quot;</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_yaml</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Capability</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_capability</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Receipt</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_receipt</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Result</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_result</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_handle_exception</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># FIXME do something diagnostic here</span>
+            <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="HttpClient.capabilities"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.capabilities">[docs]</a>    <span class="k">def</span> <span class="nf">capabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over capabilities&quot;&quot;&quot;</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span>
+</div>
+<div class="viewcode-block" id="HttpClient.capability_at"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.capability_at">[docs]</a>    <span class="k">def</span> <span class="nf">capability_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Retrieve a capability at a given index&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="HttpClient.add_capability"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.add_capability">[docs]</a>    <span class="k">def</span> <span class="nf">add_capability</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cap</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a capability to the capability cache&quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;adding &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">cap</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="HttpClient.clear_capabilities"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.clear_capabilities">[docs]</a>    <span class="k">def</span> <span class="nf">clear_capabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clear the capability cache&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="HttpClient.retrieve_capabilities"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.retrieve_capabilities">[docs]</a>    <span class="k">def</span> <span class="nf">retrieve_capabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">listurl</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Given a URL, retrieves an object, parses it as an HTML page, </span>
+<span class="sd">        extracts links to capabilities, and retrieves and processes them</span>
+<span class="sd">        into the capability cache.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">listurl</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">listurl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capurl</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_capabilities</span><span class="p">()</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;getting capabilities from &quot;</span><span class="o">+</span><span class="n">listurl</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">listurl</span><span class="p">)</span> <span class="k">as</span> <span class="n">res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="n">parser</span> <span class="o">=</span> <span class="n">CrawlParser</span><span class="p">(</span><span class="n">strict</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+                <span class="n">parser</span><span class="o">.</span><span class="n">feed</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+                <span class="n">parser</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">capurl</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">get_mplane_reply</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urljoin</span><span class="p">(</span><span class="n">listurl</span><span class="p">,</span> <span class="n">capurl</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">listurl</span><span class="o">+</span><span class="s">&quot;: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">))</span>
+       </div>
+<div class="viewcode-block" id="HttpClient.receipts"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.receipts">[docs]</a>    <span class="k">def</span> <span class="nf">receipts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over receipts (pending measurements)&quot;&quot;&quot;</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span>
+</div>
+<div class="viewcode-block" id="HttpClient.add_receipt"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.add_receipt">[docs]</a>    <span class="k">def</span> <span class="nf">add_receipt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a receipt. Check for duplicates.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">receipt</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="k">for</span> <span class="n">receipt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">receipts</span><span class="p">()]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">redeem_receipt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_mplane_reply</span><span class="p">(</span><span class="n">postmsg</span><span class="o">=</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Redemption</span><span class="p">(</span><span class="n">receipt</span><span class="o">=</span><span class="n">msg</span><span class="p">)))</span>
+
+<div class="viewcode-block" id="HttpClient.redeem_receipts"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.redeem_receipts">[docs]</a>    <span class="k">def</span> <span class="nf">redeem_receipts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send all pending receipts to the Component,</span>
+<span class="sd">        attempting to retrieve results.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">receipt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">receipts</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">redeem_receipt</span><span class="p">(</span><span class="n">receipt</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_delete_receipt_for</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">msg</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="o">!=</span> <span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span><span class="p">))</span>
+
+<div class="viewcode-block" id="HttpClient.results"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.results">[docs]</a>    <span class="k">def</span> <span class="nf">results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over receipts (pending measurements)&quot;&quot;&quot;</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span>
+</div>
+<div class="viewcode-block" id="HttpClient.add_result"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.add_result">[docs]</a>    <span class="k">def</span> <span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a receipt. Check for duplicates.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="k">for</span> <span class="n">results</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">()]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delete_receipt_for</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="HttpClient.measurements"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.measurements">[docs]</a>    <span class="k">def</span> <span class="nf">measurements</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over all measurements (receipts and results)&quot;&quot;&quot;</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span>
+</div>
+<div class="viewcode-block" id="HttpClient.measurement_at"><a class="viewcode-back" href="../../index.html#mplane.client.HttpClient.measurement_at">[docs]</a>    <span class="k">def</span> <span class="nf">measurement_at</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Retrieve a measurement at a given index&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">-=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receipts</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">_handle_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span>
+</div>
+<span class="k">class</span> <span class="nc">ClientShell</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">Cmd</span><span class="p">):</span>
+
+    <span class="n">intro</span> <span class="o">=</span> <span class="s">&#39;Welcome to the mplane client shell.   Type help or ? to list commands.</span><span class="se">\n</span><span class="s">&#39;</span>
+    <span class="n">prompt</span> <span class="o">=</span> <span class="s">&#39;|mplane| &#39;</span>
+
+    <span class="k">def</span> <span class="nf">preloop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_when</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">do_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Connect to a probe or supervisor via HTTP and retrieve capabilities&quot;&quot;&quot;</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">HttpClient</span><span class="p">(</span><span class="n">posturl</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">capurl</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">HttpClient</span><span class="p">(</span><span class="n">posturl</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Cannot connect without a url&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">retrieve_capabilities</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">do_listcap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;List available capabilities by index&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cap</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()):</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&quot;</span><span class="si">%4u</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cap</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">do_listmeas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;List running/completed measurements by index&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">meas</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">measurements</span><span class="p">()):</span>
+            <span class="k">print</span> <span class="p">(</span><span class="s">&quot;</span><span class="si">%4u</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">meas</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">do_showcap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show a capability given a capability index; </span>
+<span class="sd">        without an index, shows all capabilities</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_show_stmt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">capability_at</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])))</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;No such capability &quot;</span><span class="o">+</span><span class="n">arg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cap</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()):</span>
+                <span class="k">print</span> <span class="p">(</span><span class="s">&quot;cap </span><span class="si">%4u</span><span class="s"> ---------------------------------------&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_show_stmt</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_showmeas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Show receipt/results for a measurement, given a measurement index&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_show_stmt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">measurement_at</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])))</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;No such measurement &quot;</span><span class="o">+</span><span class="n">arg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">meas</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">measurements</span><span class="p">()):</span>
+                <span class="k">print</span> <span class="p">(</span><span class="s">&quot;meas </span><span class="si">%4u</span><span class="s"> --------------------------------------&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_show_stmt</span><span class="p">(</span><span class="n">meas</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_show_stmt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stmt</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_yaml</span><span class="p">(</span><span class="n">stmt</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">do_runcap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run a capability given an index, filling in temporal </span>
+<span class="sd">        scope and defaults for parameters. Prompts for parameters </span>
+<span class="sd">        not yet entered.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Retrieve a capability and create a specification</span>
+<span class="c">#        try:</span>
+        <span class="n">cap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">capability_at</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Specification</span><span class="p">(</span><span class="n">capability</span><span class="o">=</span><span class="n">cap</span><span class="p">)</span>
+<span class="c">#        except:</span>
+<span class="c">#            print (&quot;No such capability &quot;+arg)</span>
+<span class="c">#            return</span>
+
+        <span class="c"># Set temporal scope</span>
+        <span class="n">spec</span><span class="o">.</span><span class="n">set_when</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_when</span><span class="p">)</span>
+
+        <span class="c"># Fill in single values</span>
+        <span class="n">spec</span><span class="o">.</span><span class="n">set_single_values</span><span class="p">()</span>
+
+        <span class="c"># Fill in parameter values</span>
+        <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">spec</span><span class="o">.</span><span class="n">parameter_names</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">get_parameter_value</span><span class="p">(</span><span class="n">pname</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">:</span>
+                    <span class="c"># set parameter value from defaults</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;|param| &quot;</span><span class="o">+</span><span class="n">pname</span><span class="o">+</span><span class="s">&quot; = &quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="n">pname</span><span class="p">])</span>
+                    <span class="n">spec</span><span class="o">.</span><span class="n">set_parameter_value</span><span class="p">(</span><span class="n">pname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="n">pname</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># set parameter value with input</span>
+                    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;|param| &quot;</span><span class="o">+</span><span class="n">pname</span><span class="o">+</span><span class="s">&quot; = &quot;</span><span class="p">)</span>
+                    <span class="n">spec</span><span class="o">.</span><span class="n">set_parameter_value</span><span class="p">(</span><span class="n">pname</span><span class="p">,</span> <span class="nb">input</span><span class="p">())</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># FIXME we really want to unparse this</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;|param| &quot;</span><span class="o">+</span><span class="n">pname</span><span class="o">+</span><span class="s">&quot; = &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get_parameter_value</span><span class="p">(</span><span class="n">pname</span><span class="p">)))</span>
+
+        <span class="c"># Validate specification</span>
+        <span class="n">spec</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+
+        <span class="c"># And send it to the server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">get_mplane_reply</span><span class="p">(</span><span class="n">postmsg</span><span class="o">=</span><span class="n">spec</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;ok&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_redeem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Attempt to redeem all outstanding receipts&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">redeem_receipts</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;ok&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Show a default parameter value, or all values if no parameter name given&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s">&quot; = &quot;</span> <span class="o">+</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;No such default &quot;</span><span class="o">+</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%4u</span><span class="s"> defaults&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s">&quot; = &quot;</span> <span class="o">+</span> <span class="n">val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set a default parameter value&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sarg</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">sarg</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sarg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s">&quot; = &quot;</span> <span class="o">+</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Couldn&#39;t set default &quot;</span><span class="o">+</span><span class="n">arg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_when</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set a default temporal scope&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_when</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">When</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Invalid temporal scope &quot;</span><span class="o">+</span><span class="n">arg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;when = &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_when</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">do_unset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unset a default parameter value&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Couldn&#39;t unset default(s) &quot;</span><span class="o">+</span><span class="n">arg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_EOF</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Exit the shell by typing ^D&quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Ciao!&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize_registry</span><span class="p">()</span>
+    <span class="n">ClientShell</span><span class="p">()</span><span class="o">.</span><span class="n">cmdloop</span><span class="p">()</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, Brian Trammell.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    </div>
+  </body>
+</html>
