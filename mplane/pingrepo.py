@@ -40,11 +40,7 @@ def ping4_singleton_collect_capability(resposturl):
     cap.add_parameter("destination.ip4")
     cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
-    return cap
-
-def ping4_singleton_query_capability(specposturl):
-    cap = mplane.model.Capability(verb="query", label="ping-detail-ip4-query")
-    
+    return cap    
 
 class IndirectPingPostHandler(tornado.web.RequestHandler):
 
