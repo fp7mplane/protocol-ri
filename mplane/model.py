@@ -1566,6 +1566,18 @@ class Statement(object):
         """Iterate over the names of parameters in this Statement"""
         yield from self._params.keys()
 
+    def parameter_values(self):
+        """
+        Returns a dict mapping parameter names to values 
+        for each parameter with a value.
+        """
+        d = {}
+        for k in parameter_names:
+            v = self.get_parameter_value(k)
+            if v:
+                d[k] = v
+        return d
+
     def count_parameters(self):
         """Return the number of parameters in this Statement"""
         return len(self._params)
@@ -1749,12 +1761,15 @@ class Statement(object):
             d[KEY_LABEL] = self._label
 
         if self._link is not None:
-          d[KEY_LINK] = self._link
+            d[KEY_LINK] = self._link
 
         if self._token is not None:
-          d[KEY_TOKEN] = self._token
+            d[KEY_TOKEN] = self._token
 
         d[KEY_WHEN] = str(self._when)
+
+        if self._schedule is not None:
+            d[KEY_SCHEDULE] = self._schedule.to_dict()
 
         if self.count_parameters() > 0:
             d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
@@ -1949,14 +1964,6 @@ class Specification(Statement):
     def has_schedule(self):
         return self._schedule is not None
 
-    def to_dict(self):
-        d = super().to_dict()
-
-        if self._schedule is not None:
-            d[KEY_SCHEDULE] = self._schedule.to_dict()
-
-        return d
-
     def _from_dict(self, d):
         super()._from_dict(d)
 
@@ -2019,6 +2026,19 @@ class Result(Statement):
 
     def set_result_value(self, elem_name, val, row_index=0):
         self._resultcolumns[elem_name][row_index] = val
+
+    def schema_dict_iterator(self):
+        """
+        Iterate over each row in this result, yielding a dictionary 
+        mapping all parameter and result column names to their values.
+
+        """
+        for i in range(self.count_result_rows()):
+            d = self.parameter_values()
+            for k in self.result_column_names():
+                d[k] = self._resultcolumns[k][i]
+            yield d
+
 
 #######################################################################
 # Notifications
