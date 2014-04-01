@@ -23,9 +23,14 @@ import mplane.model
 import sys
 import cmd
 import readline
-import urllib.request
 import html.parser
-import urllib.parse
+import abc
+from abc import ABCMeta
+import mplane.utils
+import urllib3
+from urllib3 import HTTPSConnectionPool
+from urllib3 import HTTPConnectionPool
+import os.path
 
 from datetime import datetime, timedelta
 
@@ -62,16 +67,25 @@ class HttpClient(object):
     Caches retrieved Capabilities, Receipts, and Results.
 
     """
-    def __init__(self, posturl, capurl=None):
+    def __init__(self, security, posturl, capurl=None):
         # store urls
         self._posturl = posturl
         if capurl is not None:
-            self._capurl = capurl
-        else:
-            self._capurl = self._posturl
-            if self._capurl[-1] != "/":
-                self._capurl += "/"
-            self._capurl += CAPABILITY_PATH_ELEM
+            if capurl[0] != "/": 
+                self._capurl = "/" + capurl 
+            else: 
+                self._capurl = capurl 
+        else: 
+            self._capurl = "/" + CAPABILITY_PATH_ELEM 
+        url = urllib3.util.parse_url(posturl) 
+
+        if security == True: 
+            key = os.path.join(os.path.dirname(__file__), "PKI/certs/client.key") 
+            cert = os.path.join(os.path.dirname(__file__), "PKI/certs/client.crt") 
+            ca = os.path.join(os.path.dirname(__file__), "PKI/ca/cachain.crt") 
+            self.pool = HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
+        else: 
+            self.pool = HTTPConnectionPool(url.host, url.port) 
 
         print("new client: "+self._posturl+" "+self._capurl)
 
@@ -90,25 +104,22 @@ class HttpClient(object):
 
         """
         if postmsg is not None:
+            print(postmsg)
             if url is None:
-                url = self._posturl
-            req = urllib.request.Request(url, 
-                    data=mplane.model.unparse_json(postmsg).encode("utf-8"),
-                    headers={"Content-Type": "application/x-mplane+json"}, 
-                    method="POST")
+                url = "/"
+            res = self.pool.urlopen('POST', url, 
+                    body=mplane.model.unparse_json(postmsg).encode("utf-8"), 
+                    headers={"content-type": "application/x-mplane+json"})
         else:
-            req = urllib.request.Request(url)
-
-        with urllib.request.urlopen(req) as res:
-            print("get_mplane_reply "+url+" "+str(res.status)+
-                  " Content-Type "+res.getheader("Content-Type"))
-            if res.status == 200 and \
-               res.getheader("Content-Type") == "application/x-mplane+json":
-                print("parsing json")
-                return mplane.model.parse_json(res.read().decode("utf-8"))
-            else:
-                print("giving up")
-                return None
+            res = self.pool.request('GET', url)
+        print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("content-type"))
+        if res.status == 200 and \
+           res.getheader("content-type") == "application/x-mplane+json":
+            print("parsing json")
+            return mplane.model.parse_json(res.data.decode("utf-8"))
+        else:
+            print("giving up")
+            return None
 
     def handle_message(self, msg):
         """
@@ -159,17 +170,16 @@ class HttpClient(object):
             listurl = self._capurl
             self.clear_capabilities()
 
-        print("getting capabilities from "+listurl)
-        with urllib.request.urlopen(listurl) as res:
-            if res.status == 200:
-                parser = CrawlParser(strict=False)
-                parser.feed(res.read().decode("utf-8"))
-                parser.close()
-                for capurl in parser.urls:
-                    self.handle_message(
-                        self.get_mplane_reply(url=urllib.parse.urljoin(listurl, capurl)))
-            else:
-                print(listurl+": "+str(res.status))
+        print("getting capabilities from "+self._capurl)
+        res = self.pool.request('GET', self._capurl)
+        if res.status == 200:
+            parser = CrawlParser(strict=False)
+            parser.feed(res.data.decode("utf-8"))
+            parser.close()
+            for capurl in parser.urls:
+                self.handle_message(self.get_mplane_reply(url=capurl))
+        else:
+            print(listurl+": "+str(res.status))
        
     def receipts(self):
         """Iterate over receipts (pending measurements)"""
@@ -221,6 +231,142 @@ class HttpClient(object):
     def _handle_exception(self, exc):
         print(repr(exc))
 
+
+class SshClient(object):
+    """ Skeleton for SSH Client"""
+    
+    def __init__(self, security, posturl, capurl=None):
+        pass
+
+    def get_mplane_reply(self, url=None, postmsg=None):
+        return
+
+    def handle_message(self, msg):
+        pass
+
+    def capabilities(self):
+        return
+
+    def capability_at(self, index):
+        return
+
+    def add_capability(self, cap):
+        pass
+
+    def clear_capabilities(self):
+        pass
+
+    def retrieve_capabilities(self, listurl=None):
+        pass
+       
+    def receipts(self):
+        return
+
+    def add_receipt(self, msg):
+        pass
+
+    def redeem_receipt(self, msg):
+        pass
+
+    def redeem_receipts(self):
+        pass
+
+    def delete_receipt_for(self, token):
+        pass
+
+    def results(self):
+        return
+
+    def add_result(self, msg):
+        pass
+
+    def measurements(self):
+        return
+
+    def measurement_at(index):
+        return
+
+    def handle_exception(self, exc):
+        pass
+
+
+class CommClient(metaclass=ABCMeta):
+
+    @abc.abstractmethod
+    def __init__(self, security, posturl, capurl):
+        pass
+
+    @abc.abstractmethod
+    def get_mplane_reply(self, url, postmsg):
+        return
+
+    @abc.abstractmethod
+    def handle_message(self, msg):
+        pass
+
+    @abc.abstractmethod
+    def capabilities(self):
+        return
+
+    @abc.abstractmethod
+    def capability_at(self, index):
+        return
+
+    @abc.abstractmethod
+    def add_capability(self, cap):
+        pass
+
+    @abc.abstractmethod
+    def clear_capabilities(self):
+        pass
+
+    @abc.abstractmethod
+    def retrieve_capabilities(self, listurl):
+        pass
+     
+    @abc.abstractmethod  
+    def receipts(self):
+        return
+
+    @abc.abstractmethod
+    def add_receipt(self, msg):
+        pass
+
+    @abc.abstractmethod
+    def redeem_receipt(self, msg):
+        pass
+
+    @abc.abstractmethod
+    def redeem_receipts(self):
+        pass
+
+    @abc.abstractmethod
+    def delete_receipt_for(self, token):
+        pass
+
+    @abc.abstractmethod
+    def results(self):
+        return
+
+    @abc.abstractmethod
+    def add_result(self, msg):
+        pass
+
+    @abc.abstractmethod
+    def measurements(self):
+        return
+
+    @abc.abstractmethod
+    def measurement_at(index):
+        return
+
+    @abc.abstractmethod
+    def handle_exception(self, exc):
+        pass
+
+CommClient.register(HttpClient)
+CommClient.register(SshClient)
+
 class ClientShell(cmd.Cmd):
 
     intro = 'Welcome to the mplane client shell.   Type help or ? to list commands.\n'
@@ -235,11 +381,18 @@ class ClientShell(cmd.Cmd):
         """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
         args = arg.split()
         if len(args) >= 2:
-            self._client = HttpClient(posturl=args[0], capurl=args[1])
+            capurl = args[1]     
         elif len(args) >= 1:
-            self._client = HttpClient(posturl=args[0])
+            capurl = None
         else:
             print("Cannot connect without a url")
+
+        proto = mplane.utils.read_setting('proto')
+        security = mplane.utils.read_setting('security')
+        if proto == 'HTTP':
+            self._client = HttpClient(security, args[0], capurl)
+        elif proto == 'SSH':
+            self._client = SshClient(security, args[0], capurl)
 
         self._client.retrieve_capabilities()
 

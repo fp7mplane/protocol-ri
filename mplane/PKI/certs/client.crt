@@ -1,0 +1,104 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 2 (0x2)
+    Signature Algorithm: sha1WithRSAEncryption
+        Issuer: DC=org, DC=mplane, O=mPlane, OU=mPlane Signing CA, CN=mPlane Signing CA
+        Validity
+            Not Before: Feb 25 10:05:22 2014 GMT
+            Not After : Feb 25 10:05:22 2016 GMT
+        Subject: DC=org, DC=mplane, DC=mplane, O=mPlane, OU=SSB, CN=mPlane-Client
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:ba:2d:47:44:d1:bb:28:ab:29:c1:1f:85:7f:96:
+                    67:35:2a:ce:cc:c2:05:cc:69:bc:cf:ca:2e:08:b0:
+                    75:96:66:e8:da:64:50:0b:34:e2:d0:76:9d:e8:05:
+                    4b:e4:a5:70:90:59:c5:21:79:7f:5b:0d:fb:69:b5:
+                    46:49:c4:83:d7:f1:95:3f:98:ae:04:03:5d:7d:c7:
+                    ac:87:d9:84:ca:65:f8:ad:de:0c:24:68:1c:d0:cc:
+                    bc:c6:54:27:e5:ce:d2:52:d6:17:9d:85:13:3f:b4:
+                    51:27:98:ae:d0:aa:9d:09:31:cb:23:d2:82:08:8a:
+                    af:f4:2d:5d:28:20:14:63:5a:21:59:5e:c0:34:ea:
+                    ab:58:68:8d:e5:8c:24:36:94:dd:cd:12:06:cd:c0:
+                    60:ec:d4:e1:a2:24:b5:fd:fc:83:52:c3:90:87:f4:
+                    36:6b:31:f8:15:3a:0c:2a:df:4a:33:b1:fb:91:4c:
+                    a7:37:c5:bd:83:a6:65:9b:da:cb:ea:12:10:d3:e7:
+                    c0:c2:4d:0b:81:63:87:ff:80:75:34:1f:94:b6:7c:
+                    45:b5:ac:11:33:c7:f4:36:85:ca:35:fc:c6:d4:cb:
+                    8e:f7:d2:9e:97:be:90:b2:53:6f:72:80:49:a3:86:
+                    6c:44:17:ec:cf:45:98:ec:1c:71:d9:a7:8b:2a:b1:
+                    d6:ed
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Extended Key Usage: 
+                E-mail Protection, TLS Web Client Authentication
+            X509v3 Subject Key Identifier: 
+                CD:B7:8F:05:7C:96:B2:6C:9A:E2:A5:24:C4:73:A3:DC:36:67:D5:0B
+            X509v3 Authority Key Identifier: 
+                keyid:A5:E8:D3:21:71:D2:1A:C9:53:85:85:1D:2D:BC:87:17:2A:81:F2:F4
+
+    Signature Algorithm: sha1WithRSAEncryption
+         88:f2:c4:ea:60:80:8f:d0:72:13:7c:c2:56:b7:61:76:07:35:
+         1d:02:b9:3f:0e:85:df:0c:a1:dc:1d:37:94:37:d9:41:1f:5b:
+         76:e4:ca:29:23:f8:fd:a7:e8:c2:7d:39:4b:8e:ec:f6:51:d7:
+         5a:cd:67:cf:de:b2:88:2b:86:b1:99:4b:09:26:97:eb:3b:49:
+         58:64:14:18:8b:75:f0:d9:63:c8:4e:a0:55:bc:24:02:3d:9b:
+         1a:e0:6d:1e:14:6d:72:0e:38:ff:3e:4c:60:8d:69:98:11:a2:
+         bf:2d:46:f9:07:9f:b2:08:98:23:a0:67:90:e2:52:90:42:38:
+         45:98:1a:b9:a4:e6:59:20:34:18:6d:fb:e5:6f:18:fe:65:0e:
+         aa:83:72:00:7e:f1:e6:c8:cc:ba:5b:1a:d7:d4:ac:bf:e7:af:
+         2f:d1:ff:9d:04:a8:d3:c2:89:f6:8d:b5:0d:a9:63:cf:87:d6:
+         7f:70:ab:b7:d6:62:a2:10:c2:be:b7:aa:21:51:5f:b0:78:7d:
+         2f:0c:34:6b:8b:08:2d:84:ad:fc:2f:b1:84:25:29:a4:1d:ad:
+         cd:60:97:63:29:f9:d5:82:6b:04:ce:a4:22:03:6c:dc:be:d6:
+         43:2b:38:72:af:60:ff:69:b3:22:17:85:fe:64:5c:1d:90:f5:
+         7e:03:40:7e:25:cf:8a:7b:06:81:f3:66:4d:7d:ec:cc:08:87:
+         df:a8:4a:70:34:81:b9:b8:96:cf:fd:56:ca:f7:ea:b5:3d:3e:
+         dd:4b:0a:e7:99:ea:73:57:6f:63:15:b2:52:e5:b9:f2:09:d2:
+         d5:48:4f:f7:be:f8:d0:de:1b:68:b7:90:15:f2:ff:0a:29:c8:
+         eb:ee:02:06:5f:92:6a:84:0d:6e:fa:04:d0:b1:25:17:ac:a4:
+         e5:8b:17:67:41:a1:a9:18:15:d9:48:3a:b2:ae:b6:6b:5f:50:
+         23:29:58:d9:f7:b5:1c:f1:fe:3f:f4:96:d0:08:cb:ee:5c:b7:
+         80:02:e4:b7:53:9f:66:b9:5f:69:ed:30:3a:e8:9b:24:3b:20:
+         da:30:ad:2a:5a:54:a9:f5:b8:b7:db:2f:19:c4:0e:19:46:9f:
+         09:41:06:0c:9f:e7:8f:2d:45:19:f2:6d:6f:7e:a0:53:10:ea:
+         a0:0f:5b:7e:18:0a:f1:24:02:a3:8b:52:2a:35:24:3e:f5:61:
+         11:95:41:28:24:63:b0:7f:68:b7:9f:ba:8b:85:b4:d7:66:bb:
+         12:46:4f:eb:28:ff:a1:b9:cf:38:d4:1e:48:c1:09:aa:b9:55:
+         10:ae:c0:a2:22:69:84:b9:4f:27:81:e3:ef:d2:96:35:15:b0:
+         ae:c9:28:0c:70:8a:53:5b
+-----BEGIN CERTIFICATE-----
+MIIE6TCCAtGgAwIBAgIBAjANBgkqhkiG9w0BAQUFADB2MRMwEQYKCZImiZPyLGQB
+GRYDb3JnMRYwFAYKCZImiZPyLGQBGRYGbXBsYW5lMQ8wDQYDVQQKDAZtUGxhbmUx
+GjAYBgNVBAsMEW1QbGFuZSBTaWduaW5nIENBMRowGAYDVQQDDBFtUGxhbmUgU2ln
+bmluZyBDQTAeFw0xNDAyMjUxMDA1MjJaFw0xNjAyMjUxMDA1MjJaMHwxEzARBgoJ
+kiaJk/IsZAEZFgNvcmcxFjAUBgoJkiaJk/IsZAEZFgZtcGxhbmUxFjAUBgoJkiaJ
+k/IsZAEZFgZtcGxhbmUxDzANBgNVBAoMBm1QbGFuZTEMMAoGA1UECwwDU1NCMRYw
+FAYDVQQDDA1tUGxhbmUtQ2xpZW50MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEAui1HRNG7KKspwR+Ff5ZnNSrOzMIFzGm8z8ouCLB1lmbo2mRQCzTi0Had
+6AVL5KVwkFnFIXl/Ww37abVGScSD1/GVP5iuBANdfcesh9mEymX4rd4MJGgc0My8
+xlQn5c7SUtYXnYUTP7RRJ5iu0KqdCTHLI9KCCIqv9C1dKCAUY1ohWV7ANOqrWGiN
+5YwkNpTdzRIGzcBg7NThoiS1/fyDUsOQh/Q2azH4FToMKt9KM7H7kUynN8W9g6Zl
+m9rL6hIQ0+fAwk0LgWOH/4B1NB+UtnxFtawRM8f0NoXKNfzG1MuO99Kel76QslNv
+coBJo4ZsRBfsz0WY7Bxx2aeLKrHW7QIDAQABo3wwejAOBgNVHQ8BAf8EBAMCBaAw
+CQYDVR0TBAIwADAdBgNVHSUEFjAUBggrBgEFBQcDBAYIKwYBBQUHAwIwHQYDVR0O
+BBYEFM23jwV8lrJsmuKlJMRzo9w2Z9ULMB8GA1UdIwQYMBaAFKXo0yFx0hrJU4WF
+HS28hxcqgfL0MA0GCSqGSIb3DQEBBQUAA4ICAQCI8sTqYICP0HITfMJWt2F2BzUd
+Ark/DoXfDKHcHTeUN9lBH1t25MopI/j9p+jCfTlLjuz2UddazWfP3rKIK4axmUsJ
+JpfrO0lYZBQYi3Xw2WPITqBVvCQCPZsa4G0eFG1yDjj/PkxgjWmYEaK/LUb5B5+y
+CJgjoGeQ4lKQQjhFmBq5pOZZIDQYbfvlbxj+ZQ6qg3IAfvHmyMy6WxrX1Ky/568v
+0f+dBKjTwon2jbUNqWPPh9Z/cKu31mKiEMK+t6ohUV+weH0vDDRriwgthK38L7GE
+JSmkHa3NYJdjKfnVgmsEzqQiA2zcvtZDKzhyr2D/abMiF4X+ZFwdkPV+A0B+Jc+K
+ewaB82ZNfezMCIffqEpwNIG5uJbP/VbK9+q1PT7dSwrnmepzV29jFbJS5bnyCdLV
+SE/3vvjQ3htot5AV8v8KKcjr7gIGX5JqhA1u+gTQsSUXrKTlixdnQaGpGBXZSDqy
+rrZrX1AjKVjZ97Uc8f4/9JbQCMvuXLeAAuS3U59muV9p7TA66JskOyDaMK0qWlSp
+9bi32y8ZxA4ZRp8JQQYMn+ePLUUZ8m1vfqBTEOqgD1t+GArxJAKji1IqNSQ+9WER
+lUEoJGOwf2i3n7qLhbTXZrsSRk/rKP+huc841B5IwQmquVUQrsCiImmEuU8ngePv
+0pY1FbCuySgMcIpTWw==
+-----END CERTIFICATE-----
