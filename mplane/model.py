@@ -287,6 +287,7 @@ KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
+KEY_CONTENTS = "contents"
 
 KEY_MONTHS = "months"
 KEY_DAYS = "days"
@@ -304,6 +305,12 @@ KIND_INDIRECTION = "indirection"
 KIND_WITHDRAWAL = "withdrawal"
 KIND_INTERRUPT = "interrupt"
 KIND_EXCEPTION = "exception"
+KIND_ENVELOPE = "envelope"
+
+ENVELOPE_MESSAGE = "message"
+ENVELOPE_STATEMENT = "statement"
+ENVELOPE_NOTIFICATION = "notification"
+
 
 PARAM_START = "start"
 PARAM_END = "end"
@@ -2184,6 +2191,44 @@ class Interrupt(StatementNotification):
     def validate(self):
         Specification.validate(self)
 
+#######################################################################
+# Envelope
+#######################################################################
+
+class Envelope(object):
+    """
+    Envelopes are used to contain other Messages.
+
+    """
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+        super().__init__()
+        if dictval is not None:
+            self._from_dict(dictval)
+        else:
+          self._messages = []
+
+    def append_message(self, msg):
+        self._messages.append(msg)
+
+    def messages(self):
+        return iter(self._messages)
+
+    def kind_str(self):
+        return KIND_ENVELOPE
+
+    def to_dict(self):
+        d = {}
+        d[KIND_ENVELOPE] = ENVELOPE_MESSAGE
+        d[KEY_CONTENTS] = [m.to_dict for m in self.messages()]
+        return d
+
+    def _from_dict(self, d):
+        pass
+
+#######################################################################
+# Utility methods
+#######################################################################
+
 def message_from_dict(d):
     """
     Given a dictionary returned from to_dict(), return a decoded
@@ -2197,7 +2242,8 @@ def message_from_dict(d):
                  KIND_REDEMPTION : Redemption,
                  KIND_WITHDRAWAL : Withdrawal,
                  KIND_INTERRUPT : Interrupt,
-                 KIND_EXCEPTION : Exception}
+                 KIND_EXCEPTION : Exception,
+                 KIND_ENVELOPE : Envelope}
 
     for k in classmap.keys():
         if k in d:
