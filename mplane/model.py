@@ -239,6 +239,8 @@ results:
 
 .. note:: We should document and test interrupts and withdrawals, as well.
 
+Envelopes can be used to group multiple mPlane messages into a 
+
 """
 
 from ipaddress import ip_address
@@ -410,7 +412,7 @@ class PastTime:
         return TIME_PAST
 
     def __repr__(self):
-        return "mplane.tscope.time_past"
+        return "mplane.model.time_past"
 
     def strftime(self, ign):
         return str(self)
@@ -427,7 +429,7 @@ class NowTime:
         return TIME_NOW
 
     def __repr__(self):
-        return "mplane.tscope.time_now"
+        return "mplane.model.time_now"
 
     def strftime(self, ign):
         return str(self)
@@ -444,7 +446,7 @@ class FutureTime:
         return TIME_FUTURE
 
     def __repr__(self):
-        return "mplane.tscope.time_future"
+        return "mplane.model.time_future"
 
     def strftime(self, ign):
         return str(self)
@@ -2205,7 +2207,13 @@ class Envelope(object):
         if dictval is not None:
             self._from_dict(dictval)
         else:
+          self._content_type = content_type
           self._messages = []
+
+    def __repr__(self):
+        return "<Envelope "+self._content_type+\
+                " ("+str(len(self._messages))+"): "+\
+                " ".join(map(repr, self._messages))+">"
 
     def append_message(self, msg):
         self._messages.append(msg)
@@ -2218,12 +2226,14 @@ class Envelope(object):
 
     def to_dict(self):
         d = {}
-        d[KIND_ENVELOPE] = ENVELOPE_MESSAGE
-        d[KEY_CONTENTS] = [m.to_dict for m in self.messages()]
+        d[self.kind_str()] = self._content_type
+        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
         return d
 
     def _from_dict(self, d):
-        pass
+        self._content_type = d[self.kind_str()]
+        for md in self[KEY_CONTENTS]:
+          self.append_message(message_from_dict(md))
 
 #######################################################################
 # Utility methods
