@@ -2216,6 +2216,7 @@ class Envelope(object):
                 " ".join(map(repr, self._messages))+">"
 
     def append_message(self, msg):
+        
         self._messages.append(msg)
 
     def messages(self):
