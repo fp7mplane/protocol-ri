@@ -179,12 +179,12 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self):
+    def __init__(self, security):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
-        self.ac = mplane.sec.Authorization()
+        self.ac = mplane.sec.Authorization(security)
 
     def receive_message(self, user, msg, session=None):
         """

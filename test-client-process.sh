@@ -2,10 +2,16 @@
 
 spawn python3 -m mplane.client
 
+set security [lindex $argv 0]
 expect "*|mplane| "
 puts " "
 puts "###############################   Connecting   ########################################"
-send -- "connect http://localhost:8888\r"
+if { $security == "True" } {
+	send -- "connect https://localhost:8888\r"
+} else {
+	send -- "connect http://localhost:8888\r"
+}
+
 expect "*|mplane| "
 puts " "
 puts "##########################   Sending Specification   ##################################"

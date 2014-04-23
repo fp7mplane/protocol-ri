@@ -223,6 +223,8 @@ def parse_args():
                         help="Ping from the given IPv4 address")
     parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
                         help="Ping from the given IPv6 address")
+    parser.add_argument('--sec', metavar="security-on-off",
+                        help="Toggle security on/off. Values: 0=on,1=off")
     args = parser.parse_args()
 
 def manually_test_ping():
@@ -283,7 +285,15 @@ if __name__ == "__main__":
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
 
-    scheduler = mplane.scheduler.Scheduler()
+    if args.sec is None:
+        raise ValueError("need --sec parameter (0=True,1=False)")
+    else:
+        if args.sec == '0':
+            security = True
+        else:
+            security = False
+
+    scheduler = mplane.scheduler.Scheduler(security)
     if ip4addr is not None:
         scheduler.add_service(PingService(ping4_aggregate_capability(ip4addr)))
         scheduler.add_service(PingService(ping4_singleton_capability(ip4addr)))
@@ -291,4 +301,4 @@ if __name__ == "__main__":
         scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
         scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
 
-    mplane.httpsrv.runloop(scheduler)
+    mplane.httpsrv.runloop(scheduler, security)

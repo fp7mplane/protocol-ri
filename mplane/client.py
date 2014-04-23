@@ -24,9 +24,6 @@ import sys
 import cmd
 import readline
 import html.parser
-import abc
-from abc import ABCMeta
-import mplane.utils
 import urllib3
 from urllib3 import HTTPSConnectionPool
 from urllib3 import HTTPConnectionPool
@@ -238,135 +235,6 @@ class SshClient(object):
     def __init__(self, security, posturl, capurl=None):
         pass
 
-    def get_mplane_reply(self, url=None, postmsg=None):
-        return
-
-    def handle_message(self, msg):
-        pass
-
-    def capabilities(self):
-        return
-
-    def capability_at(self, index):
-        return
-
-    def add_capability(self, cap):
-        pass
-
-    def clear_capabilities(self):
-        pass
-
-    def retrieve_capabilities(self, listurl=None):
-        pass
-       
-    def receipts(self):
-        return
-
-    def add_receipt(self, msg):
-        pass
-
-    def redeem_receipt(self, msg):
-        pass
-
-    def redeem_receipts(self):
-        pass
-
-    def delete_receipt_for(self, token):
-        pass
-
-    def results(self):
-        return
-
-    def add_result(self, msg):
-        pass
-
-    def measurements(self):
-        return
-
-    def measurement_at(index):
-        return
-
-    def handle_exception(self, exc):
-        pass
-
-
-class CommClient(metaclass=ABCMeta):
-
-    @abc.abstractmethod
-    def __init__(self, security, posturl, capurl):
-        pass
-
-    @abc.abstractmethod
-    def get_mplane_reply(self, url, postmsg):
-        return
-
-    @abc.abstractmethod
-    def handle_message(self, msg):
-        pass
-
-    @abc.abstractmethod
-    def capabilities(self):
-        return
-
-    @abc.abstractmethod
-    def capability_at(self, index):
-        return
-
-    @abc.abstractmethod
-    def add_capability(self, cap):
-        pass
-
-    @abc.abstractmethod
-    def clear_capabilities(self):
-        pass
-
-    @abc.abstractmethod
-    def retrieve_capabilities(self, listurl):
-        pass
-     
-    @abc.abstractmethod  
-    def receipts(self):
-        return
-
-    @abc.abstractmethod
-    def add_receipt(self, msg):
-        pass
-
-    @abc.abstractmethod
-    def redeem_receipt(self, msg):
-        pass
-
-    @abc.abstractmethod
-    def redeem_receipts(self):
-        pass
-
-    @abc.abstractmethod
-    def delete_receipt_for(self, token):
-        pass
-
-    @abc.abstractmethod
-    def results(self):
-        return
-
-    @abc.abstractmethod
-    def add_result(self, msg):
-        pass
-
-    @abc.abstractmethod
-    def measurements(self):
-        return
-
-    @abc.abstractmethod
-    def measurement_at(index):
-        return
-
-    @abc.abstractmethod
-    def handle_exception(self, exc):
-        pass
-
-CommClient.register(HttpClient)
-CommClient.register(SshClient)
-
 class ClientShell(cmd.Cmd):
 
     intro = 'Welcome to the mplane client shell.   Type help or ? to list commands.\n'
@@ -378,7 +246,7 @@ class ClientShell(cmd.Cmd):
         self._when = None
 
     def do_connect(self, arg):
-        """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
+        """Connect to a probe or supervisor and retrieve capabilities"""
         args = arg.split()
         if len(args) >= 2:
             capurl = args[1]     
@@ -387,12 +255,13 @@ class ClientShell(cmd.Cmd):
         else:
             print("Cannot connect without a url")
 
-        proto = mplane.utils.read_setting('proto')
-        security = mplane.utils.read_setting('security')
-        if proto == 'HTTP':
-            self._client = HttpClient(security, args[0], capurl)
-        elif proto == 'SSH':
-            self._client = SshClient(security, args[0], capurl)
+        proto = args[0].split('://')[0]
+        if proto == 'http':
+            self._client = HttpClient(False, args[0], capurl)
+        if proto == 'https':
+            self._client = HttpClient(True, args[0], capurl)
+        elif proto == 'ssh':
+            self._client = SshClient(True, args[0], capurl)
 
         self._client.retrieve_capabilities()
 

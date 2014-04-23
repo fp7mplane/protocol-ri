@@ -130,13 +130,13 @@ class MessagePostHandler(MPlaneHandler):
 
 # FIXME build a class that wraps a scheduler and a runloop (and maybe a command line interpreter)
 
-def runloop(scheduler, port=8888):
+def runloop(scheduler, security, port=8888):
     application = tornado.web.Application([
             (r"/", mplane.httpsrv.MessagePostHandler, {'scheduler': scheduler}),
             (r"/"+CAPABILITY_PATH_ELEM, mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler})
         ])
-    if mplane.utils.read_setting('security') == True:
+    if security == True:
         cert = os.path.join(os.path.dirname(__file__), "PKI/certs/mplane.org.crt")
         key = os.path.join(os.path.dirname(__file__), "PKI/certs/mplane.org.key")
         ca = os.path.join(os.path.dirname(__file__), "PKI/ca/cachain.crt")

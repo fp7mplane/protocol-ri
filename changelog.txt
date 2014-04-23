@@ -1,15 +1,15 @@
 General:
-- added libraries: abc, os.path, ssl
-- crated utilities file (only one function at the moment): utils.py
+- added libraries: os.path, ssl
 - created file for security methods: sec.py
-- created /conf with a general settings.conf file and two files for capability-role-user associations
+- created /conf with two files for capability-role-user associations
 - PKI added
-- in settings.conf it is possible to toggle security ON/OFF (switching between HTTP and HTTPS)
+- security ON/OFF (switching between HTTP and HTTPS) 
+	- added as command-line parameter in ping.py
+	- extracted from the URL in the "connect" command in client.py (eg: connect http://foo/ or https://foo/)
 
 Client.py:
 - substituted urllib (HTTP) con urllib3 (HTTP + HTTPS)
 - slightly changed url variables in order to adapt to urllib3
-- SSH client skeleton added
 
 HttpSrv.py:
 - added access control, based on CN extracted from certificate

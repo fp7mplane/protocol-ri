@@ -21,14 +21,13 @@
 
 import os.path
 import mplane.model
-import mplane.utils
 
 class Authorization(object):
 
-	def __init__(self):
+	def __init__(self, security):
 		self.ur = self.load_roles("conf/users.conf")
 		self.cr = self.load_roles("conf/caps.conf")
-		self.security = mplane.utils.read_setting('security')
+		self.security = security
 		
 	def load_roles(self, path):
 		r = {}
@@ -36,7 +35,7 @@ class Authorization(object):
 			for line in f.readlines():
 				line = line.rstrip('\n')
 				user = line.split(': ')[0]
-				roles = line.split(': ')[1].split(', ')
+				roles = set(line.split(': ')[1].split(', '))
 				r[user] = roles
 		return r
 
@@ -44,11 +43,10 @@ class Authorization(object):
 		""" Checks if the user is allowed to use a given capability """
 		if self.security == True:
 			if ((cap_name in self.cr) and (user_name in self.ur)): # Deny unless explicitly allowed in .conf files
-				for cap_role in self.cr[cap_name]:
-					for user_role in self.ur[user_name]:
-						if cap_role == user_role:
-							print ("Capability " + str(cap_name) + " allowed for " + user_name + " as " + user_role)
-							return True
+				intersection = self.cr[cap_name] & self.ur[user_name]
+				if len(intersection) > 0:
+					print ("Capability " + str(cap_name) + " allowed for " + user_name + " as " + str(intersection))
+					return True
 			print ("Capability " + str(cap_name) + " denied for " + user_name)
 			return False
 		else:
