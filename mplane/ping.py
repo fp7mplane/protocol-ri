@@ -298,6 +298,7 @@ if __name__ == "__main__":
                 certfile = args.certfile
         else:
             security = False
+            certfile = None
 
     scheduler = mplane.scheduler.Scheduler(security)
     if ip4addr is not None:
