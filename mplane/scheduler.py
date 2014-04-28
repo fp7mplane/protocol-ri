@@ -82,9 +82,11 @@ class Job(object):
     Each Job will result in a single Result.
     """
     result = None
+    exception = None
     _thread = None
     _started_at = None
     _ended_at = None
+    _exception_at = None
     _replied_at = None
     service = None
     session = None
@@ -109,9 +111,11 @@ class Job(object):
             self.result = self.service.run(self.specification, 
                                            self._check_interrupt)
         except Exception as e:
-            self.result = mplane.model.Exception(
+            self.exception = mplane.model.Exception(
                             token=self.specification.get_token(), 
                             errmsg=str(e))
+            print("Got exception in _run(), returning "+str(self.exception))
+            self._exception_at = datetime.utcnow()
         self._ended_at = datetime.utcnow()
 
     def _check_interrupt(self):
@@ -149,6 +153,9 @@ class Job(object):
         """Interrupt this job."""
         self._interrupt.set()
 
+    def failed(self):
+        return self.exception is not None
+
     def finished(self):
         """Return True if the job is complete."""
         return self.result is not None
@@ -161,7 +168,9 @@ class Job(object):
 
         """
         self._replied_at = datetime.utcnow()
-        if self.finished():
+        if self.failed():
+            return self.exception
+        elif self.finished():
             return self.result
         else:
             return self.receipt

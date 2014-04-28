@@ -301,7 +301,13 @@ class ClientShell(cmd.Cmd):
 #            print ("No such capability "+arg)
 #            return
 
-        # Set temporal scope
+        # Set temporal scope or prompt for new one
+        while self._when is None or \
+              not self._when.follows(cap.when()) or \
+              (self._when.period is None and cap.when().period() is not None):
+            sys.stdout.write("|when| = ")
+            self._when = mplane.model.When(input())
+
         spec.set_when(self._when)
 
         # Fill in single values

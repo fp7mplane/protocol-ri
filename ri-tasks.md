@@ -45,12 +45,6 @@ The right way to do this is probably to have Specifications with schedules imple
 - mplane.model.Element should maintain a reference to the registry from which it was loaded; a fully qualified element name then becomes the URL plus the element name as anchor, i.e.: ```http://ict-mplane.eu/registry/1.0/#delay.twoway.icmp.ms```.
 - Future work on better registry definition is future work
 
-### Implement version section in mPlane messages
-
-We need a version section in mPlane messages to allow us to make changes to structures in the future.
-
-_Provisionally implemented. Currently dies if version present and not zero._
-
 ### Implement export section in mPlane messages
 
 We need the export section, required for indirect export.
@@ -61,8 +55,9 @@ _Provisionally implemented_ though there's no code in any of the rest of the RI 
 
 Python's threading library catches exceptions, apparently. We'd like to catch exceptions in run() instead, and package them up as mplane.model.Exception instances.
 
+_Integrated code in scheduler_ but Exception.to_dict/from_dict do not appear to work.
+
+
 ## Additional RI tasks
 
 ### Build a generic HTTP server component CLI
-
-### 

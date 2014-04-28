@@ -1046,6 +1046,7 @@ class URLPrimitive(Primitive):
 class TimePrimitive(Primitive):
     """
     Represents a UTC timestamp with arbitrary precision.
+    Also handles special-purpose mPlane timestamps.
 
     """
     def __init__(self):
