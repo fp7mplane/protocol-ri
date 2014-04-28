@@ -24,6 +24,17 @@ The first step in determining how to build an mPlane component for a given measu
 
 ## mPlane Client Shell
 
+The mPlane Client Shell is a quick and dirty command line interface around a generic mPlane HTTP client. ```help``` provides low quality help. To use it:
+
+1. ```connect <url>``` Connect to a component at the given URL; currently supported schema is ```http```. Tries to load capabilities from a list of links at the ```/capabilities``` path relative to this URL. 
+2. ```listcap``` will show capablities available at the connected component, prefaced by capability indexes.
+3. ```when <temporal-scope>``` sets a temporal scope for subsequent invocations; ```when``` on its own shows the current one
+4. ```set <parameter> <value>``` sets a default value for parameters for subsequent invocations; ```show``` shows all current defaults with values
+5. ```runcap <number>``` runs a capability by number in the ```listcap``` list. Any parameters not yet filled in by ```set``` will be prompted for. This will return either a result or receipt, depending on what the component decides to return.
+6. ```redeem``` sends all pending receipts back to the component for results, if available.
+
+Note that this is all very prerelease and nearly guaranteed to change.
+
 # mPlane Protocol Specification
 
 ## mPlane Architecture

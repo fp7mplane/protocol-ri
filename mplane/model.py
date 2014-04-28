@@ -576,7 +576,12 @@ class When(object):
         """
         return self._a is not None and self._b is None and self._d is None
 
-    def _datetimes(self, tzero=None):
+    def datetimes(self, tzero=None):
+        """
+        Return start and end times as absolute timestamps 
+        for this temporal scope, relative to a given tzero.
+        """
+
         if tzero is None:
             tzero = datetime.utcnow()
 
@@ -613,7 +618,7 @@ class When(object):
         elif self._b is time_future:
             return None
         else:
-            (start, end) = self._datetimes(tzero)
+            (start, end) = self.datetimes(tzero)
             return end - start
 
     def period(self):
@@ -645,7 +650,7 @@ class When(object):
             tzero = datetime.utcnow()
         
         # get datetimes
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         # determine start delay, account for late start
         sd = (start - tzero).total_seconds()
@@ -685,7 +690,7 @@ class When(object):
                 t = tzero
 
         # Get concrete time range
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         if start and t < start:
             return (t - start).total_seconds()
@@ -846,7 +851,7 @@ def test_tscope():
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
     assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
-    assert wdef._datetimes() == (parse_time("2009-02-20 13:00:00"), 
+    assert wdef.datetimes() == (parse_time("2009-02-20 13:00:00"), 
                                  parse_time("2009-02-20 15:00:00"))
     assert wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (3600, 10800)
 
@@ -857,7 +862,7 @@ def test_tscope():
     assert not wrel.is_definite() 
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
-    assert wrel._datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+    assert wrel.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
            (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
     assert wrel.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
     assert wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
@@ -867,7 +872,7 @@ def test_tscope():
     assert when_infinite.period() is None
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
-    assert (when_infinite._datetimes()) == (None, None)
+    assert (when_infinite.datetimes()) == (None, None)
 
 
 #######################################################################
