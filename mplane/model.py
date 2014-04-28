@@ -587,7 +587,9 @@ class When(object):
         else:
             start = self._a
 
-        if self._b is time_future:
+        if self._b is time_now:
+            end = tzero
+        elif self._b is time_future:
             end = None
         elif self._b is None:
             if self._d is not None:
