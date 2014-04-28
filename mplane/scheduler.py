@@ -1,4 +1,7 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
+#
 # mPlane Protocol Reference Implementation
 # Component and Client Job Scheduling
 #
@@ -155,8 +158,6 @@ class Job(object):
         else:
             return self.receipt
 
-
-
 class MultiJob(Job):
     """
     Represents a job that runs on a schedule and produces multiple Results.
@@ -167,6 +168,12 @@ class MultiJob(Job):
 
     def __repr__(self):
         return "<MultiJob for "+repr(self.specification)+">"
+
+    def schedule(self):
+        """
+        Schedule this job to run.
+        """
+        pass
 
     def get_reply(self):
         """

@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
 # mPlane Protocol Reference Implementation
 # Information Model and Element Registry
 #
