@@ -225,6 +225,8 @@ def parse_args():
                         help="Ping from the given IPv6 address")
     parser.add_argument('--sec', metavar="security-on-off",
                         help="Toggle security on/off. Values: 0=on,1=off")
+    parser.add_argument('--certfile', metavar="cert-file-location",
+                        help="Location of the configuration file for certificates")
     args = parser.parse_args()
 
 def manually_test_ping():
@@ -289,7 +291,11 @@ if __name__ == "__main__":
         raise ValueError("need --sec parameter (0=True,1=False)")
     else:
         if args.sec == '0':
-            security = True
+            if args.certfile is None:
+                raise ValueError("if --sec=0, need to specify cert file")
+            else:
+                security = True
+                certfile = args.certfile
         else:
             security = False
 
@@ -301,4 +307,4 @@ if __name__ == "__main__":
         scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
         scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
 
-    mplane.httpsrv.runloop(scheduler, security)
+    mplane.httpsrv.runloop(scheduler, security, certfile)

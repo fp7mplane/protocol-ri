@@ -20,6 +20,7 @@
 #
 
 import mplane.model
+import mplane.utils
 import sys
 import cmd
 import readline
@@ -28,6 +29,7 @@ import urllib3
 from urllib3 import HTTPSConnectionPool
 from urllib3 import HTTPConnectionPool
 import os.path
+import argparse
 
 from datetime import datetime, timedelta
 
@@ -64,7 +66,7 @@ class HttpClient(object):
     Caches retrieved Capabilities, Receipts, and Results.
 
     """
-    def __init__(self, security, posturl, capurl=None):
+    def __init__(self, security, posturl, capurl=None, certfile=None):
         # store urls
         self._posturl = posturl
         if capurl is not None:
@@ -77,9 +79,9 @@ class HttpClient(object):
         url = urllib3.util.parse_url(posturl) 
 
         if security == True: 
-            key = os.path.join(os.path.dirname(__file__), "PKI/certs/client.key") 
-            cert = os.path.join(os.path.dirname(__file__), "PKI/certs/client.crt") 
-            ca = os.path.join(os.path.dirname(__file__), "PKI/ca/cachain.crt") 
+            cert = mplane.utils.read_setting(certfile, "cert")
+            key = mplane.utils.read_setting(certfile, "key")
+            ca = mplane.utils.read_setting(certfile, "ca-chain")
             self.pool = HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
         else: 
             self.pool = HTTPConnectionPool(url.host, url.port) 
@@ -241,6 +243,9 @@ class ClientShell(cmd.Cmd):
     prompt = '|mplane| '
 
     def preloop(self):
+        global args
+        parse_args()
+        self._certfile = args.certfile
         self._client = None
         self._defaults = {}
         self._when = None
@@ -258,8 +263,11 @@ class ClientShell(cmd.Cmd):
         proto = args[0].split('://')[0]
         if proto == 'http':
             self._client = HttpClient(False, args[0], capurl)
-        if proto == 'https':
-            self._client = HttpClient(True, args[0], capurl)
+        elif proto == 'https':
+            if self._certfile is not None:
+                self._client = HttpClient(True, args[0], capurl, self._certfile)
+            else:
+                raise SyntaxError("For https, need to specify the --certfile parameter when launching the client")
         elif proto == 'ssh':
             self._client = SshClient(True, args[0], capurl)
 
@@ -402,7 +410,14 @@ class ClientShell(cmd.Cmd):
         """Exit the shell by typing ^D"""
         print("Ciao!")
         return True
-
+        
+def parse_args():
+    global args
+    parser = argparse.ArgumentParser(description="Run an mPlane client")
+    parser.add_argument('--certfile', metavar="cert-file-location",
+                        help="Location of the configuration file for certificates")
+    args = parser.parse_args()
+    
 if __name__ == "__main__":
     mplane.model.initialize_registry()
     ClientShell().cmdloop()

@@ -262,12 +262,16 @@ class Scheduler(object):
                     self.jobs[job_key] = new_job
                     print("Returning "+repr(new_job.receipt))
                     return new_job.receipt
+                    
+                # user not authorized to request the capability
+                print("Not allowed to request this capability: " + repr(specification))
+                return mplane.model.Exception(token=specification.get_token(),
+                            errmsg="User has no permission to request this capability")
 
         # fall-through, no job
-        # TODO: handling of security exceptions (eg. exception not_authorized)
-        print("No allowed service for "+repr(specification))
+        print("No service for "+repr(specification))
         return mplane.model.Exception(token=specification.get_token(),
-                    errmsg="No service registered for specification, or user has no permission")
+                    errmsg="No service registered for specification")
 
     def job_for_message(self, msg):
         """
