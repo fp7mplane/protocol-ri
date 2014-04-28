@@ -28,7 +28,11 @@ SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 
 class MPlaneHandler(tornado.web.RequestHandler):
+    """
+    Abstract tornado RequestHandler that allows a 
+    handler to respond with an mPlane Message.
 
+    """
     def _respond_message(self, msg):
         self.set_status(200)
         self.set_header("Content-Type", "application/x-mplane+json")
@@ -36,6 +40,12 @@ class MPlaneHandler(tornado.web.RequestHandler):
         self.finish()
 
 class DiscoveryHandler(MPlaneHandler):
+    """
+    Exposes the capabilities registered with a given scheduler. 
+    URIs ending with "capability" will result in an HTML page 
+    listing links to each capability. 
+
+    """
 
     def initialize(self, scheduler):
         self.scheduler = scheduler
@@ -65,7 +75,13 @@ class DiscoveryHandler(MPlaneHandler):
         self._respond_message(self.scheduler.capability_for_key(key))
 
 class MessagePostHandler(MPlaneHandler):
+    """
+    Receives mPlane messages POSTed from a client, and passes them to a 
+    scheduler for processing. After waiting for a specified delay to see 
+    if a Result is immediately available, returns a receipt for future
+    redemption.
 
+    """
     def initialize(self, scheduler, immediate_ms = 5000):
         self.scheduler = scheduler
         self.immediate_ms = immediate_ms

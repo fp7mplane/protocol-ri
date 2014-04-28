@@ -239,6 +239,8 @@ results:
 
 .. note:: We should document and test interrupts and withdrawals, as well.
 
+Envelopes can be used to group multiple mPlane messages into a 
+
 """
 
 from ipaddress import ip_address
@@ -287,6 +289,7 @@ KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
+KEY_CONTENTS = "contents"
 
 KEY_MONTHS = "months"
 KEY_DAYS = "days"
@@ -304,6 +307,12 @@ KIND_INDIRECTION = "indirection"
 KIND_WITHDRAWAL = "withdrawal"
 KIND_INTERRUPT = "interrupt"
 KIND_EXCEPTION = "exception"
+KIND_ENVELOPE = "envelope"
+
+ENVELOPE_MESSAGE = "message"
+ENVELOPE_STATEMENT = "statement"
+ENVELOPE_NOTIFICATION = "notification"
+
 
 PARAM_START = "start"
 PARAM_END = "end"
@@ -403,7 +412,7 @@ class PastTime:
         return TIME_PAST
 
     def __repr__(self):
-        return "mplane.tscope.time_past"
+        return "mplane.model.time_past"
 
     def strftime(self, ign):
         return str(self)
@@ -420,7 +429,7 @@ class NowTime:
         return TIME_NOW
 
     def __repr__(self):
-        return "mplane.tscope.time_now"
+        return "mplane.model.time_now"
 
     def strftime(self, ign):
         return str(self)
@@ -437,7 +446,7 @@ class FutureTime:
         return TIME_FUTURE
 
     def __repr__(self):
-        return "mplane.tscope.time_future"
+        return "mplane.model.time_future"
 
     def strftime(self, ign):
         return str(self)
@@ -1566,6 +1575,18 @@ class Statement(object):
         """Iterate over the names of parameters in this Statement"""
         yield from self._params.keys()
 
+    def parameter_values(self):
+        """
+        Returns a dict mapping parameter names to values 
+        for each parameter with a value.
+        """
+        d = {}
+        for k in parameter_names:
+            v = self.get_parameter_value(k)
+            if v:
+                d[k] = v
+        return d
+
     def count_parameters(self):
         """Return the number of parameters in this Statement"""
         return len(self._params)
@@ -1749,12 +1770,15 @@ class Statement(object):
             d[KEY_LABEL] = self._label
 
         if self._link is not None:
-          d[KEY_LINK] = self._link
+            d[KEY_LINK] = self._link
 
         if self._token is not None:
-          d[KEY_TOKEN] = self._token
+            d[KEY_TOKEN] = self._token
 
         d[KEY_WHEN] = str(self._when)
+
+        if self._schedule is not None:
+            d[KEY_SCHEDULE] = self._schedule.to_dict()
 
         if self.count_parameters() > 0:
             d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
@@ -1949,14 +1973,6 @@ class Specification(Statement):
     def has_schedule(self):
         return self._schedule is not None
 
-    def to_dict(self):
-        d = super().to_dict()
-
-        if self._schedule is not None:
-            d[KEY_SCHEDULE] = self._schedule.to_dict()
-
-        return d
-
     def _from_dict(self, d):
         super()._from_dict(d)
 
@@ -2019,6 +2035,19 @@ class Result(Statement):
 
     def set_result_value(self, elem_name, val, row_index=0):
         self._resultcolumns[elem_name][row_index] = val
+
+    def schema_dict_iterator(self):
+        """
+        Iterate over each row in this result, yielding a dictionary 
+        mapping all parameter and result column names to their values.
+
+        """
+        for i in range(self.count_result_rows()):
+            d = self.parameter_values()
+            for k in self.result_column_names():
+                d[k] = self._resultcolumns[k][i]
+            yield d
+
 
 #######################################################################
 # Notifications
@@ -2164,6 +2193,53 @@ class Interrupt(StatementNotification):
     def validate(self):
         Specification.validate(self)
 
+#######################################################################
+# Envelope
+#######################################################################
+
+class Envelope(object):
+    """
+    Envelopes are used to contain other Messages.
+
+    """
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+        super().__init__()
+        if dictval is not None:
+            self._from_dict(dictval)
+        else:
+          self._content_type = content_type
+          self._messages = []
+
+    def __repr__(self):
+        return "<Envelope "+self._content_type+\
+                " ("+str(len(self._messages))+"): "+\
+                " ".join(map(repr, self._messages))+">"
+
+    def append_message(self, msg):
+        
+        self._messages.append(msg)
+
+    def messages(self):
+        return iter(self._messages)
+
+    def kind_str(self):
+        return KIND_ENVELOPE
+
+    def to_dict(self):
+        d = {}
+        d[self.kind_str()] = self._content_type
+        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
+        return d
+
+    def _from_dict(self, d):
+        self._content_type = d[self.kind_str()]
+        for md in self[KEY_CONTENTS]:
+          self.append_message(message_from_dict(md))
+
+#######################################################################
+# Utility methods
+#######################################################################
+
 def message_from_dict(d):
     """
     Given a dictionary returned from to_dict(), return a decoded
@@ -2177,7 +2253,8 @@ def message_from_dict(d):
                  KIND_REDEMPTION : Redemption,
                  KIND_WITHDRAWAL : Withdrawal,
                  KIND_INTERRUPT : Interrupt,
-                 KIND_EXCEPTION : Exception}
+                 KIND_EXCEPTION : Exception,
+                 KIND_ENVELOPE : Envelope}
 
     for k in classmap.keys():
         if k in d:

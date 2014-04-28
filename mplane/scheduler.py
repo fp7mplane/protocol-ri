@@ -77,7 +77,8 @@ class Job(object):
     point in the future.
 
     Each Job will result in a single Result; Specifications with a
-    schedule: section are represented by MultiJob.
+    schedule: section are represented by MultiJob, and will produce
+    multiple Results.
 
     """
     def __init__(self, service, specification, session=None):
@@ -93,6 +94,9 @@ class Job(object):
         self._replied_at = None
         self._interrupt = threading.Event()
 
+    def __repr__(self):
+        return "<Job for "+repr(self.specification)+">"
+
     def _run(self):
         self._started_at = datetime.utcnow()
         self.result = self.service.run(self.specification, 
@@ -103,11 +107,6 @@ class Job(object):
         return self._interrupt.is_set()
 
     def _schedule_now(self):
-        """
-        Schedule this job to run immediately. 
-        Used internally by schedule().
-
-        """
         # spawn a thread to run the service
         threading.Thread(target=self._run).start()
         
@@ -156,19 +155,26 @@ class Job(object):
         else:
             return self.receipt
 
-    def __repr__(self):
-        return "<Job for "+repr(self.specification)+">"
+
 
 class MultiJob(Job):
     """
     Represents a job that runs on a schedule and produces multiple Results.
-    Implementation pending. Currently, submitting a MultiJob will cause
-    the scheduled job to run once according to its inner temporal scope.
-
+    Implementation is in progress.
     """
     def __init__(self, service, specification, session=None):
         super(MultiJob, self).__init(self, service, specification, session)
 
+    def __repr__(self):
+        return "<MultiJob for "+repr(self.specification)+">"
+
+    def get_reply(self):
+        """
+        If results are available for this Job, return them in an Envelope. 
+        Otherwise, create a receipt from the Specification and return that.
+
+        """
+        pass
 
 class Scheduler(object):
     """
