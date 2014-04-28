@@ -104,8 +104,9 @@ class HttpClient(object):
                   " Content-Type "+res.getheader("Content-Type"))
             if res.status == 200 and \
                res.getheader("Content-Type") == "application/x-mplane+json":
-                print("parsing json")
-                return mplane.model.parse_json(res.read().decode("utf-8"))
+                got = res.read().decode("utf-8")
+                print("parsing json: %s" % got)
+                return mplane.model.parse_json(got)
             else:
                 print("giving up")
                 return None
