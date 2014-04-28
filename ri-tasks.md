@@ -14,6 +14,8 @@ showmeas in client.py doesn't work; fix this
 
 It is possible for a specification without a period to match a capability with one. This should not happen, and probably requires a fix in mplane.model.When.
 
+### client.py should prompt for when on runcap if not available.
+
 ## Design issues
 
 ### Design and implement poll scheduling for component-pull workflows
@@ -22,9 +24,9 @@ We need a message/interaction to allow component-pull workflows to be scheduled.
 
 ## Core RI tasks
 
-### Implement MultiJob
+### Implement periodically repeating Jobs.
 
-MultiJob represents a periodically repeating Job. We need to finish an implementation of this to allow scheduling to work.
+The right way to do this is probably to have Specifications with schedules implement an iterator over future concrete Specifications, then have a completely separate class that uses this iterator to schedule one Job per subordinate Specification.
 
 ### Implement registry flexibility
 
@@ -53,7 +55,11 @@ _Provisionally implemented. Currently dies if version present and not zero._
 
 We need the export section, required for indirect export.
 
-_Provisionally implemented_
+_Provisionally implemented_ though there's no code in any of the rest of the RI for dealing with it.
+
+### Make exceptions work in Service.run()
+
+Python's threading library catches exceptions, apparently. We'd like to catch exceptions in run() instead, and package them up as mplane.model.Exception instances.
 
 ## Additional RI tasks
 

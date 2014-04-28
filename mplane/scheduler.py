@@ -79,22 +79,25 @@ class Job(object):
     instance of a Service presently running, or ready to run at some 
     point in the future.
 
-    Each Job will result in a single Result; Specifications with a
-    schedule: section are represented by MultiJob, and will produce
-    multiple Results.
-
+    Each Job will result in a single Result.
     """
+    result = None
+    _thread = None
+    _started_at = None
+    _ended_at = None
+    _replied_at = None
+    service = None
+    session = None
+    specification = None
+    receipt = None
+    _interrupt = None
+
     def __init__(self, service, specification, session=None):
         super(Job, self).__init__()
         self.service = service
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self.result = None
-        self._thread = None
-        self._started_at = None
-        self._ended_at = None
-        self._replied_at = None
         self._interrupt = threading.Event()
 
     def __repr__(self):
@@ -102,8 +105,13 @@ class Job(object):
 
     def _run(self):
         self._started_at = datetime.utcnow()
-        self.result = self.service.run(self.specification, 
-                                       self._check_interrupt)
+        try:
+            self.result = self.service.run(self.specification, 
+                                           self._check_interrupt)
+        except Exception as e:
+            self.result = mplane.model.Exception(
+                            token=self.specification.get_token(), 
+                            errmsg=str(e))
         self._ended_at = datetime.utcnow()
 
     def _check_interrupt(self):
@@ -157,31 +165,6 @@ class Job(object):
             return self.result
         else:
             return self.receipt
-
-class MultiJob(Job):
-    """
-    Represents a job that runs on a schedule and produces multiple Results.
-    Implementation is in progress.
-    """
-    def __init__(self, service, specification, session=None):
-        super(MultiJob, self).__init(self, service, specification, session)
-
-    def __repr__(self):
-        return "<MultiJob for "+repr(self.specification)+">"
-
-    def schedule(self):
-        """
-        Schedule this job to run.
-        """
-        pass
-
-    def get_reply(self):
-        """
-        If results are available for this Job, return them in an Envelope. 
-        Otherwise, create a receipt from the Specification and return that.
-
-        """
-        pass
 
 class Scheduler(object):
     """
