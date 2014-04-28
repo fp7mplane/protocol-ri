@@ -21,6 +21,8 @@ The new proposed method for indirect export is as follows:
 
 Note that this arrangement does not support pull-based export. Is this an issue?
 
+_This arrangement has been proposed and should be implemented in the ping example._
+
 ## Registry Flexibility
 
 The registry is presently hardcoded into the RI. This does not allow the registry to be expanded at all, and does not allow e.g. the direct use of the IPFIX IE registry when doing so would be appropriate. Taking a page from LMAP, we should allow the registry used by a message to be expressed explicitly by URL, from which a JSON registry file can be downloaded.
@@ -45,9 +47,16 @@ Multiple messages should be able to show up in an single object; this is used no
 
 I propose a new message type, ```Envelope```, to be added to the information model. It has a single field, content:, consisting of a list of other messages. In the place of a verb, the envelope has a content type, which is presently "message", but could be used to sort capability-envelopes from result-envelopes in the future.
 
+_This has been implemented_.
+
 ## Versioning
 
 Messages should have a ```version:``` section containing a protocol version serial number. Until the completion of D1.4, the version will be 0, after which the version will be 1; future post-project revisions of the protocol will increment the version serial number.
+
+## Multiple actual values of parameters and promotion of parameters to result columns
+
+We'd like to be able to express things like a list of targets in a Specification, and have this map to a Result in a meaningful way. Probably the right way to handle this is to allow _any_ parameter to take a list of values in a Specification, as long as each value matches the 
+
 
 # Status of Solutions to Open Issues
 

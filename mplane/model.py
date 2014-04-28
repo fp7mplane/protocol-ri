@@ -235,11 +235,10 @@ just the token may be sent back to the component to retrieve the
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "48d7393c75aec14043c3a5af4f461013"}'
+'{"redemption": "measure", "version": 0, "token": "48d7393c75aec14043c3a5af4f461013"}'
 
-.. note:: We should document and test interrupts and withdrawals, as well.
-
-Envelopes can be used to group multiple mPlane messages into a 
+.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
+ 
 
 """
 
@@ -256,7 +255,7 @@ import re
 import os
 
 #######################################################################
-# String constants
+# String constants for protocol framing
 #######################################################################
 
 ELEMENT_SEP = "."
@@ -285,6 +284,8 @@ KEY_RESULTVALUES = "resultvalues"
 KEY_TOKEN = "token"
 KEY_MESSAGE = "message"
 KEY_LINK = "link"
+KEY_EXPORT = "export"
+KEY_VERSION = "version"
 KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
@@ -313,9 +314,15 @@ ENVELOPE_MESSAGE = "message"
 ENVELOPE_STATEMENT = "statement"
 ENVELOPE_NOTIFICATION = "notification"
 
+#######################################################################
+# Protocol constants
+#######################################################################
 
-PARAM_START = "start"
-PARAM_END = "end"
+MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
+
+#######################################################################
+# Reference implementation constats
+#######################################################################
 
 # Hash length in __repr__ strings
 REPHL = 8
@@ -1508,10 +1515,12 @@ class Statement(object):
     """
 
     # Member variables
+    _version = MPLANE_VERSION
     _params = None
     _metadata = None
     _resultcolumns = None
     _link = None
+    _export = None
     _verb = None
     _label = None
     _when = None
@@ -1524,7 +1533,6 @@ class Statement(object):
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
-        self._link = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -1642,14 +1650,25 @@ class Statement(object):
 
     def get_link(self):
         """
-        Get the statement's link, which specifies where the next message 
+        Get the statement's link URL, which specifies where the next message 
         in the workflow should be sent to or retrieved from.
         """
         return self._link
 
     def set_link(self, link):
-        """Set the statement's link"""
+        """Set the statement's link URL"""
         self._link = link
+
+    def get_export(self):
+        """
+        Get the statement's export URL, which specifies where 
+        results will be indirectly exported.
+        """
+        return self._export
+
+    def set_export(self, export):
+        """Set the statement's export URL"""
+        self._export = export
 
     def get_label(self):
         """Return the statement's label"""
@@ -1766,11 +1785,16 @@ class Statement(object):
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
+        d[KEY_VERSION] = self._version
+
         if self._label is not None:
             d[KEY_LABEL] = self._label
 
         if self._link is not None:
             d[KEY_LINK] = self._link
+
+        if self._export is not None:
+            d[KEY_EXPORT] = self._export
 
         if self._token is not None:
             d[KEY_TOKEN] = self._token
@@ -1815,11 +1839,18 @@ class Statement(object):
         """
         self._verb = d[self.kind_str()]
 
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
         if KEY_LABEL in d:
             self._label = d[KEY_LABEL]
 
         if KEY_LINK in d:
           self._link = d[KEY_LINK]
+
+        if KEY_EXPORT in d:
+          self._link = d[KEY_EXPORT]
 
         if KEY_TOKEN in d:
           self._token = d[KEY_TOKEN]
@@ -2202,6 +2233,10 @@ class Envelope(object):
     Envelopes are used to contain other Messages.
 
     """
+    _version = MPLANE_VERSION
+    _content_type = None
+    _messages = None
+
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
         super().__init__()
         if dictval is not None:
@@ -2216,7 +2251,6 @@ class Envelope(object):
                 " ".join(map(repr, self._messages))+">"
 
     def append_message(self, msg):
-        
         self._messages.append(msg)
 
     def messages(self):
@@ -2228,11 +2262,17 @@ class Envelope(object):
     def to_dict(self):
         d = {}
         d[self.kind_str()] = self._content_type
+        d[KEY_VERSION] = self._version
         d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
         return d
 
     def _from_dict(self, d):
         self._content_type = d[self.kind_str()]
+
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
         for md in self[KEY_CONTENTS]:
           self.append_message(message_from_dict(md))
 

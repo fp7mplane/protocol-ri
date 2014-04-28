@@ -201,7 +201,7 @@ class HttpClient(object):
 
     def add_result(self, msg):
         """Add a receipt. Check for duplicates."""
-        if msg.get_token() not in [result.get_token() for results in self.results()]:
+        if msg.get_token() not in [result.get_token() for result in self.results()]:
             self._results.append(msg)
             self._delete_receipt_for(msg.get_token())
 
