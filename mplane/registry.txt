@@ -150,3 +150,10 @@ period.ns: natural
 
 # Brokered asynchronous export
 async-target: url
+
+# Firelog
+firelog.plugin.file: string
+firelog.session.url: url
+firelog.stat: string
+firelog.ping: string
+firelog.trace: string
