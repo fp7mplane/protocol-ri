@@ -329,6 +329,8 @@ MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
 # Hash length in __repr__ strings
 REPHL = 8
 
+EXCEPTION_NO_TOKEN = "00000000000000000000000000000000"
+
 #######################################################################
 # Universal parse and unparse functions for times and durations
 #######################################################################
@@ -1688,6 +1690,7 @@ class Statement(object):
 
     def get_label(self):
         """Return the statement's label"""
+        return self._label
 
     def when(self):
         """Get the statement's temporal scope"""
@@ -2127,11 +2130,12 @@ class Exception(BareNotification):
     or non-nominal condition 
 
     """
-    def __init__(self, dictval=None, token=None, errmsg=None):
+    def __init__(self, dictval=None, token=EXCEPTION_NO_TOKEN, errmsg=None):
         super().__init__(dictval=dictval, token=token)
-        if errmsg is None and dictval is None:
-            errmsg = "Unspecified exception"
-        self._errmsg = errmsg
+        if dictval is None:
+            if errmsg is None:
+                errmsg = "Unspecified exception"
+            self._errmsg = errmsg
 
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
@@ -2146,6 +2150,7 @@ class Exception(BareNotification):
         return d
 
     def _from_dict(self, d):
+        print("in mplane.model.Exception.from_dict")
         self._token = d[KIND_EXCEPTION]
         self._errmsg = d[KEY_MESSAGE]
 
