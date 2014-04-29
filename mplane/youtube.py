@@ -38,6 +38,7 @@ import tornado.web
 import tornado.ioloop
 # import argparse
 import sys
+from youtubeclient.yc import YouTubeClient
 
 YouTubeMetrics = ( "delay.urlresolve.ms", "octets.layer7", "delay.download.ms", "bandwidth.min.bps", "bandwidth.avg.bps", "bandwidth.max.bps", "delay.srvresponse.ms", "rebuffer.events" )
 
@@ -76,7 +77,15 @@ class YouTubeProbeService(mplane.scheduler.Service):
 
         start_time = datetime.utcnow()
 
-        metrics = {'bandwidth.avg.bps': 26078721.505788006, 'delay.urlresolve.ms': 1770.0097560882568, 'octets.layer7': 38045692, 'delay.download.ms': 11671.029806137085, 'bandwidth.min.bps': 15859584.0, 'rebuffer.events': 0, 'bandwidth.max.bps': 35127040.0, 'delay.srvresponse.ms': 186.76424026489258}
+        # metrics = {'bandwidth.avg.bps': 26078721.505788006, 'delay.urlresolve.ms': 1770.0097560882568, 'octets.layer7': 38045692, 'delay.download.ms': 11671.029806137085, 'bandwidth.min.bps': 15859584.0, 'rebuffer.events': 0, 'bandwidth.max.bps': 35127040.0, 'delay.srvresponse.ms': 186.76424026489258}
+
+        params = { 'video_id': youtube_id }
+        # not supposed to throw any exception, just better safe than sorry
+        try:
+            probe = YouTubeClient(params)
+            metrics = probe.run()
+        except Exception:
+            metrics = {}
 
         end_time = datetime.utcnow()
 

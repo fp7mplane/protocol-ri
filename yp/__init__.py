@@ -16,33 +16,97 @@ from flvlib.tags import FLV, VideoTag, AudioTag
 from flvlib.primitives import get_ui24,get_ui8
 from yp.utils import SeekableByteQueue
 
-log = logging.getLogger('ye')
+log = logging.getLogger('youtube-probe')
+
+class PlayerState:
+    UNINITIALIZED = 0
+    BUFFERING = 1
+    PLAYING = 2
+    REBUFFERING = 3
+    FINISHED = 4
+
+    def __str__(state):
+        if state == UNINITIALIZED:
+            return 'UNINITIALIZED'
+        elif state == BUFFERING:
+            return 'BUFFERING'
+        elif state == 'PLAYING':
+            return 'PLAYING'
+        elif state == 'REBUFFERING':
+            return 'REBUFFERING'
+        elif state == 'FINISHED':
+            return 'FINISHED'
+        else:
+            return 'INVALID'
 
 class Player(SeekableByteQueue):
     """ Abstract class for a Player emulator  that is fed a byte stream by the downloader """
 
     def __init__(self):
         SeekableByteQueue.__init__(self)
-        self._playout_started = 0
+        self._state = PlayerState.UNINITIALIZED
+        # we're buffering at this offset - if not 0, rebuffering has happened
+        self._mediaOffset = 0
+        # wallclock time when we started playout
+        self._playStartTime_Wallclock = None
+        # when we started playout relative to the media's start 
+        self._lastStatusPrint = 0
         self._underrunTimer = None
+
+    def changeState(self, newstate):
+        """ use to change player state """
+        if newstate == PlayerState.BUFFERING:
+            log.debug('Player starts BUFFERING')
+        elif newstate == PlayerState.PLAYING:
+            action = 'starts'
+            if self._state == PlayerState.REBUFFERING:
+                action = 'resumes'
+            self._playStartTime_Wallclock = time.time()
+            log.info('Player %s PLAYING, buffered: %04.03f' % ( action, self.getBufferedSeconds(self._mediaOffset)))
+        elif newstate == PlayerState.REBUFFERING:
+            played_out = time.time() - self._playStartTime_Wallclock 
+            log.info('Player starts REBUFFERING, played out: %04.03f secs since %04.03f' % \
+                ( played_out, self._mediaOffset ))
+            self._playStartTime_Wallclock = None
+            self._mediaOffset = played_out
+        elif newstate == PlayerState.FINISHED:
+            log.info('Player FINISHED')
+        self._state = newstate
 
     def feed(self, data):
         """ new data is pushed in by the downloader """
+        if (self._state == PlayerState.BUFFERING or self._state == PlayerState.REBUFFERING) and self.getBufferedSeconds(self._mediaOffset) > 3:
+            log.info("3 seconds of media buffered, starting playout") 
+            self.changeState(PlayerState.PLAYING)
+        if self._state == PlayerState.PLAYING:
+            if self._underrunTimer != None:
+                self._underrunTimer.cancel()
+            t = time.time()
+            # underrun happens when we run out of the buffered media. to calculate:
+            # (in the buffer beyond the playout offset) - (number of seconds since we're playing it out)
+            buffered = self.getBufferedSeconds(self._mediaOffset) - (t - self._playStartTime_Wallclock)
+            self._underrunTimer = Timer(buffered, self.underrunEvent)
+            self._underrunTimer.start()
+            if (t - self._lastStatusPrint) > 1:
+                self._lastStatusPrint = t
+                log.debug('Media is Playing from offset %04.03f, buffered: %04.03f' % (self._mediaOffset, buffered))
+
+    def getBufferedSeconds(self, offset = 0):
+        """ how many seconds of video in the buffer (counting from offset) """
         raise NotImplementedError()
 
-    def mediaDuration(self):
+    def getLastMediaTimeStamp(self):
         """ get the presentation TS of the last complete frame """
         raise NotImplementedError()
 
-    def underrun(self):
+    def underrunEvent(self):
         """ ran out of media buffer """
-        self._metrics['rebuffer.events'] = self._metrics['rebuffer.events'] + 1
-        log.info("%04.03f Underrun!" % time.time())
+        YouTubeClient.singleton._metrics['rebuffer.events'] = YouTubeClient.singleton._metrics['rebuffer.events'] + 1
+        self.changeState(PlayerState.REBUFFERING)
 
     def __str__(self):
-        return ' MediaPlayer(unparsed bytes: %d, mediaDuration: %.4f)' % \
-            (self.availBytes(), self.mediaDuration())
-                
+        return 'MediaPlayer(state %s, lastTimeStamp: %04.3f' % (PlayerState.str(self._state), self.getLastMediaTimeStamp())
+
 
 class FLVPlayer(Player):
     """ Reads a FLV stream and emulates playout by advancing the stream as time passes """
@@ -61,6 +125,7 @@ class FLVPlayer(Player):
 
         # nothing parsed yet
         if self.tell() == 0:
+            self.changeState(PlayerState.BUFFERING)
             if self.availBytes() >= self.FILE_HEADER_SIZE:
                 self.flv.parse_header()
         else:
@@ -83,28 +148,16 @@ class FLVPlayer(Player):
                         elif type(tag) == AudioTag:
                             self._lastAudioTS = tag.timestamp
                             # log.debug("lastAudio: %u", self._lastAudioTS)
-            if not self._playout_started > 0 and self.mediaDuration() > 3:
-                self._playout_started = time.time()
-                log.info("%04.3f 3 seconds of media buffered, starting playout" % \
-                    (self._playout_started - YouTubeClient.singleton._start_time))
-            if self._playout_started > 0:
-                if self._underrunTimer != None:
-                    self._underrunTimer.cancel()
-                t = time.time()
-                self._underrunTimer = Timer(self.mediaDuration() - (t - self._playout_started), self.underrun)
-                self._underrunTimer.start()
-                # log.debug('%04.03f duration: %f, timer: %f' % (t, self.mediaDuration(), self.mediaDuration() - (t - self._playout_started)))
+            super(FLVPlayer, self).feed(data)
 
-    def mediaDuration(self):
+    def getLastMediaTimeStamp(self):
         """ get the presentation TS of the last complete frame """
+        raise NotImplementedException()
         return min(self._lastVideoTS, self._lastAudioTS) / 1000.0
 
-    def bufferedUntil(self):
+    def getBufferedSeconds(self, offset = 0):
         """ until when the buffer contains media """ 
-        start_time = self._playout_started
-        if start_time == 0:
-            start_time = time.time()
-        return self._playout_started + min(self._lastVideoTS, self._lastAudioTS) / 1000.0
+        return  (min(self._lastVideoTS, self._lastAudioTS) / 1000.0) - offset
         
     def __str__(self):
         return ' FLVPlayer(unparsed bytes: %d, last A/V TS: %u/%u)' % \
@@ -147,6 +200,8 @@ class YouTubeClient(object):
 
     def __init__(self, params):
         YouTubeClient.singleton = self
+        # this is just for logging purposes
+        self.epoch = time.time()
      
         self._video_id = 'riyXuGoqJlY'  # default
         if 'video_id' in params:
@@ -198,19 +253,20 @@ class YouTubeClient(object):
     def run(self):
         """ Execute """
         self._start_time = time.time()
-        log.info('%04.03f Query for media URL' % (time.time() - self._start_time))
+        log.info('Query for media URL')
         try:
             self._url = self.getURL()
-            # log.debug('%04.03f URL: %s' % (time.time(), self._url))
+            # log.debug('URL: %s' % self._url)
             self._curl.setopt(pycurl.URL, self._url)
             self._metrics['delay.urlresolve.ms'] = (time.time() - self._start_time) * 1000.0
             self._http_start_time = time.time()
-            log.info('%04.03f URL extacted, starting download' % (self._http_start_time - self._start_time))
+            log.info('URL extacted, starting download')
             self._curl.perform()
+            self._state = PlayerState.FINISHED
             self._metrics['delay.download.ms'] = (time.time() - self._http_start_time) * 1000.0
             self._metrics['bandwidth.avg.bps'] = 8.0 * self._metrics['octets.layer7'] \
                 / (self._metrics['delay.download.ms'] / 1000.0)
-            log.info("%04.03f Download finished" % (time.time() - self._start_time))
+            log.info("Download finished")
             self._curl.close()
         except Exception:
             self._metrics = {}

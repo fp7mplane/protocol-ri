@@ -3,6 +3,14 @@
 #
 
 import os
+import time
+from logging import Formatter
+
+class MyLogFormatter(Formatter):
+    epoch = time.time()
+    def format(self, record):
+            return '%04.03f %s' % (time.time() - MyLogFormatter.epoch, record.getMessage())
+
 
 class InternalError(Exception):
     """ signals a situationthat is not supposed to happen """
@@ -78,6 +86,5 @@ class SeekableByteQueue(object):
 
     def __str__(self):
         return 'ByteQueue(len: %u, offset: %d, discarded: %d)' % (len(self._buffer), self._offset, self._discarded)
-
 
 

@@ -7,14 +7,20 @@
 
 import sys
 import logging
+from logging import StreamHandler, Formatter
+from yp.utils import MyLogFormatter
 				
 from optparse import OptionParser
 
 from yp import YouTubeClient
 
-log = logging.getLogger('ye')
-log.setLevel(logging.DEBUG)
-log.addHandler(logging.StreamHandler())
+handler = StreamHandler()
+handler.setFormatter(MyLogFormatter())
+
+log = logging.getLogger('youtube-probe')
+log.addHandler(handler)
+
+log.setLevel(logging.INFO)
 
 def main():
 
@@ -48,9 +54,18 @@ def process_options():
     description = "YouTube Download Test Client"
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-b", "--bwlimit", type="int", dest="bwlimit", help="limit download bandwidth to BW kBps")
+    parser.add_option("-v", "--verbose", action="count", default=3, dest="verbosity",
+        help="be more verbose, each -v increases verbosity")
 
     options, args = parser.parse_args(sys.argv)
     params = vars(options)
+
+    if options.verbosity > 3:
+        options.verbosity = 3
+
+    level = ({0: logging.ERROR, 1: logging.WARNING,
+              2: logging.INFO, 3: logging.DEBUG}[options.verbosity])
+    log.setLevel(level)
 
     video_id = "riyXuGoqJlY"
     if len(args) >= 2:
