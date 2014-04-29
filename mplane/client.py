@@ -79,9 +79,12 @@ class HttpClient(object):
         url = urllib3.util.parse_url(posturl) 
 
         if security == True: 
-            cert = mplane.utils.read_setting(certfile, "cert")
-            key = mplane.utils.read_setting(certfile, "key")
-            ca = mplane.utils.read_setting(certfile, "ca-chain")
+            cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
+            key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
+            ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
+            mplane.utils.check_file(cert)
+            mplane.utils.check_file(key)
+            mplane.utils.check_file(ca)
             self.pool = HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
         else: 
             self.pool = HTTPConnectionPool(url.host, url.port) 
@@ -245,6 +248,7 @@ class ClientShell(cmd.Cmd):
     def preloop(self):
         global args
         parse_args()
+        mplane.utils.check_file(args.certfile)
         self._certfile = args.certfile
         self._client = None
         self._defaults = {}
@@ -270,6 +274,8 @@ class ClientShell(cmd.Cmd):
                 raise SyntaxError("For https, need to specify the --certfile parameter when launching the client")
         elif proto == 'ssh':
             self._client = SshClient(True, args[0], capurl)
+        else:
+            raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https(, ssh)")
 
         self._client.retrieve_capabilities()
 

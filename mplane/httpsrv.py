@@ -137,9 +137,12 @@ def runloop(scheduler, security, certfile, port=8888):
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler})
         ])
     if security == True:
-        cert = mplane.utils.read_setting(certfile, "cert")
-        key = mplane.utils.read_setting(certfile, "key")
-        ca = mplane.utils.read_setting(certfile, "ca-chain")
+        cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
+        key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
+        ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
+        mplane.utils.check_file(cert)
+        mplane.utils.check_file(key)
+        mplane.utils.check_file(ca)
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
     else:
         http_server = tornado.httpserver.HTTPServer(application)

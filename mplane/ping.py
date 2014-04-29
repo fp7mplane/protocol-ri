@@ -295,6 +295,7 @@ if __name__ == "__main__":
                 raise ValueError("if --sec=0, need to specify cert file")
             else:
                 security = True
+                mplane.utils.check_file(args.certfile)
                 certfile = args.certfile
         else:
             security = False
