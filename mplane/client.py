@@ -72,7 +72,7 @@ class HttpClient(object):
             if self._capurl[-1] != "/":
                 self._capurl += "/"
             self._capurl += CAPABILITY_PATH_ELEM
-
+        print(self._capurl)
         print("new client: "+self._posturl+" "+self._capurl)
 
         # empty capability and measurement lists

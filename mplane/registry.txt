@@ -26,6 +26,25 @@ delay.twoway.icmp.us.count: natural
     delay using ICMP Echo Request/Reply
 
 #######################################################################
+# Elements used for mplane.tracebox
+#######################################################################
+
+tracebox.udp: boolean
+    Uses UDP probes
+tracebox.dport: natural
+    specifies the destination port for the packets being sent.
+tracebox.probe: string
+    specifies the destination port for the packets being sent.
+tracebox.hop.modifications: string
+    modifications as observed by Tracebox
+tracebox.hop.ip4: address
+    hop v4 address which did answer to a Tracebox probe
+tracebox.hop.ip6: address
+    hop v6 address which did answer to a Tracebox probe
+tracebox.hop.icmp.payload.len: string
+    hop icmp TTL-expired packet quoting length
+
+#######################################################################
 # Additional elements from D1.1 (untested)
 #######################################################################
 
