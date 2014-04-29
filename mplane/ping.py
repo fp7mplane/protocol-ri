@@ -152,7 +152,7 @@ class PingService(mplane.scheduler.Service):
         super(PingService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
-        # unpack parameters
+         # unpack parameters
         period = spec.when().period().total_seconds()
         duration = spec.when().duration().total_seconds()
         if duration is not None and duration > 0:

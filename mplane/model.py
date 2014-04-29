@@ -2120,8 +2120,8 @@ class BareNotification(object):
         super().__init__()
         if dictval is not None:
             self._from_dict(dictval)
-
-        self._token = token
+        else: 
+            self._token = token
 
 class Exception(BareNotification):
     """
@@ -2150,7 +2150,6 @@ class Exception(BareNotification):
         return d
 
     def _from_dict(self, d):
-        print("in mplane.model.Exception.from_dict")
         self._token = d[KIND_EXCEPTION]
         self._errmsg = d[KEY_MESSAGE]
 
