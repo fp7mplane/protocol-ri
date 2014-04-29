@@ -1578,6 +1578,13 @@ class Statement(object):
     def validate(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
+    def verb(self):
+        """Get this statement's verb"""
+        return self._verb
+
+    def is_query(self):
+        return self._verb == VERB_QUERY
+
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
         self._params[elem_name] = Parameter(element(elem_name), 

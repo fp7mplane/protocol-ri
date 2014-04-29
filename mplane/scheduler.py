@@ -129,10 +129,12 @@ class Job(object):
         """
         Schedule this job to run.
         """
-        # Get delay to start and end timers
-        (start_delay, end_delay) = self.specification.when().timer_delays()
+        # Always schedule queries immediately without interrupt
+        if self.specification.is_query():
+            (start_delay, end_delay) = (0, None)
+        else:
+            (start_delay, end_delay) = self.specification.when().timer_delays()
 
-        # Short-circuit on expired temporal scope
         if start_delay is None:
             return
 
