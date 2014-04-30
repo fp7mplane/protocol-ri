@@ -55,21 +55,24 @@ class Player(SeekableByteQueue):
 
     def changeState(self, newstate):
         """ use to change player state """
+        now = time.time()
         if newstate == PlayerState.BUFFERING:
+            self._bufferingStarted = now
             log.debug('Player starts BUFFERING')
         elif newstate == PlayerState.PLAYING:
             action = 'starts'
             if self._state == PlayerState.REBUFFERING:
                 action = 'resumes'
-            self._playStartTime_Wallclock = time.time()
+            YouTubeClient.singleton._metrics['delay.buffering.ms'] += now - self._bufferingStarted
+            self._playStartTime_Wallclock = now
             log.info('Player %s PLAYING, buffered: %04.03f' % ( action, self.getBufferedSeconds(self._mediaOffset)))
         elif newstate == PlayerState.REBUFFERING:
-            played_out = time.time() - self._playStartTime_Wallclock 
-            log.info('Player starts REBUFFERING, played out: %04.03f secs since %04.03f' % \
-                ( played_out, self._mediaOffset ))
+            self._bufferingStarted = now
+            log.info('Player starts REBUFFERING')
             self._playStartTime_Wallclock = None
-            self._mediaOffset = played_out
         elif newstate == PlayerState.FINISHED:
+            if self._state == PlayerState.BUFFERING or self._state == PlayerState.REBUFFERING:
+                 YouTubeClient.singleton._metrics['delay.buffering.ms'] += now - self._bufferingStarted
             log.info('Player FINISHED')
         self._state = newstate
 
@@ -85,7 +88,7 @@ class Player(SeekableByteQueue):
             # underrun happens when we run out of the buffered media. to calculate:
             # (in the buffer beyond the playout offset) - (number of seconds since we're playing it out)
             buffered = self.getBufferedSeconds(self._mediaOffset) - (t - self._playStartTime_Wallclock)
-            self._underrunTimer = Timer(buffered, self.underrunEvent)
+            self._underrunTimer = Timer(buffered, self.underrunEvent, [ self.getBufferedSeconds()] )
             self._underrunTimer.start()
             if (t - self._lastStatusPrint) > 1:
                 self._lastStatusPrint = t
@@ -99,9 +102,11 @@ class Player(SeekableByteQueue):
         """ get the presentation TS of the last complete frame """
         raise NotImplementedError()
 
-    def underrunEvent(self):
+    def underrunEvent(self, stallPTS):
         """ ran out of media buffer """
         YouTubeClient.singleton._metrics['rebuffer.events'] = YouTubeClient.singleton._metrics['rebuffer.events'] + 1
+        log.info('Player stalled at %04.03f secs of media' % stallPTS)
+        self._mediaOffset = stallPTS
         self.changeState(PlayerState.REBUFFERING)
 
     def __str__(self):
@@ -220,10 +225,11 @@ class YouTubeClient(object):
         
         self._metrics = { 
             'octets.layer7': 0,
-            'delay.download.ms': -1,
-            'bandwidth.min.bps': -1, 'bandwidth.max.bps': -1, 'bandwidth.avg.bps': -1,
-            'delay.urlresolve.ms': -1,
-            'delay.srvresponse.ms': -1,
+            'delay.download.ms': 0,
+            'bandwidth.min.bps': 0, 'bandwidth.max.bps': 0, 'bandwidth.avg.bps': 0,
+            'delay.urlresolve.ms': 0,
+            'delay.srvresponse.ms': 0,
+            'delay.buffering.ms': 0,
             'rebuffer.events': 0
         }
 
