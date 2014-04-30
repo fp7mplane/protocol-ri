@@ -117,6 +117,8 @@ So, for example, an absolute range in time might be expressed as: ```when: 2009-
 
 ### Label
 
+### Token
+
 ### Version
 
 ## Session Protocols
