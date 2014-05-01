@@ -18,9 +18,7 @@ The core classes are documented using Sphinx. Sphinx documentation can be read [
 
 ## Designing a Component
 
-The first step in determining how to build an mPlane component for a given measurement is determining its schema. The best way to do this is probably to look at the _output_ the component produces, together with the configuration parameters necessary to make it work.
-
-## Building HTTP Server Components
+The first step in determining how to build an mPlane component for a given measurement is determining its schema. The best way to do this is to look at the _output_ the component produces, together with the configuration parameters necessary to make it work.
 
 ## mPlane Client Shell
 
@@ -35,6 +33,11 @@ The mPlane Client Shell is a quick and dirty command line interface around a gen
 
 Note that this is all very prerelease and nearly guaranteed to change.
 
+
+## Building HTTP Server Components
+
+_this will probably change when moving to a CLI-based httpsrv.py, so write this then_ 
+
 # mPlane Protocol Specification
 
 ## mPlane Architecture
@@ -46,8 +49,6 @@ Note that this is all very prerelease and nearly guaranteed to change.
 ### Supervisors and Federation
 
 ## Protocol Information Model: Message Types
-
-### Statements
 
 ### Capabilities
 
