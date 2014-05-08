@@ -1390,8 +1390,10 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        else:
+        else isinstance(constraint, Constraint):
             self._constraint = constraint
+        else:
+            self._constraint = SetConstraint(vs=set([constraint]))
 
         self.set_value(val)
 
