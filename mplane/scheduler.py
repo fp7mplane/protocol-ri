@@ -1,4 +1,7 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
+#
 # mPlane Protocol Reference Implementation
 # Component and Client Job Scheduling
 #
@@ -76,22 +79,27 @@ class Job(object):
     instance of a Service presently running, or ready to run at some 
     point in the future.
 
-    Each Job will result in a single Result; Specifications with a
-    schedule: section are represented by MultiJob, and will produce
-    multiple Results.
-
+    Each Job will result in a single Result.
     """
+    result = None
+    exception = None
+    _thread = None
+    _started_at = None
+    _ended_at = None
+    _exception_at = None
+    _replied_at = None
+    service = None
+    session = None
+    specification = None
+    receipt = None
+    _interrupt = None
+
     def __init__(self, service, specification, session=None):
         super(Job, self).__init__()
         self.service = service
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self.result = None
-        self._thread = None
-        self._started_at = None
-        self._ended_at = None
-        self._replied_at = None
         self._interrupt = threading.Event()
 
     def __repr__(self):
@@ -99,8 +107,15 @@ class Job(object):
 
     def _run(self):
         self._started_at = datetime.utcnow()
-        self.result = self.service.run(self.specification, 
-                                       self._check_interrupt)
+        try:
+            self.result = self.service.run(self.specification, 
+                                           self._check_interrupt)
+        except Exception as e:
+            self.exception = mplane.model.Exception(
+                            token=self.specification.get_token(), 
+                            errmsg=str(e))
+            print("Got exception in _run(), returning "+str(self.exception))
+            self._exception_at = datetime.utcnow()
         self._ended_at = datetime.utcnow()
 
     def _check_interrupt(self):
@@ -114,10 +129,12 @@ class Job(object):
         """
         Schedule this job to run.
         """
-        # Get delay to start and end timers
-        (start_delay, end_delay) = self.specification.when().timer_delays()
+        # Always schedule queries immediately without interrupt
+        if self.specification.is_query():
+            (start_delay, end_delay) = (0, None)
+        else:
+            (start_delay, end_delay) = self.specification.when().timer_delays()
 
-        # Short-circuit on expired temporal scope
         if start_delay is None:
             return
 
@@ -138,6 +155,9 @@ class Job(object):
         """Interrupt this job."""
         self._interrupt.set()
 
+    def failed(self):
+        return self.exception is not None
+
     def finished(self):
         """Return True if the job is complete."""
         return self.result is not None
@@ -150,31 +170,12 @@ class Job(object):
 
         """
         self._replied_at = datetime.utcnow()
-        if self.finished():
+        if self.failed():
+            return self.exception
+        elif self.finished():
             return self.result
         else:
             return self.receipt
-
-
-
-class MultiJob(Job):
-    """
-    Represents a job that runs on a schedule and produces multiple Results.
-    Implementation is in progress.
-    """
-    def __init__(self, service, specification, session=None):
-        super(MultiJob, self).__init(self, service, specification, session)
-
-    def __repr__(self):
-        return "<MultiJob for "+repr(self.specification)+">"
-
-    def get_reply(self):
-        """
-        If results are available for this Job, return them in an Envelope. 
-        Otherwise, create a receipt from the Specification and return that.
-
-        """
-        pass
 
 class Scheduler(object):
     """

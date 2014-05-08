@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+##
 # mPlane Protocol Reference Implementation
 # Tornado web server bindings
 #
@@ -118,7 +120,7 @@ class MessagePostHandler(MPlaneHandler):
             wait_start = datetime.utcnow()
             while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
                 time.sleep(SLEEP_QUANTUM)
-                if job.finished():
+                if job.failed() or job.finished():
                     reply = job.get_reply()
                     break
 

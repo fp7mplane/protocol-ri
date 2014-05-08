@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
 # mPlane Protocol Reference Implementation
 # Information Model and Element Registry
 #
@@ -235,11 +237,10 @@ just the token may be sent back to the component to retrieve the
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "48d7393c75aec14043c3a5af4f461013"}'
+'{"redemption": "measure", "version": 0, "token": "48d7393c75aec14043c3a5af4f461013"}'
 
-.. note:: We should document and test interrupts and withdrawals, as well.
-
-Envelopes can be used to group multiple mPlane messages into a 
+.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
+ 
 
 """
 
@@ -256,7 +257,7 @@ import re
 import os
 
 #######################################################################
-# String constants
+# String constants for protocol framing
 #######################################################################
 
 ELEMENT_SEP = "."
@@ -285,6 +286,8 @@ KEY_RESULTVALUES = "resultvalues"
 KEY_TOKEN = "token"
 KEY_MESSAGE = "message"
 KEY_LINK = "link"
+KEY_EXPORT = "export"
+KEY_VERSION = "version"
 KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
@@ -313,12 +316,20 @@ ENVELOPE_MESSAGE = "message"
 ENVELOPE_STATEMENT = "statement"
 ENVELOPE_NOTIFICATION = "notification"
 
+#######################################################################
+# Protocol constants
+#######################################################################
 
-PARAM_START = "start"
-PARAM_END = "end"
+MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
+
+#######################################################################
+# Reference implementation constats
+#######################################################################
 
 # Hash length in __repr__ strings
 REPHL = 8
+
+EXCEPTION_NO_TOKEN = "00000000000000000000000000000000"
 
 #######################################################################
 # Universal parse and unparse functions for times and durations
@@ -569,7 +580,12 @@ class When(object):
         """
         return self._a is not None and self._b is None and self._d is None
 
-    def _datetimes(self, tzero=None):
+    def datetimes(self, tzero=None):
+        """
+        Return start and end times as absolute timestamps 
+        for this temporal scope, relative to a given tzero.
+        """
+
         if tzero is None:
             tzero = datetime.utcnow()
 
@@ -580,7 +596,9 @@ class When(object):
         else:
             start = self._a
 
-        if self._b is time_future:
+        if self._b is time_now:
+            end = tzero
+        elif self._b is time_future:
             end = None
         elif self._b is None:
             if self._d is not None:
@@ -604,7 +622,7 @@ class When(object):
         elif self._b is time_future:
             return None
         else:
-            (start, end) = self._datetimes(tzero)
+            (start, end) = self.datetimes(tzero)
             return end - start
 
     def period(self):
@@ -636,7 +654,7 @@ class When(object):
             tzero = datetime.utcnow()
         
         # get datetimes
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         # determine start delay, account for late start
         sd = (start - tzero).total_seconds()
@@ -676,7 +694,7 @@ class When(object):
                 t = tzero
 
         # Get concrete time range
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         if start and t < start:
             return (t - start).total_seconds()
@@ -837,7 +855,7 @@ def test_tscope():
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
     assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
-    assert wdef._datetimes() == (parse_time("2009-02-20 13:00:00"), 
+    assert wdef.datetimes() == (parse_time("2009-02-20 13:00:00"), 
                                  parse_time("2009-02-20 15:00:00"))
     assert wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (3600, 10800)
 
@@ -848,7 +866,7 @@ def test_tscope():
     assert not wrel.is_definite() 
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
-    assert wrel._datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+    assert wrel.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
            (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
     assert wrel.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
     assert wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
@@ -858,7 +876,7 @@ def test_tscope():
     assert when_infinite.period() is None
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
-    assert (when_infinite._datetimes()) == (None, None)
+    assert (when_infinite.datetimes()) == (None, None)
 
 
 #######################################################################
@@ -1508,10 +1526,12 @@ class Statement(object):
     """
 
     # Member variables
+    _version = MPLANE_VERSION
     _params = None
     _metadata = None
     _resultcolumns = None
     _link = None
+    _export = None
     _verb = None
     _label = None
     _when = None
@@ -1524,7 +1544,6 @@ class Statement(object):
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
-        self._link = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -1560,6 +1579,13 @@ class Statement(object):
 
     def validate(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
+
+    def verb(self):
+        """Get this statement's verb"""
+        return self._verb
+
+    def is_query(self):
+        return self._verb == VERB_QUERY
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
@@ -1642,17 +1668,29 @@ class Statement(object):
 
     def get_link(self):
         """
-        Get the statement's link, which specifies where the next message 
+        Get the statement's link URL, which specifies where the next message 
         in the workflow should be sent to or retrieved from.
         """
         return self._link
 
     def set_link(self, link):
-        """Set the statement's link"""
+        """Set the statement's link URL"""
         self._link = link
+
+    def get_export(self):
+        """
+        Get the statement's export URL, which specifies where 
+        results will be indirectly exported.
+        """
+        return self._export
+
+    def set_export(self, export):
+        """Set the statement's export URL"""
+        self._export = export
 
     def get_label(self):
         """Return the statement's label"""
+        return self._label
 
     def when(self):
         """Get the statement's temporal scope"""
@@ -1766,11 +1804,16 @@ class Statement(object):
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
+        d[KEY_VERSION] = self._version
+
         if self._label is not None:
             d[KEY_LABEL] = self._label
 
         if self._link is not None:
             d[KEY_LINK] = self._link
+
+        if self._export is not None:
+            d[KEY_EXPORT] = self._export
 
         if self._token is not None:
             d[KEY_TOKEN] = self._token
@@ -1815,11 +1858,18 @@ class Statement(object):
         """
         self._verb = d[self.kind_str()]
 
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
         if KEY_LABEL in d:
             self._label = d[KEY_LABEL]
 
         if KEY_LINK in d:
           self._link = d[KEY_LINK]
+
+        if KEY_EXPORT in d:
+          self._link = d[KEY_EXPORT]
 
         if KEY_TOKEN in d:
           self._token = d[KEY_TOKEN]
@@ -2070,8 +2120,8 @@ class BareNotification(object):
         super().__init__()
         if dictval is not None:
             self._from_dict(dictval)
-
-        self._token = token
+        else: 
+            self._token = token
 
 class Exception(BareNotification):
     """
@@ -2080,11 +2130,12 @@ class Exception(BareNotification):
     or non-nominal condition 
 
     """
-    def __init__(self, dictval=None, token=None, errmsg=None):
+    def __init__(self, dictval=None, token=EXCEPTION_NO_TOKEN, errmsg=None):
         super().__init__(dictval=dictval, token=token)
-        if errmsg is None and dictval is None:
-            errmsg = "Unspecified exception"
-        self._errmsg = errmsg
+        if dictval is None:
+            if errmsg is None:
+                errmsg = "Unspecified exception"
+            self._errmsg = errmsg
 
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
@@ -2202,6 +2253,10 @@ class Envelope(object):
     Envelopes are used to contain other Messages.
 
     """
+    _version = MPLANE_VERSION
+    _content_type = None
+    _messages = None
+
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
         super().__init__()
         if dictval is not None:
@@ -2216,7 +2271,6 @@ class Envelope(object):
                 " ".join(map(repr, self._messages))+">"
 
     def append_message(self, msg):
-        
         self._messages.append(msg)
 
     def messages(self):
@@ -2228,11 +2282,17 @@ class Envelope(object):
     def to_dict(self):
         d = {}
         d[self.kind_str()] = self._content_type
+        d[KEY_VERSION] = self._version
         d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
         return d
 
     def _from_dict(self, d):
         self._content_type = d[self.kind_str()]
+
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
         for md in self[KEY_CONTENTS]:
           self.append_message(message_from_dict(md))
 

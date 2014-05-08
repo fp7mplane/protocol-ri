@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+##
 # mPlane Protocol Reference Implementation
 # Simple mPlane client and CLI (JSON over HTTP)
 #
@@ -201,7 +203,7 @@ class HttpClient(object):
 
     def add_result(self, msg):
         """Add a receipt. Check for duplicates."""
-        if msg.get_token() not in [result.get_token() for results in self.results()]:
+        if msg.get_token() not in [result.get_token() for result in self.results()]:
             self._results.append(msg)
             self._delete_receipt_for(msg.get_token())
 
@@ -299,7 +301,13 @@ class ClientShell(cmd.Cmd):
 #            print ("No such capability "+arg)
 #            return
 
-        # Set temporal scope
+        # Set temporal scope or prompt for new one
+        while self._when is None or \
+              not self._when.follows(cap.when()) or \
+              (self._when.period is None and cap.when().period() is not None):
+            sys.stdout.write("|when| = ")
+            self._when = mplane.model.When(input())
+
         spec.set_when(self._when)
 
         # Fill in single values
