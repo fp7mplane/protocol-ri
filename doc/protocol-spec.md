@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 2 May 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 8 May 2014__
 - - -
 
 This section defines the present revision of the mPlane architecture for
@@ -61,7 +61,27 @@ therefore the definition of a type __registry__.
 
 ## Protocol Information Model: Type Regstry
 
-The type registry makes up the vocabulary by which mPlane components and clients can express 
+The type registry makes up the vocabulary by which mPlane components and clients can express the meaning of parameters, metadata, and result columns for mPlane statements. The registry is formatted as a JSON object that looks like the following example:
+
+```
+{ "registry-format": "mplane-0",
+  "registry-uri", "http://fp7-mplane.eu/registry/0",
+  "registry-revision": 0,
+  "includes": [],
+  "elements": [
+      { "name": "full.structured.name",
+        "prim": "string",
+        "desc": "A representation of foo..."
+      },
+      { "name": "another.structured.name",
+        "prim": "string",
+        "desc": "A representation of bar..."
+      },
+  ]
+}
+  
+
+```
 
 ## Protocol Information Model: Message Types
 
