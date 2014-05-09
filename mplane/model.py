@@ -1110,7 +1110,7 @@ def test_primitives():
     assert prim_time.unparse(time_future) == "future"
 
 #######################################################################
-# Element classes
+# Elements and registries
 #######################################################################
 
 class Element(object):
@@ -1171,6 +1171,13 @@ class Element(object):
 
         """
         return lambda x: x
+
+class Registry(object):
+    pass
+
+#######################################################################
+# Old registry methods
+#######################################################################
 
 _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
 _desc_re = re.compile('^\s+([^#]+)')

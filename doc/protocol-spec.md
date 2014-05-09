@@ -59,13 +59,24 @@ therefore the definition of a type __registry__.
 
 ### Supervisors and Federation
 
-## Protocol Information Model: Type Regstry
+## Protocol Information Model: Type Registry
 
-The type registry makes up the vocabulary by which mPlane components and clients can express the meaning of parameters, metadata, and result columns for mPlane statements. The registry is formatted as a JSON object that looks like the following example:
+The type registry makes up the vocabulary by which mPlane components and clients can express the meaning of parameters, metadata, and result columns for mPlane statements. The registry is formatted as a JSON object with the following keys:
+
+- __registry-format__: currently `"mplane-0"`, determines the revision of the registry format.
+- __registry-uri__: the URI identifying the registry. The URI must be dereferenceable to retrieve the canonical version of this registry
+- __registry-revision__: a serial number starting with 0 and incremented with each revision, 
+- __includes__: a list of URLs to retrieve additional registries from. Included registries will be evaluated in depth-first order. Elements with identical names will be replaced by registries parsed later.
+- __elements__: a list of objects, each of which has the following three keys:
+    - __name__: The name of the element
+    - __prim__: The primitive type of the element, from the list of primitives
+    - __desc__: An English-language description of the meaning of the element.
+
+An example registry with two elements and no includes follows:
 
 ```
 { "registry-format": "mplane-0",
-  "registry-uri", "http://fp7-mplane.eu/registry/0",
+  "registry-uri", "http://ict-mplane.eu/registry/0",
   "registry-revision": 0,
   "includes": [],
   "elements": [
@@ -79,9 +90,11 @@ The type registry makes up the vocabulary by which mPlane components and clients
       },
   ]
 }
-  
-
 ```
+
+We anticipate an `"mplane-1"` revision of the registry format which directly supports simpler expression of structured names, but development of this is ongoing.
+
+__Fully qualified__ element names consist of the element's name as an anchor after the URI from which the element came, e.g. `http://ict-mplane.eu/registry/0#full.structured.name`.
 
 ## Protocol Information Model: Message Types
 
