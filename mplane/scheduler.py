@@ -146,7 +146,7 @@ class Job(object):
         # start start timer
         if start_delay > 0:            
             print("Scheduling "+repr(self)+" after "+str(start_delay)+" sec")
-            threading.timer(start_delay, self._schedule_now).start()
+            threading.Timer(start_delay, self._schedule_now).start()
         else:
             print("Scheduling "+repr(self)+" immediately")
             self._schedule_now()
