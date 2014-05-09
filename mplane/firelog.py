@@ -41,6 +41,9 @@ import psutil
 import os
 import time
 
+from DBConnector import DBConnector
+from ActiveManager import ActiveManager
+
 plugin_filename = '/tmp/plugin_test.out'
 
 def _firelog_process(url):
@@ -50,8 +53,7 @@ def _firelog_process(url):
 def firelog_capability(ipaddr, url):
     cap = mplane.model.Capability(label="firelog", when = "now")
     cap.add_parameter("source.ip4",ipaddr)
-    cap.add_parameter("source.ip6",ipaddr)
-    cap.add_parameter("firelog.session.url")
+    cap.add_parameter("firelog.session.url", url)
     cap.add_result_column("cpuload")
     cap.add_result_column("memload")
     cap.add_result_column("firelog.plugin.file")
@@ -63,28 +65,28 @@ def firelog_capability(ipaddr, url):
 class FirelogService(mplane.scheduler.Service):
     def __init__(self, cap):
         # verify the capability is acceptable
-        if not ((cap.has_parameter("source.ip4") or 
-                 cap.has_parameter("source.ip6")) and
-                (cap.has_parameter("session.url"))): 
+        if not (cap.has_parameter("source.ip4") and
+                cap.has_parameter("firelog.session.url")):
             raise ValueError("capability not acceptable")
         super(FirelogService, self).__init__(cap)
         self._mem = -1
         self._cpu = -1
         self._starttime = datetime.utcnow()
+        self._sipaddr = None 
         #self._stats = None
         #self._ping = None
         #self._trace = None
 
     def run(self, spec, check_interrupt):
-        if not spec.has_parameter("url"):
+        if not spec.has_parameter("firelog.session.url"):
             raise ValueError("Missing url")
         
         count = None
         firelog_process = None
 
         def target():
-            sipaddr = spec.get_parameter_value("source.ip4")
-            url = spec.get_parameter_value("url")
+            self._sipaddr = spec.get_parameter_value("source.ip4")
+            url = spec.get_parameter_value("firelog.session.url")
             firelog_process = _firelog_process(url)
             cputable = []
             memtable = []
@@ -109,9 +111,12 @@ class FirelogService(mplane.scheduler.Service):
             while not check_if_file_is_closed(plugin_filename):
                 time.sleep(1)
 
-        
         # TODO
         # add parsing/ping/db/logic
+        dbc = DBConnector('firelog.db')
+        dbc.load_firelog_file(plugin_filename)
+        am = ActiveManager(dbc, self._sipaddr)
+        am.active_probe()
         
         # derive a result from the specification
         res = mplane.model.Result(specification=spec)
@@ -148,9 +153,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run firelog probe server")
     parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
                         help="Browse and ping from the given IPv4 address")
-    parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
-                        help="Browse and ping from the given IPv6 address")
-    parser.add_argument('--url', '-u', metavar="web page url",
+    parser.add_argument('--url', '-u', metavar="firelog session web page url",
                         help="Browse the given web page")
     args = parser.parse_args()
 
@@ -166,24 +169,16 @@ if __name__ == "__main__":
 
     url = args.url
     ip4addr = None
-    ip6addr = None
         
     if args.ip4addr:
         ip4addr = ip_address(args.ip4addr)
         if ip4addr.version != 4:
             raise ValueError("invalid IPv4 address")
-    if args.ip6addr:
-        ip6addr = ip_address(args.ip6addr)
-        if ip6addr.version != 6:
-            raise ValueError("invalid IPv6 address")
-    if ip4addr is None and ip6addr is None:
+    if ip4addr is None:
         raise ValueError("need at least one source address to run")
 
     scheduler = mplane.scheduler.Scheduler()
     if ip4addr is not None:
         scheduler.add_service(FirelogService(firelog_capability(ip4addr, url)))
-    if ip6addr is not None:
-        scheduler.add_service(FirelogService(firelog_capability(ip6addr, url)))
-
-
+   
     mplane.httpsrv.runloop(scheduler)
