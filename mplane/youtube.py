@@ -38,7 +38,7 @@ import tornado.web
 import tornado.ioloop
 # import argparse
 import sys
-from youtubeclient.yc import YouTubeClient
+from yp import YouTubeClient
 
 YouTubeMetrics = ( "delay.urlresolve.ms", "octets.layer7", "delay.download.ms", "bandwidth.min.bps", "bandwidth.avg.bps", "bandwidth.max.bps", "delay.srvresponse.ms", "rebuffer.events" )
 
