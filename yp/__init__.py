@@ -58,14 +58,14 @@ class Player(SeekableByteQueue):
         now = time.time()
         if newstate == PlayerState.BUFFERING:
             self._bufferingStarted = now
-            log.debug('Player starts BUFFERING')
+            log.info('Player starts BUFFERING')
         elif newstate == PlayerState.PLAYING:
             action = 'starts'
             if self._state == PlayerState.REBUFFERING:
                 action = 'resumes'
             YouTubeClient.singleton._metrics['delay.buffering.ms'] += now - self._bufferingStarted
             self._playStartTime_Wallclock = now
-            log.info('Player %s PLAYING, buffered: %04.03f' % ( action, self.getBufferedSeconds(self._mediaOffset)))
+            log.info('Player %s PLAYING, buffered: %04.03f secs' % ( action, self.getBufferedSeconds(self._mediaOffset)))
         elif newstate == PlayerState.REBUFFERING:
             self._bufferingStarted = now
             log.info('Player starts REBUFFERING')
@@ -191,7 +191,7 @@ def bwstats():
     # log.debug("tick: %s bps: %s" % (str(now), str(bps)))
     if bps > _max:
         ytclient._metrics['bandwidth.max.bps'] = bps
-    if bps < _min or _min < 0:
+    if bps < _min or _min <= 0:
         ytclient._metrics['bandwidth.min.bps'] = bps
 
     calc_delay = time.time() - now
@@ -246,12 +246,8 @@ class YouTubeClient(object):
 
     def receive(self, data):
         """ receive data from YouTube """
-        if self._metrics['delay.srvresponse.ms'] == -1:
+        if self._metrics['delay.srvresponse.ms'] == 0:
             self._metrics['delay.srvresponse.ms'] = (time.time() - self._http_start_time) * 1000.0
-            # start the ticker now so compute BW stats only after the 1st server reply pkt
-            bwstats._lastBytes = 0
-            self._bwstats = Timer(1.0, bwstats)
-            self._bwstats.start()
 
         self._metrics['octets.layer7'] += len(data)
         self.player.feed(data)
@@ -267,6 +263,11 @@ class YouTubeClient(object):
             self._metrics['delay.urlresolve.ms'] = (time.time() - self._start_time) * 1000.0
             self._http_start_time = time.time()
             log.info('URL extacted, starting download')
+
+            # start BW stats now
+            bwstats._lastBytes = 0
+            self._bwstats = Timer(1.0, bwstats)
+            self._bwstats.start()
             self._curl.perform()
             self._state = PlayerState.FINISHED
             self._metrics['delay.download.ms'] = (time.time() - self._http_start_time) * 1000.0

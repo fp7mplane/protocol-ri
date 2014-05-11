@@ -9,7 +9,7 @@ from logging import Formatter
 class MyLogFormatter(Formatter):
     epoch = time.time()
     def format(self, record):
-            return '%04.03f %s' % (time.time() - MyLogFormatter.epoch, record.getMessage())
+            return '[%s] %04.03f %s' % (record.levelname, time.time() - MyLogFormatter.epoch, record.getMessage())
 
 
 class InternalError(Exception):

@@ -54,7 +54,7 @@ def process_options():
     description = "YouTube Download Test Client"
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-b", "--bwlimit", type="int", dest="bwlimit", help="limit download bandwidth to BW kBps")
-    parser.add_option("-v", "--verbose", action="count", default=3, dest="verbosity",
+    parser.add_option("-v", "--verbose", action="count", default=2, dest="verbosity",
         help="be more verbose, each -v increases verbosity")
 
     options, args = parser.parse_args(sys.argv)
