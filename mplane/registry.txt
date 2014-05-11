@@ -159,4 +159,4 @@ delay.srvresponse.ms: natural
 bandwidth.min.bps: natural
 bandwidth.max.bps: natural
 bandwidth.avg.bps: natural
-rebuffer.events: natural
+rebuffer.counter: natural

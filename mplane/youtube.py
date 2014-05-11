@@ -40,7 +40,7 @@ import tornado.ioloop
 import sys
 from yp import YouTubeClient
 
-YouTubeMetrics = ( "delay.urlresolve.ms", "octets.layer7", "delay.download.ms", "bandwidth.min.bps", "bandwidth.avg.bps", "bandwidth.max.bps", "delay.srvresponse.ms", "rebuffer.events" )
+YouTubeMetrics = ( "delay.urlresolve.ms", "octets.layer7", "delay.download.ms", "bandwidth.min.bps", "bandwidth.avg.bps", "bandwidth.max.bps", "delay.srvresponse.ms", "rebuffer.counter" )
 
 def youtube_capability(vid):
     # TODO: might be able to do it periodically - check for the video's length for period constraint
@@ -64,7 +64,7 @@ class YouTubeProbeService(mplane.scheduler.Service):
             cap.has_result_column("delay.urlresolve.ms") or
             cap.has_result_column("delay.srvresponse.ms") or
             cap.has_result_column("delay.download.ms") or
-            cap.has_result_column("rebuffer.events")):
+            cap.has_result_column("rebuffer.counter")):
             raise ValueError("capability not acceptable")
         super(YouTubeProbeService, self).__init__(cap)
 
@@ -77,14 +77,13 @@ class YouTubeProbeService(mplane.scheduler.Service):
 
         start_time = datetime.utcnow()
 
-        # metrics = {'bandwidth.avg.bps': 26078721.505788006, 'delay.urlresolve.ms': 1770.0097560882568, 'octets.layer7': 38045692, 'delay.download.ms': 11671.029806137085, 'bandwidth.min.bps': 15859584.0, 'rebuffer.events': 0, 'bandwidth.max.bps': 35127040.0, 'delay.srvresponse.ms': 186.76424026489258}
-
-        params = { 'video_id': youtube_id }
+        params = { 'video_id': youtube_id, 'bwlimit': 0 }
         # not supposed to throw any exception, just better safe than sorry
         try:
             probe = YouTubeClient(params)
-            metrics = probe.run()
-        except Exception:
+            (success, metrics) = probe.run()
+            print("Metrics: %s" % str(metrics))
+        except Exception as e:
             metrics = {}
 
         end_time = datetime.utcnow()

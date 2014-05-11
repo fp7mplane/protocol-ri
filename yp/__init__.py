@@ -104,7 +104,7 @@ class Player(SeekableByteQueue):
 
     def underrunEvent(self, stallPTS):
         """ ran out of media buffer """
-        YouTubeClient.singleton._metrics['rebuffer.events'] = YouTubeClient.singleton._metrics['rebuffer.events'] + 1
+        YouTubeClient.singleton._metrics['rebuffer.counter'] = YouTubeClient.singleton._metrics['rebuffer.counter'] + 1
         log.info('Player stalled at %04.03f secs of media' % stallPTS)
         self._mediaOffset = stallPTS
         self.changeState(PlayerState.REBUFFERING)
@@ -216,7 +216,7 @@ class YouTubeClient(object):
         self._curl = pycurl.Curl()
         self._curl.setopt(pycurl.WRITEFUNCTION, writeFunction)
         self._curl.setopt(pycurl.CONNECTTIMEOUT, 5)
-        if params['bwlimit']:
+        if params['bwlimit'] != None:
             self._curl.setopt(pycurl.MAX_RECV_SPEED_LARGE, params['bwlimit'])
             log.info('Limiting pycurl bandwidth to %d' %  params['bwlimit'])
         # self._curl.setopt(curl.TIMEOUT, 5)
@@ -230,7 +230,7 @@ class YouTubeClient(object):
             'delay.urlresolve.ms': 0,
             'delay.srvresponse.ms': 0,
             'delay.buffering.ms': 0,
-            'rebuffer.events': 0
+            'rebuffer.counter': 0
         }
 
     def getURL(self):
@@ -282,7 +282,7 @@ class YouTubeClient(object):
                 self._bwstats.cancel()
             if self.player._underrunTimer != None:
                 self.player._underrunTimer.cancel()
-        return self._metrics
+        return (self._metrics == {}, self._metrics)
 
     def __str__(self):
         return ("YouTubeClient of video_id %s, metrics: %s " % (self._video_id, str(self._metrics)))

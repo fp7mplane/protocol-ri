@@ -29,7 +29,7 @@ def main():
         client = YouTubeClient(params)
 
         log.info(client)
-        success = client.run()
+        (success,metrics) = client.run()
         print("Done: %s" % str(client))
 
     except KeyboardInterrupt:
