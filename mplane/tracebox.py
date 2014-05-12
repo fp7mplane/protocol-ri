@@ -109,7 +109,7 @@ def tracebox4_standard_capability(ipaddr):
     return cap
 
 def tracebox4_specific_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ (opposite is ok)
+    #!!! do not set udp=1 with probe=IP/TCP/ 
     cap = mplane.model.Capability(label="tracebox-specific-ip4", when = "now ... future")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
@@ -120,17 +120,8 @@ def tracebox4_specific_capability(ipaddr):
     cap.add_result_column("tracebox.hop.modifications")
     return cap
 
-def tracebox4_standard_quotesize_capability(ipaddr):
-    cap = mplane.model.Capability(label="tracebox-standard-quotesize-ip4", when = "now ... future")
-    cap.add_parameter("source.ip4",ipaddr)
-    cap.add_parameter("destination.ip4")
-    cap.add_result_column("tracebox.hop.ip4")
-    cap.add_result_column("tracebox.hop.modifications")
-    cap.add_result_column("tracebox.hop.icmp.payload.len")
-    return cap
-
 def tracebox4_specific_quotesize_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ (opposite is ok)
+    #!!! do not set udp=1 with probe=IP/TCP/ 
     cap = mplane.model.Capability(label="tracebox-specific-quotesize-ip4", when = "now ... future")
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
@@ -161,15 +152,6 @@ def tracebox6_specific_capability(ipaddr):
     cap.add_parameter("tracebox.probe")
     cap.add_result_column("tracebox.hop.ip6")
     cap.add_result_column("tracebox.hop.modifications")
-    return cap
-
-def tracebox6_standard_quotesize_capability(ipaddr):
-    cap = mplane.model.Capability(label="tracebox-standard-quotesize-ip6", when = "now ... future")
-    cap.add_parameter("source.ip6",ipaddr)
-    cap.add_parameter("destination.ip6")
-    cap.add_result_column("tracebox.hop.ip6")
-    cap.add_result_column("tracebox.hop.modifications")
-    cap.add_result_column("tracebox.hop.icmp.payload.len")
     return cap
 
 def tracebox6_specific_quotesize_capability(ipaddr):
@@ -347,6 +329,63 @@ def manually_test_tracebox():
     print(repr(res))
     print(mplane.model.unparse_yaml(res))
 
+    #same for IPv6
+    svc = TraceboxService(tracebox6_standard_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("source.ip6", LOOP6)
+    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
+    spec.set_when("now ... future")
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = TraceboxService(tracebox6_specific_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("source.ip6", LOOP6)
+    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
+    spec.set_parameter_value("tracebox.udp",1)
+    spec.set_when("now ... future")
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = TraceboxService(tracebox6_specific_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("source.ip6", LOOP6)
+    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
+    spec.set_parameter_value("tracebox.dport",53)
+    spec.set_when("now ... future")
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    svc = TraceboxService(tracebox6_specific_capability(LOOP6))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("source.ip6", LOOP6)
+    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
+    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
+    spec.set_when("now ... future")
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
+    
+    #testing icmp payload len retreival
+    svc = TraceboxService(tracebox4_specific_quotesize_capability(LOOP4))
+    spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_parameter_value("source.ip4", LOOP4)
+    spec.set_parameter_value("destination.ip4", "23.212.108.142")
+    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
+    spec.set_when("now ... future")
+
+    res = svc.run(spec, lambda: False)
+    print(repr(res))
+    print(mplane.model.unparse_yaml(res))
+
 
 def parse_args():
     global args
@@ -378,18 +417,16 @@ if __name__ == "__main__":
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
     
-    #manually_test_tracebox()
-    
+    manually_test_tracebox()
+    """
     scheduler = mplane.scheduler.Scheduler()
     if ip4addr is not None:
         scheduler.add_service(TraceboxService(tracebox4_standard_capability(ip4addr)))
         scheduler.add_service(TraceboxService(tracebox4_specific_capability(ip4addr)))
-        scheduler.add_service(TraceboxService(tracebox4_standard_quotesize_capability(ip4addr)))
         scheduler.add_service(TraceboxService(tracebox4_specific_quotesize_capability(ip4addr)))
     if ip6addr is not None:
         scheduler.add_service(TraceboxService(tracebox6_standard_capability(ip6addr)))
         scheduler.add_service(TraceboxService(tracebox6_specific_capability(ip6addr)))
-        scheduler.add_service(TraceboxService(tracebox6_standard_quotesize_capability(ip6addr)))
         scheduler.add_service(TraceboxService(tracebox6_specific_quotesize_capability(ip6addr)))    
     mplane.httpsrv.runloop(scheduler)
-    
+    """
