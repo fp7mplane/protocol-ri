@@ -1236,7 +1236,6 @@ class Registry(object):
 
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
-        print(elem.name()+": "+repr(elem))
 
     def _parse_json_bytestream(self, stream):
         # Turn the stream into a dict
@@ -1263,7 +1262,7 @@ class Registry(object):
         # finally, iterate over elements and add them to the table
         for elem in d[KEY_ELEMENTS]:
             name = elem[KEY_ELEMNAME]
-            prim = elem[KEY_ELEMPRIM]
+            prim = _prim[elem[KEY_ELEMPRIM]]
             if KEY_ELEMDESC in elem:
                 desc = elem[KEY_ELEMDESC]
             else:
@@ -1272,11 +1271,9 @@ class Registry(object):
 
     def _parse_from_uri(self, uri):
         if uri == REGURI_DEFAULT:
-            print("using internal registry")
             with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
                 self._parse_json_bytestream(stream)
         else:
-            print("using registry at "+uri)
             with urllib.request.urlopen(uri) as stream:
                 self._parse_json_bytestream(stream)
 
@@ -1304,6 +1301,7 @@ def initialize_registry(uri=REGURI_DEFAULT):
     Initializes the mPlane registry from a URI; if no URI is given,
     initializes the registry from the internal core registry.
     """
+    global _registry
     _registry = Registry(uri)
 
 def element(name):
