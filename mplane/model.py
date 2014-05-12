@@ -974,7 +974,8 @@ class NaturalPrimitive(Primitive):
         if sval is None or sval == VALUE_NONE:
             return None
         else:
-            return int(sval)
+            # also converts values like 100.0 or 10E2
+            return int(float(sval))
 
 class RealPrimitive(Primitive):
     """
@@ -1021,6 +1022,13 @@ class BooleanPrimitive(Primitive):
             return True
         elif sval == 'False':
             return False
+
+        # also converts 1 and 0
+        elif sval == '1':
+            return True
+        elif sval == '0':
+            return False
+
         else:
             raise ValueError("Invalid boolean value "+sval)
 
@@ -1478,10 +1486,10 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        else isinstance(constraint, Constraint):
+        elif isinstance(constraint, Constraint):
             self._constraint = constraint
         else:
-            self._constraint = SetConstraint(vs=set([constraint]))
+            self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
 
         self.set_value(val)
 
