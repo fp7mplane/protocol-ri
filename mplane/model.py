@@ -266,6 +266,7 @@ RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
+ANCHOR_SEP = "#"
 
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
@@ -316,6 +317,17 @@ ENVELOPE_MESSAGE = "message"
 ENVELOPE_STATEMENT = "statement"
 ENVELOPE_NOTIFICATION = "notification"
 
+KEY_REGFMT = "registry-format"
+KEY_REGREV = "registry-revision"
+KEY_REGURI = "registry-uri"
+KEY_REGINCLUDE = "include"
+KEY_ELEMENTS = "elements"
+KEY_ELEMNAME = "name"
+KEY_ELEMPRIM = "prim"
+KEY_ELEMDESC = "desc"
+REGURI_DEFAULT = "http://ict-mplane.eu/registry/core.json"
+REGFMT_FLAT = "mplane-0"
+
 #######################################################################
 # Protocol constants
 #######################################################################
@@ -323,7 +335,7 @@ ENVELOPE_NOTIFICATION = "notification"
 MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
 
 #######################################################################
-# Reference implementation constats
+# Reference implementation constants
 #######################################################################
 
 # Hash length in __repr__ strings
@@ -1127,17 +1139,26 @@ class Element(object):
     elements; use initialize_registry() to use these.
 
     """
-    def __init__(self, name, prim, desc=None):
+    def __init__(self, name, prim, desc=None, namespace=REGURI_DEFAULT):
         super().__init__()
         self._name = name
         self._prim = prim
-        self.desc = desc
+        self._desc = desc
+        self._qualname = namespace + ANCHOR_SEP + name
 
     def __str__(self):
         return self._name
 
     def __repr__(self):
         return "<Element "+str(self)+" "+repr(self._prim)+" >"
+
+    def name(self):
+        """Return the name of this Element"""
+        return self._name
+
+    def qualified_name(self):
+        """Return the name of this Element along with its namespace"""
+        return self._qualname
 
     def parse(self, sval):
         """
@@ -1173,7 +1194,77 @@ class Element(object):
         return lambda x: x
 
 class Registry(object):
-    pass
+    """
+    A Registry is a collection of named Elements associated with a
+    namespace URI, from which it is retrieved.
+
+    """
+    _uri = None
+    _revision = None
+    _elements = {}
+    _namespaces = set()
+
+    def __init__(self, uri=REGURI_DEFAULT):
+        super().__init__()
+
+        # stash URI and parse the registry
+        self._uri = uri
+        self._parse_from_uri(self._uri)
+
+    def __getattr__(self, name):
+        return self._elements[name]
+
+    def _parse_json_bytestream(self, stream):
+        # Turn the stream into a dict
+        d = json.loads(stream.decode("utf-8"))
+
+        # check format
+        if d[KEY_REGFMT] != REGFMT_FLAT:
+            raise ValueError("Unsupported registry format "+str(d[KEY_REGFMT]))
+
+        # stash revision
+        self._revision = int(d[KEY_REGREV])
+
+        # get namespace and check for loops
+        namespace = d[KEY_REGURI]
+        if namespace in self._namespaces:
+            raise ValueError("Registry include loop at "+namespace)
+        self._namespaces.add(namespace)
+
+        # now parse includes depth-first
+        if KEY_REGINCLUDE in d:
+            for incuri in d[KEY_REGINCLUDE]:
+                self._parse_from_uri(incuri)
+
+        # finally, iterate over elements and add them to the table
+        for elem in d[KEY_ELEMENTS]:
+            name = elem[KEY_ELEMNAME]
+            prim = elem[KEY_ELEMPRIM]
+            if KEY_ELEMDESC in elem:
+                desc = elem[KEY_ELEMDESC]
+            else:
+                desc = None
+            self._elements[name] = Element(name, prim, desc, namespace)
+
+    def _parse_from_uri(self, uri):
+        if uri == REGURI_DEFAULT:
+            with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
+                self._parse_json_bytestream(stream)
+        else:
+            with urllib.request.urlopen(uri) as stream:
+                self._parse_json_bytestream(stream)
+
+_registry = None
+
+def initialize_registry(uri=REGURI_DEFAULT):
+    """
+    Initializes the mPlane registry from a URI; if no URI is given,
+    initializes the registry from the internal core registry.
+    """
+    _registry = Registry(uri)
+
+def element(name):
+    return _registry[name]
 
 #######################################################################
 # Old registry methods
@@ -1183,14 +1274,7 @@ _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
 _desc_re = re.compile('^\s+([^#]+)')
 _comment_re = re.compile('^\s*\#')
 
-def parse_element(line):
-    m = _typedef_re.match(line)
-    if m:
-        return Element(m.group(1), _prim[m.group(2)])
-    else:
-        return None
-
-def _parse_elements(lines):
+def _old_parse_elements(lines):
     """
     Given an iterator over lines from a file or stream describing
     a set of Elements, returns a list of Elements. This file should 
@@ -1220,24 +1304,21 @@ def _parse_elements(lines):
 
     return elements
 
-_element_registry = {}
+_old_element_registry = {}
 
-def initialize_registry(filename=None):
+def _old_parse_registry(filename=None):
     """
     Initializes the mPlane registry from a file; if no filename is given,
     initializes the registry from the internal set of Elements.
     """
-    _element_registry.clear()
+    _old_element_registry.clear()
 
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
 
     with open(filename, mode="r") as file:
         for elem in _parse_elements(file):
-            _element_registry[elem._name] = elem
-
-def element(name):
-    return _element_registry[name]
+            _old_element_registry[elem._name] = elem
 
 #######################################################################
 # Constraints
