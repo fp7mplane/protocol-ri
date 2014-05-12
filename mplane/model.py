@@ -1236,10 +1236,11 @@ class Registry(object):
 
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
+        print(elem.name()+": "+repr(elem))
 
     def _parse_json_bytestream(self, stream):
         # Turn the stream into a dict
-        d = json.loads(stream.decode("utf-8"))
+        d = json.loads(stream.read())
 
         # check format
         if d[KEY_REGFMT] != REGFMT_FLAT:
@@ -1271,9 +1272,11 @@ class Registry(object):
 
     def _parse_from_uri(self, uri):
         if uri == REGURI_DEFAULT:
+            print("using internal registry")
             with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
                 self._parse_json_bytestream(stream)
         else:
+            print("using registry at "+uri)
             with urllib.request.urlopen(uri) as stream:
                 self._parse_json_bytestream(stream)
 
