@@ -22,7 +22,12 @@
 #
 
 import tornado.web
+import tornado.httpserver
+import ssl
+import os.path
 import mplane.model
+import mplane.sec
+import mplane.utils
 from datetime import datetime
 import time
 
@@ -50,6 +55,12 @@ class DiscoveryHandler(MPlaneHandler):
     """
 
     def initialize(self, scheduler):
+        if scheduler.ac.security == True:
+            for elem in self.request.get_ssl_certificate().get('subject'):
+                if elem[0][0] == 'commonName':
+                   self.user = elem[0][1]
+        else:
+            self.user = None
         self.scheduler = scheduler
 
     def get(self):
@@ -69,7 +80,8 @@ class DiscoveryHandler(MPlaneHandler):
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
         for key in self.scheduler.capability_keys():
-            self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
+            if self.scheduler.ac.check_azn(self.scheduler.capability_for_key(key)._label, self.user):
+            	self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
         self.write("</body></html>")
         self.finish()
 
@@ -85,6 +97,12 @@ class MessagePostHandler(MPlaneHandler):
 
     """
     def initialize(self, scheduler, immediate_ms = 5000):
+        if scheduler.ac.security == True:
+            for elem in self.request.get_ssl_certificate().get('subject'):
+                if elem[0][0] == 'commonName':
+                   self.user = elem[0][1]
+        else:
+            self.user = None
         self.scheduler = scheduler
         self.immediate_ms = immediate_ms
 
@@ -96,8 +114,9 @@ class MessagePostHandler(MPlaneHandler):
         self.write("This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.<br/>")
         self.write("<a href='/"+CAPABILITY_PATH_ELEM+"'>Capabilities</a> provided by this server:<br/>")
         for key in self.scheduler.capability_keys():
-            self.write("<br/><pre>")
-            self.write(mplane.model.unparse_json(self.scheduler.capability_for_key(key)))
+            if self.scheduler.ac.check_azn(self.scheduler.capability_for_key(key)._label, self.user):
+                self.write("<br/><pre>")
+                self.write(mplane.model.unparse_json(self.scheduler.capability_for_key(key)))
         self.write("</body></html>")
         self.finish()
 
@@ -110,7 +129,7 @@ class MessagePostHandler(MPlaneHandler):
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
         # hand message to scheduler
-        reply = self.scheduler.receive_message(msg)
+        reply = self.scheduler.receive_message(self.user, msg)
 
         # wait for immediate delay
         if self.immediate_ms > 0 and \
@@ -129,11 +148,21 @@ class MessagePostHandler(MPlaneHandler):
 
 # FIXME build a class that wraps a scheduler and a runloop (and maybe a command line interpreter)
 
-def runloop(scheduler, port=8888):
+def runloop(scheduler, security, certfile, port=8888):
     application = tornado.web.Application([
             (r"/", mplane.httpsrv.MessagePostHandler, {'scheduler': scheduler}),
             (r"/"+CAPABILITY_PATH_ELEM, mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler})
         ])
-    application.listen(port)
+    if security == True:
+        cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
+        key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
+        ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
+        mplane.utils.check_file(cert)
+        mplane.utils.check_file(key)
+        mplane.utils.check_file(ca)
+        http_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
+    else:
+        http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(port)
     tornado.ioloop.IOLoop.instance().start()
