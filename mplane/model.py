@@ -247,6 +247,7 @@ results:
 from ipaddress import ip_address
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
+import urllib.request
 import collections
 import functools
 import operator
@@ -1215,13 +1216,12 @@ class Registry(object):
     namespace URI, from which it is retrieved.
 
     """
-    _uri = None
-    _revision = None
-    _elements = collections.OrderedDict()
-    _namespaces = set()
 
     def __init__(self, uri=REGURI_DEFAULT, parse=True):
         super().__init__()
+        self._revision = None
+        self._elements = collections.OrderedDict()
+        self._namespaces = set()
 
         # stash URI and parse the registry
         self._uri = uri
@@ -1239,7 +1239,10 @@ class Registry(object):
 
     def _parse_json_bytestream(self, stream):
         # Turn the stream into a dict
-        d = json.loads(stream.read())
+        s = stream.read()
+        if isinstance(s, bytes):
+            s = s.decode("utf-8")
+        d = json.loads(s)
 
         # check format
         if d[KEY_REGFMT] != REGFMT_FLAT:
@@ -1250,6 +1253,7 @@ class Registry(object):
 
         # get namespace and check for loops
         namespace = d[KEY_REGURI]
+
         if namespace in self._namespaces:
             raise ValueError("Registry include loop at "+namespace)
         self._namespaces.add(namespace)
@@ -1673,26 +1677,20 @@ class Statement(object):
     and :class:`mplane.model.Result` classes instead.
 
     """
-
-    # Member variables
-    _version = MPLANE_VERSION
-    _params = None
-    _metadata = None
-    _resultcolumns = None
-    _link = None
-    _export = None
-    _verb = None
-    _label = None
-    _when = None
-    _token = None
-    _schedule = None # completely ignored unless this is a specification
     
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__()
         # Make a blank statement
+        self._version = MPLANE_VERSION
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
+        self._verb = None
+        self._label = None
+        self._token = None
+        self._link = None
+        self._export = None
+        self._schedule = None
 
         if dictval is not None:
             # Fill in from dictionary
