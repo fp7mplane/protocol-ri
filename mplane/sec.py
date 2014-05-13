@@ -19,25 +19,35 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 import os.path
-import mplane.model
 
 class Authorization(object):
 
 	def __init__(self, security):
-		self.ur = self.load_roles("conf/users.conf")
-		self.cr = self.load_roles("conf/caps.conf")
-		self.security = security
+    		self.ur = self.load_roles("users.conf")
+    		self.cr = self.load_roles("caps.conf")
+    		self.security = security
 		
-	def load_roles(self, path):
-		r = {}
-		with open(os.path.join(os.path.dirname(__file__), path),'r') as f:
-			for line in f.readlines():
-				line = line.rstrip('\n')
-				user = line.split(': ')[0]
-				roles = set(line.split(': ')[1].split(', '))
-				r[user] = roles
-		return r
+	def load_roles(self, filename):
+         r = {}
+         if os.path.isfile(os.path.join("/etc/mplane/", filename)):
+            filepath = os.path.join("/etc/mplane/", filename)
+         elif os.path.isfile(os.path.join(os.environ['HOME'], filename)):
+            filepath = os.path.join(os.environ['HOME'], filename)
+         elif ((os.getenv('MPLANE_CONF_DIR', default=None) is not None) and 
+         (os.path.isfile(os.path.join(os.getenv('MPLANE_CONF_DIR', default=None), filename)))):
+             filepath = os.path.join(os.getenv('MPLANE_CONF_DIR', default=None), filename)
+         else:
+            raise OSError("File " + filename + " not found. Retry setting $MPLANE_CONF_DIR")
+            
+         with open(filepath) as f:
+             for line in f.readlines():
+                 line = line.rstrip('\n')
+                 user = line.split(': ')[0]
+                 roles = set(line.split(': ')[1].split(', '))
+                 r[user] = roles
+         return r
 
 	def check_azn(self, cap_name, user_name):
 		""" Checks if the user is allowed to use a given capability """
