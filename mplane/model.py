@@ -728,7 +728,8 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-
+        if s.period() is not None and (self._p is None or self._p < s.period()):
+            return False
         if s.in_scope(self._a, tzero):
             return True
         if isinstance(self._b, datetime) and s.in_scope(self._b, tzero):
