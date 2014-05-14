@@ -167,6 +167,5 @@ def runloop(scheduler, security, certfile, address=DEFAULT_LISTEN_IP4, port=DEFA
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
     else:
         http_server = tornado.httpserver.HTTPServer(application)
-    print(port, address)
     http_server.listen(port, address = address)
     tornado.ioloop.IOLoop.instance().start()

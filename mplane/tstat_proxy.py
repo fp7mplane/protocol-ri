@@ -51,38 +51,38 @@ class tStatService(mplane.scheduler.Service):
                 param_name = param.split(' = ')[0]
                 
                 if enable == True:
-                    if (cap_label == "tcp-flows-basic" and param_name == 'log_tcp_complete'):
+                    if (cap_label == "log_tcp_complete-core" and param_name == 'log_tcp_complete'):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "tcp-flows-end-to-end" and 
+                    elif (cap_label == "log_tcp_complete-end_to_end" and 
                         (param_name == 'tcplog_end_to_end' or 
                         # in order to activate optional sets, the basic set (log_tcp_complete) must be active too
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "tcp-options" and
+                    elif (cap_label == "log_tcp_complete-tcp_options" and
                         (param_name == 'tcplog_options' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "tcp-p2p-stats" and
+                    elif (cap_label == "log_tcp_complete-p2p_stats" and
                         (param_name == 'tcplog_p2p' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "tcp-layer7" and
+                    elif (cap_label == "log_tcp_complete-layer7" and
                         (param_name == 'tcplog_layer7' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
                     else:
                         newlines.append(line)
                 else:
-                    if (cap_label == "tcp-flows-end-to-end" and
+                    if (cap_label == "log_tcp_complete-end_to_end" and
                         param_name == 'tcplog_end_to_end'):
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "tcp-options" and
+                    elif (cap_label == "log_tcp_complete-tcp_options" and
                         param_name == 'tcplog_options'):
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "tcp-p2p-stats" and
+                    elif (cap_label == "log_tcp_complete-p2p_stats" and
                         param_name == 'tcplog_p2p'):
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "tcp-layer7" and
+                    elif (cap_label == "log_tcp_complete-layer7" and
                         param_name == 'tcplog_layer7'):
                         newlines.append(line.replace('1', '0'))
                     else:
@@ -113,7 +113,6 @@ class tStatService(mplane.scheduler.Service):
 
         # wait for specification execution
         wait_time = spec._when.timer_delays()
-        print(wait_time)
         wait_seconds = wait_time[1]
         if wait_seconds != None:
             sleep(wait_seconds)
@@ -151,9 +150,9 @@ if __name__ == "__main__":
                         help="Location of the configuration file for certificates")
 
     ## Tstat options
-    parser.add_argument('-s', '--tstat-logsdir', metavar = 'path', dest = 'TSTAT_LOGSDIR', default = None, 
+    parser.add_argument('-s', '--tstat-logsdir', metavar = 'path', dest = 'TSTAT_LOGSDIR', default = None, required = True,
                         help = 'Tstat output logs directory path')
-    parser.add_argument('-T', '--tstat-runtimeconf', metavar = 'path', dest = 'TSTAT_RUNTIMECONF', default = None, 
+    parser.add_argument('-T', '--tstat-runtimeconf', metavar = 'path', dest = 'TSTAT_RUNTIMECONF', default = None, required = True,
                         help = 'Tstat runtime.conf configuration file path')
     args = parser.parse_args()
 
