@@ -34,57 +34,63 @@ import argparse
 import sys
 
 class tStatService(mplane.scheduler.Service):
-    def __init__(self, cap, logdir, fileconf):
+    def __init__(self, cap, fileconf):
         # verify the capability is acceptable
         mplane.tstat_caps.check_cap(cap)
         super(tStatService, self).__init__(cap)
-        self._logdir = logdir
+        #self._logdir = logdir
         self._fileconf = fileconf
 
     def change_conf(self, cap_label, enable):
         newlines = []
         f = open(self._fileconf, 'r')
         for line in f:
+
             if (line[0] != '[' and line[0] != '#' and
                 line[0] != '\n' and line[0] != ' '):    # discard useless lines
                 param = line.split('#')[0]
                 param_name = param.split(' = ')[0]
                 
                 if enable == True:
-                    if (cap_label == "log_tcp_complete-core" and param_name == 'log_tcp_complete'):
+                    if (cap_label == "tstat-log_tcp_complete-core" and param_name == 'log_tcp_complete'):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "log_tcp_complete-end_to_end" and 
-                        (param_name == 'tcplog_end_to_end' or 
-                        # in order to activate optional sets, the basic set (log_tcp_complete) must be active too
+
+                    # in order to activate optional sets, the basic set (log_tcp_complete) must be active too
+                    elif (cap_label == "tstat-log_tcp_complete-end_to_end" and (
+                        param_name == 'tcplog_end_to_end' 
+                        or param_name == 'log_tcp_complete')):
+                        newlines.append(line.replace('0', '1'))
+
+                    elif (cap_label == "tstat-log_tcp_complete-tcp_options" and (
+                        param_name == 'tcplog_options' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "log_tcp_complete-tcp_options" and
-                        (param_name == 'tcplog_options' or
+
+                    elif (cap_label == "tstat-log_tcp_complete-p2p_stats" and (
+                        param_name == 'tcplog_p2p' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "log_tcp_complete-p2p_stats" and
-                        (param_name == 'tcplog_p2p' or
-                        param_name == 'log_tcp_complete')):
-                        newlines.append(line.replace('0', '1'))
-                    elif (cap_label == "log_tcp_complete-layer7" and
-                        (param_name == 'tcplog_layer7' or
+
+                    elif (cap_label == "tstat-log_tcp_complete-layer7" and (
+                        param_name == 'tcplog_layer7' or
                         param_name == 'log_tcp_complete')):
                         newlines.append(line.replace('0', '1'))
                     else:
                         newlines.append(line)
                 else:
-                    if (cap_label == "log_tcp_complete-end_to_end" and
-                        param_name == 'tcplog_end_to_end'):
+                    if (cap_label == "tstat-log_tcp_complete-end_to_end" and param_name == 'tcplog_end_to_end'):
+                        print('AAA')
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "log_tcp_complete-tcp_options" and
-                        param_name == 'tcplog_options'):
+
+                    elif (cap_label == "tstat-log_tcp_complete-tcp_options" and param_name == 'tcplog_options'):
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "log_tcp_complete-p2p_stats" and
-                        param_name == 'tcplog_p2p'):
+
+                    elif (cap_label == "tstat-log_tcp_complete-p2p_stats" and param_name == 'tcplog_p2p'):
                         newlines.append(line.replace('1', '0'))
-                    elif (cap_label == "log_tcp_complete-layer7" and
-                        param_name == 'tcplog_layer7'):
+
+                    elif (cap_label == "tstat-log_tcp_complete-layer7" and param_name == 'tcplog_layer7'):
                         newlines.append(line.replace('1', '0'))
+
                     else:
                         newlines.append(line) 
             else:
@@ -150,17 +156,18 @@ if __name__ == "__main__":
                         help="Location of the configuration file for certificates")
 
     ## Tstat options
-    parser.add_argument('-s', '--tstat-logsdir', metavar = 'path', dest = 'TSTAT_LOGSDIR', default = None, required = True,
-                        help = 'Tstat output logs directory path')
+    ## this option will be used when the async export will be developed
+    #parser.add_argument('-s', '--tstat-logsdir', metavar = 'path', dest = 'TSTAT_LOGSDIR', default = None, required = True,
+    #                    help = 'Tstat output logs directory path')
     parser.add_argument('-T', '--tstat-runtimeconf', metavar = 'path', dest = 'TSTAT_RUNTIMECONF', default = None, required = True,
                         help = 'Tstat runtime.conf configuration file path')
     args = parser.parse_args()
 
     ## check for the basic arguments
-    if not args.TSTAT_LOGSDIR:
-        print('error: missing -s|--tstat-logsdir\n')
-        parser.print_help()
-        sys.exit(1)
+    #if not args.TSTAT_LOGSDIR:
+    #    print('error: missing -s|--tstat-logsdir\n')
+    #    parser.print_help()
+    #    sys.exit(1)
 
     if not args.TSTAT_RUNTIMECONF:
         print('error: missing -T|--tstat-runtimeconf\n')
@@ -181,10 +188,10 @@ if __name__ == "__main__":
     mplane.model.initialize_registry()
 
     scheduler = mplane.scheduler.Scheduler(security)
-    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_flows_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
-    scheduler.add_service(tStatService(mplane.tstat_caps.e2e_tcp_flows_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
-    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_options_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
-    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_p2p_stats_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
-    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_layer7_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
+    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_flows_capability(), args.TSTAT_RUNTIMECONF))
+    scheduler.add_service(tStatService(mplane.tstat_caps.e2e_tcp_flows_capability(), args.TSTAT_RUNTIMECONF))
+    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_options_capability(), args.TSTAT_RUNTIMECONF))
+    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_p2p_stats_capability(), args.TSTAT_RUNTIMECONF))
+    scheduler.add_service(tStatService(mplane.tstat_caps.tcp_layer7_capability(), args.TSTAT_RUNTIMECONF))
 
     mplane.httpsrv.runloop(scheduler, security, args.CERTFILE, address = args.SERVICE_IP, port = args.SERVICE_PORT)

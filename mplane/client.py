@@ -265,23 +265,20 @@ class ClientShell(cmd.Cmd):
     def do_connect(self, arg):
         """Connect to a probe or supervisor and retrieve capabilities"""
 
-
         # define default url
         supvsr_url = 'http://%s:%d' % (self._service_address, self._service_port)
         if self._certfile:
-            url = 'https://%s:%d' % (self._service_address, self._service_port)
+            supvsr_url = 'https://%s:%d' % (self._service_address, self._service_port)
         capurl = None
 
-        args = arg.split()
-        # get the requested url for the probe or supervisor
-        if len(args) >= 1:
-            supvsr_url = args[0]
-        # get the requested 
-        if len(args) > 1:
-            capurl = args[1]     
-
-        #else:
-        #    print("Cannot connect without a url")
+        if arg:
+            args = arg.split()
+            # get the requested url for the probe or supervisor
+            if len(args) >= 1:
+                supvsr_url = args[0]
+            # get the requested 
+            if len(args) > 1:
+                capurl = args[1]     
 
         proto = supvsr_url.split('://')[0]
         if proto == 'http':

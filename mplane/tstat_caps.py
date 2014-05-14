@@ -20,7 +20,7 @@
 import mplane.model
 
 def tcp_flows_capability():
-    cap = mplane.model.Capability(label="log_tcp_complete-core", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-core", when = "now + inf ... future")
     cap.add_result_column("initiator.ip4")
     cap.add_result_column("initiator.port")
     cap.add_result_column("packets.forward")
@@ -68,7 +68,7 @@ def tcp_flows_capability():
     return cap
 
 def e2e_tcp_flows_capability():
-    cap = mplane.model.Capability(label="log_tcp_complete-end_to_end", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-end_to_end", when = "now + inf ... future")
     cap.add_result_column("rtt.average.ms")
     cap.add_result_column("rtt.min.ms")
     cap.add_result_column("rtt.max.ms")
@@ -79,7 +79,7 @@ def e2e_tcp_flows_capability():
     return cap
     
 def tcp_options_capability():
-    cap = mplane.model.Capability(label="log_tcp_complete-tcp_options", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-tcp_options", when = "now + inf ... future")
     cap.add_result_column("initiator.RFC1323.ws")
     cap.add_result_column("initiator.RFC1323.ts")
     cap.add_result_column("initiator.win_scale")
@@ -130,7 +130,7 @@ def tcp_options_capability():
     return cap
     
 def tcp_p2p_stats_capability():
-    cap = mplane.model.Capability(label="log_tcp_complete-p2p_stats", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-p2p_stats", when = "now + inf ... future")
     cap.add_result_column("p2p.subtype")
     cap.add_result_column("ed2k.data")
     cap.add_result_column("ed2k.signaling")
@@ -140,7 +140,7 @@ def tcp_p2p_stats_capability():
     return cap    
 
 def tcp_layer7_capability():
-    cap = mplane.model.Capability(label="log_tcp_complete-layer7", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-layer7", when = "now + inf ... future")
     cap.add_result_column("initiator.psh_separated")
     cap.add_result_column("responder.psh_separated")
     cap.add_result_column("ssl.hello.client")
@@ -148,7 +148,7 @@ def tcp_layer7_capability():
     return cap
 
 def check_cap(cap):   
-    if cap._label == "log_tcp_complete-core":   
+    if cap._label == "tstat-log_tcp_complete-core":   
         if not(cap.has_result_column("initiator.ip4") or
                 cap.has_result_column("initiator.port") or
                 cap.has_result_column("packets.forward") or
@@ -194,7 +194,7 @@ def check_cap(cap):
                 cap.has_result_column("tstat.flow.class.p2p") or
                 cap.has_result_column("tstat.flow.class.http")):
             raise ValueError("capability not acceptable")
-    elif cap._label == "log_tcp_complete-end_to_end":   
+    elif cap._label == "tstat-log_tcp_complete-end_to_end":   
         if not(cap.has_result_column("rtt.average.ms") or
                 cap.has_result_column("rtt.min.ms") or
                 cap.has_result_column("rtt.max.ms") or
@@ -203,7 +203,7 @@ def check_cap(cap):
                 cap.has_result_column("ttl.min") or
                 cap.has_result_column("ttl.max")):
             raise ValueError("capability not acceptable")
-    elif cap._label == "log_tcp_complete-tcp_options":   
+    elif cap._label == "tstat-log_tcp_complete-tcp_options":   
         if not(cap.has_result_column("initiator.RFC1323.ws") or
                 cap.has_result_column("initiator.RFC1323.ts") or
                 cap.has_result_column("initiator.win_scale") or
@@ -252,7 +252,7 @@ def check_cap(cap):
                 cap.has_result_column("responder.flow_control") or
                 cap.has_result_column("responder.SYN.equal_seqno")):
             raise ValueError("capability not acceptable")
-    elif cap._label == "log_tcp_complete-p2p_stats":   
+    elif cap._label == "tstat-log_tcp_complete-p2p_stats":   
         if not (cap.has_result_column("p2p.subtype") or
                 cap.has_result_column("ed2k.data") or
                 cap.has_result_column("ed2k.signaling") or
@@ -260,7 +260,7 @@ def check_cap(cap):
                 cap.has_result_column("ed2k.r2i") or
                 cap.has_result_column("ed2k.chat")):
             raise ValueError("capability not acceptable")
-    elif cap._label == "log_tcp_complete-layer7":   
+    elif cap._label == "tstat-log_tcp_complete-layer7":   
         if not (cap.has_result_column("initiator.psh_separated") or
                 cap.has_result_column("responder.psh_separated") or
                 cap.has_result_column("ssl.hello.client") or
