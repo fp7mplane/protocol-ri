@@ -249,9 +249,12 @@ class ClientShell(cmd.Cmd):
 
     def preloop(self):
         global args
-        parse_args()
-        mplane.utils.check_file(args.certfile)
-        self._certfile = args.certfile
+        parse_args()        
+        if args.certfile is not None:
+            mplane.utils.check_file(args.certfile)
+            self._certfile = args.certfile
+        else:
+            self._certfile = None
         self._client = None
         self._defaults = {}
         self._when = None
@@ -273,7 +276,7 @@ class ClientShell(cmd.Cmd):
             if self._certfile is not None:
                 self._client = HttpClient(True, args[0], capurl, self._certfile)
             else:
-                raise SyntaxError("For https, need to specify the --certfile parameter when launching the client")
+                raise SyntaxError("For HTTPS, need to specify the --certfile parameter when launching the client")
         elif proto == 'ssh':
             self._client = SshClient(True, args[0], capurl)
         else:
