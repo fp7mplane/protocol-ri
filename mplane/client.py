@@ -285,6 +285,9 @@ class ClientShell(cmd.Cmd):
 
         proto = supvsr_url.split('://')[0]
         if proto == 'http':
+            ## force https in case security is available
+            if self._certfile:
+                supvsr_url = 'https://' + supvsr_url.split('://')[1]
             self._client = HttpClient(False, supvsr_url, capurl)
         elif proto == 'https':
             if self._certfile is not None:

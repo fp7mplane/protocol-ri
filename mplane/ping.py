@@ -263,10 +263,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run an mPlane ping probe server")
     ## service options
-    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=8888, type=int, \
-                        help = 'run the service on the specified port [default=8888]')
-    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_IP', default='127.0.0.1', \
-                        help = 'run the service on the specified IP address [default=127.0.0.1]')
+    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=mplane.httpsrv.DEFAULT_LISTEN_PORT, type=int, \
+                        help = 'run the service on the specified port [default=%d]' % mplane.httpsrv.DEFAULT_LISTEN_PORT)
+    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_IP', default=mplane.httpsrv.DEFAULT_LISTEN_IP4, \
+                        help = 'run the service on the specified IP address [default=%s]' % mplane.httpsrv.DEFAULT_LISTEN_IP4)
     parser.add_argument('--disable-sec', action='store_true', default=False, dest='DISABLE_SEC',
                         help='Disable secure communication')
     parser.add_argument('-c', '--certfile', metavar="path", dest='certfile', default = None,
@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     security = not args.DISABLE_SEC
     if security and args.certfile == None:
-        print('\nerror: missing -c|--certfile option\n')
+        raise ValueError('missing -c|--certfile option')
         parser.print_help()
         sys.exit(1)
 
@@ -312,4 +312,4 @@ if __name__ == "__main__":
         scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
         scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
 
-    mplane.httpsrv.runloop(scheduler, security, args.certfile)
+    mplane.httpsrv.runloop(scheduler, security, args.certfile, address = args.SERVICE_IP, port = args.SERVICE_PORT)

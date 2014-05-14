@@ -141,10 +141,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
     ## service options
-    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=8888, type=int, \
-                        help = 'run the service on the specified port [default=8888]')
-    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_IP', default='127.0.0.1', \
-                        help = 'run the service on the specified IP address [default=127.0.0.1]')
+    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=mplane.httpsrv.DEFAULT_LISTEN_PORT, type=int, \
+                        help = 'run the service on the specified port [default=%s]' % mplane.httpsrv.DEFAULT_LISTEN_PORT)
+    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_IP', default=mplane.httpsrv.DEFAULT_LISTEN_IP4, \
+                        help = 'run the service on the specified IP address [default=%s]' % mplane.httpsrv.DEFAULT_LISTEN_IP4)
     parser.add_argument('--disable-sec', action='store_true', default=False, dest='DISABLE_SEC',
                         help='Disable secure communication')
     parser.add_argument('-c', '--certfile', metavar="path", dest='CERTFILE', default = None,
@@ -188,4 +188,4 @@ if __name__ == "__main__":
     scheduler.add_service(tStatService(mplane.tstat_caps.tcp_p2p_stats_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
     scheduler.add_service(tStatService(mplane.tstat_caps.tcp_layer7_capability(), args.TSTAT_LOGSDIR, args.TSTAT_RUNTIMECONF))
 
-    mplane.httpsrv.runloop(scheduler, security, args.CERTFILE, port = args.SERVICE_PORT)
+    mplane.httpsrv.runloop(scheduler, security, args.CERTFILE, address = args.SERVICE_IP, port = args.SERVICE_PORT)
