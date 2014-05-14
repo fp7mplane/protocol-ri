@@ -25,9 +25,10 @@ import os.path
 class Authorization(object):
 
 	def __init__(self, security):
-    		self.ur = self.load_roles("users.conf")
-    		self.cr = self.load_roles("caps.conf")
     		self.security = security
+    		if self.security == True:
+    			self.ur = self.load_roles("users.conf")
+    			self.cr = self.load_roles("caps.conf")
 		
 	def load_roles(self, filename):
          r = {}
