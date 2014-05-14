@@ -191,6 +191,7 @@ class Scheduler(object):
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
+        self._capability_keys_ordered = []
         self.ac = mplane.sec.Authorization(security)
 
     def receive_message(self, user, msg, session=None):
@@ -220,6 +221,7 @@ class Scheduler(object):
         self.services.append(service)
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
+        self._capability_keys_ordered.append(cap.get_token())
 
     def capability_keys(self):
         """
@@ -227,7 +229,7 @@ class Scheduler(object):
         provided by this scheduler's services.
 
         """
-        return self._capability_cache.keys()
+        return self._capability_keys_ordered
 
     def capability_for_key(self, key):
         """

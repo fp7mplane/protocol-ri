@@ -40,6 +40,7 @@ import mplane.httpsrv
 import tornado.web
 import tornado.ioloop
 import argparse
+import sys
 
 _pingline_re = re.compile("icmp_seq=(\d+)\s+\S+=(\d+)\s+time=([\d\.]+)\s+ms")
 
@@ -218,18 +219,6 @@ class PingService(mplane.scheduler.Service):
 
         return res
 
-def parse_args():
-    global args
-    parser = argparse.ArgumentParser(description="Run an mPlane ping probe server")
-    parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
-                        help="Ping from the given IPv4 address")
-    parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
-                        help="Ping from the given IPv6 address")
-    parser.add_argument('--sec', metavar="security-on-off",
-                        help="Toggle security on/off. Values: 0=on,1=off")
-    parser.add_argument('--certfile', metavar="cert-file-location",
-                        help="Location of the configuration file for certificates")
-    args = parser.parse_args()
 
 def manually_test_ping():
     svc = PingService(ping4_aggregate_capability(LOOP4))
@@ -272,8 +261,22 @@ def manually_test_ping():
 if __name__ == "__main__":
     global args
 
-    mplane.model.initialize_registry()
-    parse_args()
+    parser = argparse.ArgumentParser(description="Run an mPlane ping probe server")
+    ## service options
+    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=8888, type=int, \
+                        help = 'run the service on the specified port [default=8888]')
+    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_IP', default='127.0.0.1', \
+                        help = 'run the service on the specified IP address [default=127.0.0.1]')
+    parser.add_argument('--disable-sec', action='store_true', default=False, dest='DISABLE_SEC',
+                        help='Disable secure communication')
+    parser.add_argument('-c', '--certfile', metavar="path", dest='certfile', default = None,
+                        help="Location of the configuration file for certificates")
+    ##
+    parser.add_argument('--ip4addr', '-4', metavar="source-v4-address", default=LOOP4,
+                        help="Ping from the given IPv4 address")
+    parser.add_argument('--ip6addr', '-6', metavar="source-v6-address", default=LOOP6,
+                        help="Ping from the given IPv6 address")
+    args = parser.parse_args()
 
     ip4addr = None
     ip6addr = None
@@ -289,19 +292,17 @@ if __name__ == "__main__":
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
 
-    if args.sec is None:
-        raise ValueError("need --sec parameter (0=True,1=False)")
-    else:
-        if args.sec == '0':
-            if args.certfile is None:
-                raise ValueError("if --sec=0, need to specify cert file")
-            else:
-                security = True
-                mplane.utils.check_file(args.certfile)
-                certfile = args.certfile
-        else:
-            security = False
-            certfile = None
+    security = not args.DISABLE_SEC
+    if security and args.certfile == None:
+        print('\nerror: missing -c|--certfile option\n')
+        parser.print_help()
+        sys.exit(1)
+
+    if security:
+        mplane.utils.check_file(args.certfile)
+        certfile = args.certfile
+
+    mplane.model.initialize_registry()
 
     scheduler = mplane.scheduler.Scheduler(security)
     if ip4addr is not None:
@@ -311,4 +312,4 @@ if __name__ == "__main__":
         scheduler.add_service(PingService(ping6_aggregate_capability(ip6addr)))
         scheduler.add_service(PingService(ping6_singleton_capability(ip6addr)))
 
-    mplane.httpsrv.runloop(scheduler, security, certfile)
+    mplane.httpsrv.runloop(scheduler, security, args.certfile)

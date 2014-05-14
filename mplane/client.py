@@ -23,6 +23,7 @@
 
 import mplane.model
 import mplane.utils
+import mplane.httpsrv
 import sys
 import cmd
 import readline
@@ -249,36 +250,49 @@ class ClientShell(cmd.Cmd):
 
     def preloop(self):
         global args
-        parse_args()        
-        if args.certfile is not None:
-            mplane.utils.check_file(args.certfile)
-            self._certfile = args.certfile
-        else:
-            self._certfile = None
+        parse_args()
+        self._certfile = args.CERTFILE
+        self._service_address = args.SERVICE_ADDRESS
+        self._service_port = args.SERVICE_PORT
         self._client = None
         self._defaults = {}
         self._when = None
 
+        if self._certfile:
+            mplane.utils.check_file(self._certfile)
+
+
     def do_connect(self, arg):
         """Connect to a probe or supervisor and retrieve capabilities"""
-        args = arg.split()
-        if len(args) >= 2:
-            capurl = args[1]     
-        elif len(args) >= 1:
-            capurl = None
-        else:
-            print("Cannot connect without a url")
 
-        proto = args[0].split('://')[0]
+
+        # define default url
+        supvsr_url = 'http://%s:%d' % (self._service_address, self._service_port)
+        if self._certfile:
+            url = 'https://%s:%d' % (self._service_address, self._service_port)
+        capurl = None
+
+        args = arg.split()
+        # get the requested url for the probe or supervisor
+        if len(args) >= 1:
+            supvsr_url = args[0]
+        # get the requested 
+        if len(args) > 1:
+            capurl = args[1]     
+
+        #else:
+        #    print("Cannot connect without a url")
+
+        proto = supvsr_url.split('://')[0]
         if proto == 'http':
-            self._client = HttpClient(False, args[0], capurl)
+            self._client = HttpClient(False, supvsr_url, capurl)
         elif proto == 'https':
             if self._certfile is not None:
-                self._client = HttpClient(True, args[0], capurl, self._certfile)
+                self._client = HttpClient(True, supvsr_url, capurl, self._certfile)
             else:
-                raise SyntaxError("For HTTPS, need to specify the --certfile parameter when launching the client")
+                raise SyntaxError("For https, need to specify the --certfile parameter when launching the client")
         elif proto == 'ssh':
-            self._client = SshClient(True, args[0], capurl)
+            self._client = SshClient(True, supvsr_url, capurl)
         else:
             raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https(, ssh)")
 
@@ -430,10 +444,25 @@ class ClientShell(cmd.Cmd):
         
 def parse_args():
     global args
-    parser = argparse.ArgumentParser(description="Run an mPlane client")
-    parser.add_argument('--certfile', metavar="cert-file-location",
+    parser = argparse.ArgumentParser(description="run mPlane client")
+
+    parser.add_argument('-p', '--service-port', metavar='port', dest='SERVICE_PORT', default=mplane.httpsrv.DEFAULT_LISTEN_PORT, type=int, \
+                        help = 'run the service on the specified port [default=%d]' % mplane.httpsrv.DEFAULT_LISTEN_PORT)
+    parser.add_argument('-H', '--service-ipaddr', metavar='ip', dest='SERVICE_ADDRESS', default=mplane.httpsrv.DEFAULT_LISTEN_IP4, \
+                        help = 'run the service on the specified IP address [default=%s]' % mplane.httpsrv.DEFAULT_LISTEN_IP4)
+
+    parser.add_argument('--disable-sec', action='store_true', default=False, dest='DISABLE_SEC',
+                        help='Disable secure communication')
+    parser.add_argument('-c', '--certfile', metavar="path", default=None, dest='CERTFILE',
                         help="Location of the configuration file for certificates")
     args = parser.parse_args()
+
+    if args.DISABLE_SEC == False and not args.CERTFILE:
+        print('\nerror: missing -c|--certfile option\n')
+        parser.print_help()
+        sys.exit(1)
+        #raise ValueError("Need --logdir and --fileconf as parameters")
+
     
 if __name__ == "__main__":
     mplane.model.initialize_registry()

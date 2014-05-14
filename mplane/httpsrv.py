@@ -34,6 +34,9 @@ import time
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 
+DEFAULT_LISTEN_PORT = 8888
+DEFAULT_LISTEN_IP4 = '127.0.0.1'
+
 class MPlaneHandler(tornado.web.RequestHandler):
     """
     Abstract tornado RequestHandler that allows a 
@@ -148,7 +151,7 @@ class MessagePostHandler(MPlaneHandler):
 
 # FIXME build a class that wraps a scheduler and a runloop (and maybe a command line interpreter)
 
-def runloop(scheduler, security, certfile, port=8888):
+def runloop(scheduler, security, certfile, address=DEFAULT_LISTEN_IP4, port=DEFAULT_LISTEN_PORT):
     application = tornado.web.Application([
             (r"/", mplane.httpsrv.MessagePostHandler, {'scheduler': scheduler}),
             (r"/"+CAPABILITY_PATH_ELEM, mplane.httpsrv.DiscoveryHandler, {'scheduler': scheduler}),
@@ -164,5 +167,5 @@ def runloop(scheduler, security, certfile, port=8888):
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
     else:
         http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(port)
+    http_server.listen(port, address = address)
     tornado.ioloop.IOLoop.instance().start()
