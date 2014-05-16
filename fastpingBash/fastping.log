@@ -1,0 +1,153 @@
+16/05/2014 10:37:24 AM agent.ping_manager.socket Operation not permitted -> ICMP messages can only be sent from processes running as root.
+16/05/2014 10:37:24 AM agent.ping_interrupt Uploader receiving Keyboard Interrupt
+16/05/2014 10:37:24 AM agent.ping_interrupt Sender receiving Keyboard Interrupt
+16/05/2014 10:37:24 AM agent.ping_cycle.preload Exception preload destination:
+16/05/2014 10:37:24 AM agent.ping_cycle.preload local variable 'why' referenced before assignment
+16/05/2014 10:37:24 AM agent.ping_manager.socket PingCycle created (agent_hostname: danilo-desktop) - INTERVAL: 0:00:01
+16/05/2014 10:37:24 AM agent.ping_manager.socket PingCycle synchronization - SLEEP: 0.000000 s
+16/05/2014 10:37:24 AM agent.ping_interrupt Sender receiving Keyboard Interrupt
+16/05/2014 10:37:24 AM agent.ping_interrupt Receiver receiving Keyboard Interrupt
+16/05/2014 10:37:40 AM agent.ping_manager.socket Socket opened: <socket._socketobject object at 0x7f4580bb0280>
+16/05/2014 10:37:40 AM agent.ping_cycle.preload Loaded targets: 1
+16/05/2014 10:37:40 AM agent.ping_manager.socket PingCycle created (agent_hostname: danilo-desktop) - INTERVAL: 0:00:01
+16/05/2014 10:37:40 AM agent.ping_manager.socket PingCycle synchronization - SLEEP: 0.000000 s
+16/05/2014 10:37:40 AM agent.ping_manager.socket Directory /home/danilo/git/mplane/protocol-ri/fastpingBash/archive/ do not exists, created it.
+16/05/2014 10:37:40 AM agent.ping_manager.socket Directory /home/danilo/git/mplane/protocol-ri/fastpingBash/stats/ do not exists, created it.
+16/05/2014 10:37:40 AM agent.ping_manager.socket State 01 finished
+16/05/2014 10:37:40 AM agent.ping_manager.ping Starting ping cycle 1.
+16/05/2014 10:37:40 AM agent.ping_listener.initialize State 01 finished
+16/05/2014 10:37:40 AM agent.ping_listener.listen State02: received correct
+16/05/2014 10:37:40 AM agent.ping_listener.listen State 02 finished
+16/05/2014 10:37:50 AM agent.ping_listener.listen State02: received correct
+16/05/2014 10:37:50 AM agent.ping_listener.listen State 02 finished
+16/05/2014 10:38:00 AM agent.ping_cycle.run End of cycle 1 - avg_time: 0.000175
+16/05/2014 10:38:00 AM agent.ping_manager.ping State 02 finished
+16/05/2014 10:38:00 AM agent.ping_manager.save State 03 finished
+16/05/2014 10:38:00 AM agent.ping_manager.idle Waiting for last cycle ending.
+16/05/2014 10:38:00 AM agent.ping_listener.finalize -------------------------
+16/05/2014 10:38:01 AM agent.ping_listener.set_stats Cycle 1 receiving timeout - n_old_pkts: 0 - n_out_pkts: 0
+16/05/2014 10:38:01 AM agent.uploader.save Uploading stats...
+16/05/2014 10:38:01 AM agent.ping_manager.idle Stop cycling and exit.
+16/05/2014 10:38:01 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 10:38:01 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:04 AM agent.ping_manager.socket Operation not permitted -> ICMP messages can only be sent from processes running as root.
+16/05/2014 11:58:04 AM agent.ping_interrupt Sender receiving Keyboard Interrupt
+16/05/2014 11:58:04 AM agent.ping_interrupt Uploader receiving Keyboard Interrupt
+16/05/2014 11:58:04 AM agent.ping_cycle.preload Exception preload destination:
+16/05/2014 11:58:04 AM agent.ping_cycle.preload local variable 'why' referenced before assignment
+16/05/2014 11:58:04 AM agent.ping_manager.socket PingCycle created (agent_hostname: danilo-desktop) - INTERVAL: 0:00:01
+16/05/2014 11:58:04 AM agent.ping_manager.socket PingCycle synchronization - SLEEP: 0.000000 s
+16/05/2014 11:58:04 AM agent.ping_interrupt Sender receiving Keyboard Interrupt
+16/05/2014 11:58:04 AM agent.ping_interrupt Receiver receiving Keyboard Interrupt
+16/05/2014 11:58:24 AM agent.ping_manager.socket Socket opened: <socket._socketobject object at 0x7fb6112d6280>
+16/05/2014 11:58:24 AM agent.ping_cycle.preload Loaded targets: 1
+16/05/2014 11:58:24 AM agent.ping_manager.socket PingCycle created (agent_hostname: danilo-desktop) - INTERVAL: 0:00:01
+16/05/2014 11:58:24 AM agent.ping_manager.socket PingCycle synchronization - SLEEP: 0.000000 s
+16/05/2014 11:58:24 AM agent.ping_manager.socket State 01 finished
+16/05/2014 11:58:24 AM agent.ping_manager.ping Starting ping cycle 1.
+16/05/2014 11:58:24 AM agent.ping_listener.initialize State 01 finished
+16/05/2014 11:58:24 AM agent.ping_listener.listen State02: received correct
+16/05/2014 11:58:24 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:34 AM agent.ping_listener.listen State02: received correct
+16/05/2014 11:58:34 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:44 AM agent.ping_cycle.run End of cycle 1 - avg_time: 0.000172
+16/05/2014 11:58:44 AM agent.ping_manager.ping State 02 finished
+16/05/2014 11:58:44 AM agent.ping_manager.save State 03 finished
+16/05/2014 11:58:44 AM agent.ping_manager.idle Waiting for last cycle ending.
+16/05/2014 11:58:44 AM agent.ping_listener.finalize -------------------------
+16/05/2014 11:58:45 AM agent.ping_listener.set_stats Cycle 1 receiving timeout - n_old_pkts: 0 - n_out_pkts: 0
+16/05/2014 11:58:45 AM agent.uploader.save Uploading stats...
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:58:45 AM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 11:58:45 AM agent.ping_manager.idle Stop cycling and exit.
+16/05/2014 11:58:45 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:59:44 AM agent.ping_manager.socket Socket opened: <socket._socketobject object at 0x7fb4af5a2280>
+16/05/2014 11:59:44 AM agent.ping_cycle.preload Loaded targets: 1
+16/05/2014 11:59:44 AM agent.ping_manager.socket PingCycle created (agent_hostname: danilo-desktop) - INTERVAL: 0:00:01
+16/05/2014 11:59:44 AM agent.ping_manager.socket PingCycle synchronization - SLEEP: 0.000000 s
+16/05/2014 11:59:44 AM agent.ping_manager.socket State 01 finished
+16/05/2014 11:59:44 AM agent.ping_manager.ping Starting ping cycle 1.
+16/05/2014 11:59:44 AM agent.ping_listener.initialize State 01 finished
+16/05/2014 11:59:44 AM agent.ping_listener.listen State02: received correct
+16/05/2014 11:59:44 AM agent.ping_listener.listen State 02 finished
+16/05/2014 11:59:54 AM agent.ping_listener.listen State02: received correct
+16/05/2014 11:59:54 AM agent.ping_listener.listen State 02 finished
+16/05/2014 12:00:04 PM agent.ping_cycle.run End of cycle 1 - avg_time: 0.000138
+16/05/2014 12:00:04 PM agent.ping_manager.ping State 02 finished
+16/05/2014 12:00:04 PM agent.ping_manager.save State 03 finished
+16/05/2014 12:00:04 PM agent.ping_manager.idle Waiting for last cycle ending.
+16/05/2014 12:00:04 PM agent.ping_listener.finalize -------------------------
+16/05/2014 12:00:05 PM agent.ping_listener.set_stats Cycle 1 receiving timeout - n_old_pkts: 0 - n_out_pkts: 0
+16/05/2014 12:00:05 PM agent.uploader.save Uploading stats...
+16/05/2014 12:00:05 PM agent.ping_manager.idle Stop cycling and exit.
+16/05/2014 12:00:05 PM agent.ping_listener.listen unpack requires a string argument of length 8
+16/05/2014 12:00:05 PM agent.ping_listener.listen State 02 finished
