@@ -1,0 +1,99 @@
+Instructions
+
+
+1. Installation
+----------------------------------------
+Install mPlane required tools
+	sudo apt-get install python3-yaml
+	sudo apt-get install python3-tornado
+
+Install fastPing required python2
+
+get the fastPing code:
+	svn co https://svn.ict-mplane.eu/svn/public/software/fastping-d22 
+
+2. Launching the probe
+----------------------------------------
+Start a server on your local host, in the *nix shell:
+	sudo python3 -m mplane.fastping -4 127.0.0.1
+
+To launch a client, in the *nix shell: 
+	python3 -m mplane.client
+	
+The user interacts with client, in the client shell: 
+	connect http://127.0.0.1:8888
+	
+
+If everything is OK, you should see:
+    new client: http://127.0.0.1:8888 http://127.0.0.1:8888/capability
+    getting capabilities from http://127.0.0.1:8888/capability  
+    get_mplane_reply http://127.0.0.1:8888/capability/5dcb7b049338dc87b842eef245a67019 200 Content-Type application/x-mplane+json
+    parsing json
+    got message:
+    capability: measure
+    label: fastPing
+    parameters:
+    curr_dir: '*'
+    cycleduration.s: '*'
+    destinations.ip4: '*'
+    ftp.ip4: '*'
+    ftp.port: '*'
+    is_pasv: '*'
+    numberCycle: '*'
+    password: '*'
+    period.s: '*'
+    source.ip4: 127.0.0.1
+    user: '*'
+    results:
+    - listFile
+    token: 5dcb7b049338dc87b842eef245a67019
+    when: now ... future / 1s
+
+    adding <capability: measure (fastPing) when now ... future / 1s token 5dcb7b04 schema 2b477234 p/m/r 11/0/1>
+
+
+
+3. Launching an experiment
+----------------------------------------
+
+To start a 10 seconds experiment, single shot with 8.8.8.8 as destination, expecting results to be uploaded to a (local) FTP server, type in the client shell: 
+
+	when now + 1s / 10s
+	set numberCycle 1
+	set ftp.password ''
+	set ftp.ispsv False
+	set ftp.port 21
+	set ftp.ip4 127.0.0.1
+	set destinations.ip4 8.8.8.8
+	set ftp.currdir up
+	set cycleduration.s 10
+	set period.s 1
+	set ftp.user anonymous
+	runcap 0
+
+
+When the experiment is over, for see the result: 
+	showmeas
+
+The fastping probes supports the setup of more complex experiments (by using a custom registry file, which is not entirely supported
+ by the officiel mPlane syntax). This can be triggered by writing the same command and changing the "destinations", as above:
+
+- specify multiple hosts
+	set destinations.ip4 8.8.8.8 8.8.8.4
+
+- specify IPv4 ranges:
+	set destinations.ip4 8.8.0.0/24
+
+- specify list of IPv4 ranges:
+	set destinations.ip4 8.8.0.0/24 137.194.0.0/24
+
+- mixing everything above
+	set destinations.ip4 8.8.0.0/24 8.8.8.8 137.194.0.0/24
+
+This could be supported by mplane as either "string" (loosing the control at 0 complexity) or as "plurals" (keeping the control at more complexity)
+
+4. Getting access to measurement results
+----------------------------------------
+
+Through FTP, CVS data (columns have headers with self-explaining meaning) are accessible that report data as described in D2.2
+
