@@ -454,6 +454,56 @@
     {
       "name": "period.ns",
       "prim": "natural"
+    },
+    {
+      "name": "destinations.ipv4range",
+      "prim": "string",
+      "desc": "List of ip target"
+    },
+    {
+      "name": "cycleduration.s",
+      "prim": "natural",
+      "desc": "Duration of the cycle"
+    },
+    {
+      "name": "numberCycle",
+      "prim": "natural",
+      "desc": "Number of cycles, -1 continuous measurements"
+    },
+    {
+      "name": "ftp.ip4",
+      "prim": "string",
+      "desc": "Ftp server address"
+    },
+    {
+      "name": "ftp.port",
+      "prim": "string",
+      "desc": "Port ftp server"    
+    },
+    {
+      "name": "ftp.user",
+      "prim": "string",
+      "desc": "Ftp user"
+    },
+    {
+      "name": "ftp.password",
+      "prim": "string",
+      "desc": "Ftp password"    
+    },
+    {
+      "name": "ftp.currdir",
+      "prim": "string",
+      "desc": "Ftp directory"
+    },
+    {
+      "name": "ftp.ispsv",
+      "prim": "boolean",
+      "desc": "Passive/active ftp mode"    
+    },
+    {
+      "name": "file.list",
+      "prim": "string",
+      "desc": "List of the uploaded file"
     }
   ]
 }
