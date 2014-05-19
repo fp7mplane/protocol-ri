@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 14 May 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 19 May 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
@@ -284,7 +284,7 @@ In a Specification requesting that a measurement run from a specified point in t
 
 `when: 2017-11-23 18:30:00 ... future`
 
-### Schedule
+### Schedule *(not yet implemented)*
 
 ### Parameters
 
@@ -315,3 +315,11 @@ In a Specification requesting that a measurement run from a specified point in t
 ### Component Push
 
 ### Component Pull
+
+## The Role of the Supervisor
+
+### Component Registration
+
+### Client Authentication
+
+### Capability Composition
