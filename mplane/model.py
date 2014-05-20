@@ -2171,6 +2171,19 @@ class Specification(Statement):
     def has_schedule(self):
         return self._schedule is not None
 
+    def subspec_iterator(self):
+        """
+        Iterate over subordinate specifications if this specification is repeated 
+        (i.e., has a Schedule); otherwise yields self once. Each subordinate 
+        specification has an absolute temporal scope derived from this specification's
+        relative temporal scope and schedule.
+        """
+
+        if not self.has_schedule:
+            yield self
+        else:
+            pass #FIXME write this
+
     def _from_dict(self, d):
         super()._from_dict(d)
 

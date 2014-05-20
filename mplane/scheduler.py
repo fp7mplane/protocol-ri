@@ -246,16 +246,16 @@ class Scheduler(object):
         for service in self.services:
             if specification.fulfills(service.capability()):
                 if self.ac.check_azn(service.capability()._label, user):
-		            # Found. Create a new job.
+                    # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
                     if (specification.has_schedule()):
                         new_job = MultiJob(service=service,
-		                                   specification=specification,
-		                                   session=session)
+                                           specification=specification,
+                                           session=session)
                     else:
                         new_job = Job(service=service,
-		                              specification=specification,
-		                              session=session)
+                                      specification=specification,
+                                      session=session)
 
                     # Key by the receipt's token, and return
                     job_key = new_job.receipt.get_token()
