@@ -247,6 +247,7 @@ results:
 from ipaddress import ip_address
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
+import urllib.request
 import collections
 import functools
 import operator
@@ -266,6 +267,7 @@ RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
+ANCHOR_SEP = "#"
 
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
@@ -316,6 +318,17 @@ ENVELOPE_MESSAGE = "message"
 ENVELOPE_STATEMENT = "statement"
 ENVELOPE_NOTIFICATION = "notification"
 
+KEY_REGFMT = "registry-format"
+KEY_REGREV = "registry-revision"
+KEY_REGURI = "registry-uri"
+KEY_REGINCLUDE = "include"
+KEY_ELEMENTS = "elements"
+KEY_ELEMNAME = "name"
+KEY_ELEMPRIM = "prim"
+KEY_ELEMDESC = "desc"
+REGURI_DEFAULT = "http://ict-mplane.eu/registry/core.json"
+REGFMT_FLAT = "mplane-0"
+
 #######################################################################
 # Protocol constants
 #######################################################################
@@ -323,7 +336,7 @@ ENVELOPE_NOTIFICATION = "notification"
 MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
 
 #######################################################################
-# Reference implementation constats
+# Reference implementation constants
 #######################################################################
 
 # Hash length in __repr__ strings
@@ -715,7 +728,8 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-
+        if s.period() is not None and (self._p is None or self._p < s.period()):
+            return False
         if s.in_scope(self._a, tzero):
             return True
         if isinstance(self._b, datetime) and s.in_scope(self._b, tzero):
@@ -1118,7 +1132,7 @@ def test_primitives():
     assert prim_time.unparse(time_future) == "future"
 
 #######################################################################
-# Element classes
+# Elements and registries
 #######################################################################
 
 class Element(object):
@@ -1135,17 +1149,34 @@ class Element(object):
     elements; use initialize_registry() to use these.
 
     """
-    def __init__(self, name, prim, desc=None):
+    def __init__(self, name, prim, desc=None, namespace=REGURI_DEFAULT):
         super().__init__()
         self._name = name
         self._prim = prim
-        self.desc = desc
+        self._desc = desc
+        self._qualname = namespace + ANCHOR_SEP + name
 
     def __str__(self):
         return self._name
 
     def __repr__(self):
-        return "<Element "+str(self)+" "+repr(self._prim)+" >"
+        return "<Element "+self.qualified_name()+" "+repr(self._prim)+" >"
+
+    def name(self):
+        """Return the name of this Element"""
+        return self._name
+
+    def desc(self):
+        """Return the description of this Element"""
+        return self._desc
+
+    def qualified_name(self):
+        """Return the name of this Element along with its namespace"""
+        return self._qualname
+
+    def primitive_name(self):
+        """Return the name of this Element's primitive"""
+        return self._prim.name
 
     def parse(self, sval):
         """
@@ -1180,18 +1211,116 @@ class Element(object):
         """
         return lambda x: x
 
+class Registry(object):
+    """
+    A Registry is a collection of named Elements associated with a
+    namespace URI, from which it is retrieved.
+
+    """
+
+    def __init__(self, uri=REGURI_DEFAULT, parse=True):
+        super().__init__()
+        self._revision = None
+        self._elements = collections.OrderedDict()
+        self._namespaces = set()
+
+        # stash URI and parse the registry
+        self._uri = uri
+        if parse:
+            self._parse_from_uri(self._uri)
+
+    def __len__(self):
+        return len(self._elements)
+
+    def __getitem__(self, name):
+        return self._elements[name]
+
+    def _add_element(self, elem):
+        self._elements[elem.name()] = elem
+
+    def _parse_json_bytestream(self, stream):
+        # Turn the stream into a dict
+        s = stream.read()
+        if isinstance(s, bytes):
+            s = s.decode("utf-8")
+        d = json.loads(s)
+
+        # check format
+        if d[KEY_REGFMT] != REGFMT_FLAT:
+            raise ValueError("Unsupported registry format "+str(d[KEY_REGFMT]))
+
+        # stash revision
+        self._revision = int(d[KEY_REGREV])
+
+        # get namespace and check for loops
+        namespace = d[KEY_REGURI]
+
+        if namespace in self._namespaces:
+            raise ValueError("Registry include loop at "+namespace)
+        self._namespaces.add(namespace)
+
+        # now parse includes depth-first
+        if KEY_REGINCLUDE in d:
+            for incuri in d[KEY_REGINCLUDE]:
+                self._parse_from_uri(incuri)
+
+        # finally, iterate over elements and add them to the table
+        for elem in d[KEY_ELEMENTS]:
+            name = elem[KEY_ELEMNAME]
+            prim = _prim[elem[KEY_ELEMPRIM]]
+            if KEY_ELEMDESC in elem:
+                desc = elem[KEY_ELEMDESC]
+            else:
+                desc = None
+            self._add_element(Element(name, prim, desc, namespace))
+
+    def _parse_from_uri(self, uri):
+        if uri == REGURI_DEFAULT:
+            with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
+                self._parse_json_bytestream(stream)
+        else:
+            with urllib.request.urlopen(uri) as stream:
+                self._parse_json_bytestream(stream)
+
+    def _dump_json(self):
+        d = collections.OrderedDict()
+        d[KEY_REGFMT] = REGFMT_FLAT
+        d[KEY_REGREV] = int(self._revision)
+        d[KEY_REGURI] = self._uri
+        d[KEY_ELEMENTS] = []
+        for elem in self._elements.values():
+            ed = collections.OrderedDict()
+            ed[KEY_ELEMNAME] = elem.name()
+            ed[KEY_ELEMPRIM] = elem.primitive_name()
+            desc = elem.desc()
+            if desc is not None:
+                ed[KEY_ELEMDESC] = desc
+            d[KEY_ELEMENTS].append(ed)
+
+        return json.dumps(d, indent=4)
+
+_registry = None
+
+def initialize_registry(uri=REGURI_DEFAULT):
+    """
+    Initializes the mPlane registry from a URI; if no URI is given,
+    initializes the registry from the internal core registry.
+    """
+    global _registry
+    _registry = Registry(uri)
+
+def element(name):
+    return _registry[name]
+
+#######################################################################
+# Old registry methods
+#######################################################################
+
 _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
 _desc_re = re.compile('^\s+([^#]+)')
 _comment_re = re.compile('^\s*\#')
 
-def parse_element(line):
-    m = _typedef_re.match(line)
-    if m:
-        return Element(m.group(1), _prim[m.group(2)])
-    else:
-        return None
-
-def _parse_elements(lines):
+def _old_parse_elements(lines):
     """
     Given an iterator over lines from a file or stream describing
     a set of Elements, returns a list of Elements. This file should 
@@ -1208,7 +1337,7 @@ def _parse_elements(lines):
         m = _typedef_re.match(line)
         if m:
             if len(elements) and len(desclines):
-                elements[-1].desc = " ".join(desclines)
+                elements[-1]._desc = " ".join(desclines)
                 desclines.clear()
             elements.append(Element(m.group(1), _prim[m.group(2)]))
         else:
@@ -1217,28 +1346,43 @@ def _parse_elements(lines):
                 desclines.append(m.group(1))
 
     if len(elements) and len(desclines):
-        elements[-1].desc = "".join(desclines)
+        elements[-1]._desc = "".join(desclines)
 
     return elements
 
-_element_registry = {}
+_old_element_registry = collections.OrderedDict()
 
-def initialize_registry(filename=None):
+def _old_parse_registry(filename=None):
     """
     Initializes the mPlane registry from a file; if no filename is given,
     initializes the registry from the internal set of Elements.
     """
-    _element_registry.clear()
+    _old_element_registry.clear()
 
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
 
     with open(filename, mode="r") as file:
-        for elem in _parse_elements(file):
-            _element_registry[elem._name] = elem
+        for elem in _old_parse_elements(file):
+            _old_element_registry[elem._name] = elem
 
-def element(name):
-    return _element_registry[name]
+def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
+    _old_parse_registry(in_filename)
+    
+    reg = Registry(uri=uri, parse=False)
+    reg._revision = 0
+
+    for elem in _old_element_registry.values():
+        reg._add_element(elem)
+
+    jstr = reg._dump_json()
+
+    if out_filename is not None:
+        with open(out_filename, "w") as jfile:
+            jfile.write(jstr)
+    else:
+        print(jstr)
+        
 
 #######################################################################
 # Constraints
@@ -1398,10 +1542,10 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        else isinstance(constraint, Constraint):
+        elif isinstance(constraint, Constraint):
             self._constraint = constraint
         else:
-            self._constraint = SetConstraint(vs=set([constraint]))
+            self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
 
         self.set_value(val)
 
@@ -1534,26 +1678,20 @@ class Statement(object):
     and :class:`mplane.model.Result` classes instead.
 
     """
-
-    # Member variables
-    _version = MPLANE_VERSION
-    _params = None
-    _metadata = None
-    _resultcolumns = None
-    _link = None
-    _export = None
-    _verb = None
-    _label = None
-    _when = None
-    _token = None
-    _schedule = None # completely ignored unless this is a specification
     
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__()
         # Make a blank statement
+        self._version = MPLANE_VERSION
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
+        self._verb = None
+        self._label = None
+        self._token = None
+        self._link = None
+        self._export = None
+        self._schedule = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -2032,6 +2170,19 @@ class Specification(Statement):
 
     def has_schedule(self):
         return self._schedule is not None
+
+    def subspec_iterator(self):
+        """
+        Iterate over subordinate specifications if this specification is repeated 
+        (i.e., has a Schedule); otherwise yields self once. Each subordinate 
+        specification has an absolute temporal scope derived from this specification's
+        relative temporal scope and schedule.
+        """
+
+        if not self.has_schedule:
+            yield self
+        else:
+            pass #FIXME write this
 
     def _from_dict(self, d):
         super()._from_dict(d)
