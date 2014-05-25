@@ -417,8 +417,8 @@ if __name__ == "__main__":
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
     
-    manually_test_tracebox()
-    """
+    #manually_test_tracebox()
+    
     scheduler = mplane.scheduler.Scheduler()
     if ip4addr is not None:
         scheduler.add_service(TraceboxService(tracebox4_standard_capability(ip4addr)))
@@ -429,4 +429,4 @@ if __name__ == "__main__":
         scheduler.add_service(TraceboxService(tracebox6_specific_capability(ip6addr)))
         scheduler.add_service(TraceboxService(tracebox6_specific_quotesize_capability(ip6addr)))    
     mplane.httpsrv.runloop(scheduler)
-    """
+    
