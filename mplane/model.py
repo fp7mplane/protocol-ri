@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
 # mPlane Protocol Reference Implementation
 # Information Model and Element Registry
 #
@@ -235,15 +237,17 @@ just the token may be sent back to the component to retrieve the
 results:
 
 >>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "token": "48d7393c75aec14043c3a5af4f461013"}'
+'{"redemption": "measure", "version": 0, "token": "48d7393c75aec14043c3a5af4f461013"}'
 
-.. note:: We should document and test interrupts and withdrawals, as well.
+.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
+ 
 
 """
 
 from ipaddress import ip_address
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
+import urllib.request
 import collections
 import functools
 import operator
@@ -254,7 +258,7 @@ import re
 import os
 
 #######################################################################
-# String constants
+# String constants for protocol framing
 #######################################################################
 
 ELEMENT_SEP = "."
@@ -263,6 +267,7 @@ RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
+ANCHOR_SEP = "#"
 
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
@@ -283,10 +288,13 @@ KEY_RESULTVALUES = "resultvalues"
 KEY_TOKEN = "token"
 KEY_MESSAGE = "message"
 KEY_LINK = "link"
+KEY_EXPORT = "export"
+KEY_VERSION = "version"
 KEY_WHEN = "when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
+KEY_CONTENTS = "contents"
 
 KEY_MONTHS = "months"
 KEY_DAYS = "days"
@@ -304,12 +312,37 @@ KIND_INDIRECTION = "indirection"
 KIND_WITHDRAWAL = "withdrawal"
 KIND_INTERRUPT = "interrupt"
 KIND_EXCEPTION = "exception"
+KIND_ENVELOPE = "envelope"
 
-PARAM_START = "start"
-PARAM_END = "end"
+ENVELOPE_MESSAGE = "message"
+ENVELOPE_STATEMENT = "statement"
+ENVELOPE_NOTIFICATION = "notification"
+
+KEY_REGFMT = "registry-format"
+KEY_REGREV = "registry-revision"
+KEY_REGURI = "registry-uri"
+KEY_REGINCLUDE = "include"
+KEY_ELEMENTS = "elements"
+KEY_ELEMNAME = "name"
+KEY_ELEMPRIM = "prim"
+KEY_ELEMDESC = "desc"
+REGURI_DEFAULT = "http://ict-mplane.eu/registry/core.json"
+REGFMT_FLAT = "mplane-0"
+
+#######################################################################
+# Protocol constants
+#######################################################################
+
+MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
+
+#######################################################################
+# Reference implementation constants
+#######################################################################
 
 # Hash length in __repr__ strings
 REPHL = 8
+
+EXCEPTION_NO_TOKEN = "00000000000000000000000000000000"
 
 #######################################################################
 # Universal parse and unparse functions for times and durations
@@ -403,7 +436,7 @@ class PastTime:
         return TIME_PAST
 
     def __repr__(self):
-        return "mplane.tscope.time_past"
+        return "mplane.model.time_past"
 
     def strftime(self, ign):
         return str(self)
@@ -420,7 +453,7 @@ class NowTime:
         return TIME_NOW
 
     def __repr__(self):
-        return "mplane.tscope.time_now"
+        return "mplane.model.time_now"
 
     def strftime(self, ign):
         return str(self)
@@ -437,7 +470,7 @@ class FutureTime:
         return TIME_FUTURE
 
     def __repr__(self):
-        return "mplane.tscope.time_future"
+        return "mplane.model.time_future"
 
     def strftime(self, ign):
         return str(self)
@@ -560,7 +593,12 @@ class When(object):
         """
         return self._a is not None and self._b is None and self._d is None
 
-    def _datetimes(self, tzero=None):
+    def datetimes(self, tzero=None):
+        """
+        Return start and end times as absolute timestamps 
+        for this temporal scope, relative to a given tzero.
+        """
+
         if tzero is None:
             tzero = datetime.utcnow()
 
@@ -571,7 +609,9 @@ class When(object):
         else:
             start = self._a
 
-        if self._b is time_future:
+        if self._b is time_now:
+            end = tzero
+        elif self._b is time_future:
             end = None
         elif self._b is None:
             if self._d is not None:
@@ -595,7 +635,7 @@ class When(object):
         elif self._b is time_future:
             return None
         else:
-            (start, end) = self._datetimes(tzero)
+            (start, end) = self.datetimes(tzero)
             return end - start
 
     def period(self):
@@ -627,7 +667,7 @@ class When(object):
             tzero = datetime.utcnow()
         
         # get datetimes
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         # determine start delay, account for late start
         sd = (start - tzero).total_seconds()
@@ -667,7 +707,7 @@ class When(object):
                 t = tzero
 
         # Get concrete time range
-        (start, end) = self._datetimes(tzero=tzero)
+        (start, end) = self.datetimes(tzero=tzero)
 
         if start and t < start:
             return (t - start).total_seconds()
@@ -688,7 +728,8 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-
+        if s.period() is not None and (self._p is None or self._p < s.period()):
+            return False
         if s.in_scope(self._a, tzero):
             return True
         if isinstance(self._b, datetime) and s.in_scope(self._b, tzero):
@@ -828,7 +869,7 @@ def test_tscope():
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
     assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
-    assert wdef._datetimes() == (parse_time("2009-02-20 13:00:00"), 
+    assert wdef.datetimes() == (parse_time("2009-02-20 13:00:00"), 
                                  parse_time("2009-02-20 15:00:00"))
     assert wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (3600, 10800)
 
@@ -839,7 +880,7 @@ def test_tscope():
     assert not wrel.is_definite() 
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
-    assert wrel._datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+    assert wrel.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
            (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
     assert wrel.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
     assert wrel.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
@@ -849,7 +890,7 @@ def test_tscope():
     assert when_infinite.period() is None
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
-    assert (when_infinite._datetimes()) == (None, None)
+    assert (when_infinite.datetimes()) == (None, None)
 
 
 #######################################################################
@@ -935,7 +976,8 @@ class NaturalPrimitive(Primitive):
         if sval is None or sval == VALUE_NONE:
             return None
         else:
-            return int(sval)
+            # also converts values like 100.0 or 10E2
+            return int(float(sval))
 
 class RealPrimitive(Primitive):
     """
@@ -982,6 +1024,13 @@ class BooleanPrimitive(Primitive):
             return True
         elif sval == 'False':
             return False
+
+        # also converts 1 and 0
+        elif sval == '1':
+            return True
+        elif sval == '0':
+            return False
+
         else:
             raise ValueError("Invalid boolean value "+sval)
 
@@ -1083,7 +1132,7 @@ def test_primitives():
     assert prim_time.unparse(time_future) == "future"
 
 #######################################################################
-# Element classes
+# Elements and registries
 #######################################################################
 
 class Element(object):
@@ -1100,17 +1149,34 @@ class Element(object):
     elements; use initialize_registry() to use these.
 
     """
-    def __init__(self, name, prim, desc=None):
+    def __init__(self, name, prim, desc=None, namespace=REGURI_DEFAULT):
         super().__init__()
         self._name = name
         self._prim = prim
-        self.desc = desc
+        self._desc = desc
+        self._qualname = namespace + ANCHOR_SEP + name
 
     def __str__(self):
         return self._name
 
     def __repr__(self):
-        return "<Element "+str(self)+" "+repr(self._prim)+" >"
+        return "<Element "+self.qualified_name()+" "+repr(self._prim)+" >"
+
+    def name(self):
+        """Return the name of this Element"""
+        return self._name
+
+    def desc(self):
+        """Return the description of this Element"""
+        return self._desc
+
+    def qualified_name(self):
+        """Return the name of this Element along with its namespace"""
+        return self._qualname
+
+    def primitive_name(self):
+        """Return the name of this Element's primitive"""
+        return self._prim.name
 
     def parse(self, sval):
         """
@@ -1145,18 +1211,116 @@ class Element(object):
         """
         return lambda x: x
 
+class Registry(object):
+    """
+    A Registry is a collection of named Elements associated with a
+    namespace URI, from which it is retrieved.
+
+    """
+
+    def __init__(self, uri=REGURI_DEFAULT, parse=True):
+        super().__init__()
+        self._revision = None
+        self._elements = collections.OrderedDict()
+        self._namespaces = set()
+
+        # stash URI and parse the registry
+        self._uri = uri
+        if parse:
+            self._parse_from_uri(self._uri)
+
+    def __len__(self):
+        return len(self._elements)
+
+    def __getitem__(self, name):
+        return self._elements[name]
+
+    def _add_element(self, elem):
+        self._elements[elem.name()] = elem
+
+    def _parse_json_bytestream(self, stream):
+        # Turn the stream into a dict
+        s = stream.read()
+        if isinstance(s, bytes):
+            s = s.decode("utf-8")
+        d = json.loads(s)
+
+        # check format
+        if d[KEY_REGFMT] != REGFMT_FLAT:
+            raise ValueError("Unsupported registry format "+str(d[KEY_REGFMT]))
+
+        # stash revision
+        self._revision = int(d[KEY_REGREV])
+
+        # get namespace and check for loops
+        namespace = d[KEY_REGURI]
+
+        if namespace in self._namespaces:
+            raise ValueError("Registry include loop at "+namespace)
+        self._namespaces.add(namespace)
+
+        # now parse includes depth-first
+        if KEY_REGINCLUDE in d:
+            for incuri in d[KEY_REGINCLUDE]:
+                self._parse_from_uri(incuri)
+
+        # finally, iterate over elements and add them to the table
+        for elem in d[KEY_ELEMENTS]:
+            name = elem[KEY_ELEMNAME]
+            prim = _prim[elem[KEY_ELEMPRIM]]
+            if KEY_ELEMDESC in elem:
+                desc = elem[KEY_ELEMDESC]
+            else:
+                desc = None
+            self._add_element(Element(name, prim, desc, namespace))
+
+    def _parse_from_uri(self, uri):
+        if uri == REGURI_DEFAULT:
+            with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
+                self._parse_json_bytestream(stream)
+        else:
+            with urllib.request.urlopen(uri) as stream:
+                self._parse_json_bytestream(stream)
+
+    def _dump_json(self):
+        d = collections.OrderedDict()
+        d[KEY_REGFMT] = REGFMT_FLAT
+        d[KEY_REGREV] = int(self._revision)
+        d[KEY_REGURI] = self._uri
+        d[KEY_ELEMENTS] = []
+        for elem in self._elements.values():
+            ed = collections.OrderedDict()
+            ed[KEY_ELEMNAME] = elem.name()
+            ed[KEY_ELEMPRIM] = elem.primitive_name()
+            desc = elem.desc()
+            if desc is not None:
+                ed[KEY_ELEMDESC] = desc
+            d[KEY_ELEMENTS].append(ed)
+
+        return json.dumps(d, indent=4)
+
+_registry = None
+
+def initialize_registry(uri=REGURI_DEFAULT):
+    """
+    Initializes the mPlane registry from a URI; if no URI is given,
+    initializes the registry from the internal core registry.
+    """
+    global _registry
+    _registry = Registry(uri)
+
+def element(name):
+    return _registry[name]
+
+#######################################################################
+# Old registry methods
+#######################################################################
+
 _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
 _desc_re = re.compile('^\s+([^#]+)')
 _comment_re = re.compile('^\s*\#')
 
-def parse_element(line):
-    m = _typedef_re.match(line)
-    if m:
-        return Element(m.group(1), _prim[m.group(2)])
-    else:
-        return None
-
-def _parse_elements(lines):
+def _old_parse_elements(lines):
     """
     Given an iterator over lines from a file or stream describing
     a set of Elements, returns a list of Elements. This file should 
@@ -1173,7 +1337,7 @@ def _parse_elements(lines):
         m = _typedef_re.match(line)
         if m:
             if len(elements) and len(desclines):
-                elements[-1].desc = " ".join(desclines)
+                elements[-1]._desc = " ".join(desclines)
                 desclines.clear()
             elements.append(Element(m.group(1), _prim[m.group(2)]))
         else:
@@ -1182,28 +1346,43 @@ def _parse_elements(lines):
                 desclines.append(m.group(1))
 
     if len(elements) and len(desclines):
-        elements[-1].desc = "".join(desclines)
+        elements[-1]._desc = "".join(desclines)
 
     return elements
 
-_element_registry = {}
+_old_element_registry = collections.OrderedDict()
 
-def initialize_registry(filename=None):
+def _old_parse_registry(filename=None):
     """
     Initializes the mPlane registry from a file; if no filename is given,
     initializes the registry from the internal set of Elements.
     """
-    _element_registry.clear()
+    _old_element_registry.clear()
 
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
 
     with open(filename, mode="r") as file:
-        for elem in _parse_elements(file):
-            _element_registry[elem._name] = elem
+        for elem in _old_parse_elements(file):
+            _old_element_registry[elem._name] = elem
 
-def element(name):
-    return _element_registry[name]
+def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
+    _old_parse_registry(in_filename)
+    
+    reg = Registry(uri=uri, parse=False)
+    reg._revision = 0
+
+    for elem in _old_element_registry.values():
+        reg._add_element(elem)
+
+    jstr = reg._dump_json()
+
+    if out_filename is not None:
+        with open(out_filename, "w") as jfile:
+            jfile.write(jstr)
+    else:
+        print(jstr)
+        
 
 #######################################################################
 # Constraints
@@ -1363,8 +1542,10 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        else:
+        elif isinstance(constraint, Constraint):
             self._constraint = constraint
+        else:
+            self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
 
         self.set_value(val)
 
@@ -1497,25 +1678,20 @@ class Statement(object):
     and :class:`mplane.model.Result` classes instead.
 
     """
-
-    # Member variables
-    _params = None
-    _metadata = None
-    _resultcolumns = None
-    _link = None
-    _verb = None
-    _label = None
-    _when = None
-    _token = None
-    _schedule = None # completely ignored unless this is a specification
     
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__()
         # Make a blank statement
+        self._version = MPLANE_VERSION
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
+        self._verb = None
+        self._label = None
+        self._token = None
         self._link = None
+        self._export = None
+        self._schedule = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -1552,6 +1728,13 @@ class Statement(object):
     def validate(self):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
+    def verb(self):
+        """Get this statement's verb"""
+        return self._verb
+
+    def is_query(self):
+        return self._verb == VERB_QUERY
+
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
         self._params[elem_name] = Parameter(element(elem_name), 
@@ -1565,6 +1748,18 @@ class Statement(object):
     def parameter_names(self):
         """Iterate over the names of parameters in this Statement"""
         yield from self._params.keys()
+
+    def parameter_values(self):
+        """
+        Returns a dict mapping parameter names to values 
+        for each parameter with a value.
+        """
+        d = {}
+        for k in parameter_names:
+            v = self.get_parameter_value(k)
+            if v:
+                d[k] = v
+        return d
 
     def count_parameters(self):
         """Return the number of parameters in this Statement"""
@@ -1621,14 +1816,25 @@ class Statement(object):
 
     def get_link(self):
         """
-        Get the statement's link, which specifies where the next message 
+        Get the statement's link URL, which specifies where the next message 
         in the workflow should be sent to or retrieved from.
         """
         return self._link
 
     def set_link(self, link):
-        """Set the statement's link"""
+        """Set the statement's link URL"""
         self._link = link
+
+    def get_export(self):
+        """
+        Get the statement's export URL, which specifies where 
+        results will be indirectly exported.
+        """
+        return self._export
+
+    def set_export(self, export):
+        """Set the statement's export URL"""
+        self._export = export
 
     def get_label(self):
         """Return the statement's label"""
@@ -1746,16 +1952,24 @@ class Statement(object):
         d = collections.OrderedDict()
         d[self.kind_str()] = self._verb
 
+        d[KEY_VERSION] = self._version
+
         if self._label is not None:
             d[KEY_LABEL] = self._label
 
         if self._link is not None:
-          d[KEY_LINK] = self._link
+            d[KEY_LINK] = self._link
+
+        if self._export is not None:
+            d[KEY_EXPORT] = self._export
 
         if self._token is not None:
-          d[KEY_TOKEN] = self._token
+            d[KEY_TOKEN] = self._token
 
         d[KEY_WHEN] = str(self._when)
+
+        if self._schedule is not None:
+            d[KEY_SCHEDULE] = self._schedule.to_dict()
 
         if self.count_parameters() > 0:
             d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
@@ -1792,11 +2006,18 @@ class Statement(object):
         """
         self._verb = d[self.kind_str()]
 
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
         if KEY_LABEL in d:
             self._label = d[KEY_LABEL]
 
         if KEY_LINK in d:
           self._link = d[KEY_LINK]
+
+        if KEY_EXPORT in d:
+          self._link = d[KEY_EXPORT]
 
         if KEY_TOKEN in d:
           self._token = d[KEY_TOKEN]
@@ -1950,14 +2171,6 @@ class Specification(Statement):
     def has_schedule(self):
         return self._schedule is not None
 
-    def to_dict(self):
-        d = super().to_dict()
-
-        if self._schedule is not None:
-            d[KEY_SCHEDULE] = self._schedule.to_dict()
-
-        return d
-
     def _from_dict(self, d):
         super()._from_dict(d)
 
@@ -2021,6 +2234,19 @@ class Result(Statement):
     def set_result_value(self, elem_name, val, row_index=0):
         self._resultcolumns[elem_name][row_index] = val
 
+    def schema_dict_iterator(self):
+        """
+        Iterate over each row in this result, yielding a dictionary 
+        mapping all parameter and result column names to their values.
+
+        """
+        for i in range(self.count_result_rows()):
+            d = self.parameter_values()
+            for k in self.result_column_names():
+                d[k] = self._resultcolumns[k][i]
+            yield d
+
+
 #######################################################################
 # Notifications
 #######################################################################
@@ -2042,8 +2268,8 @@ class BareNotification(object):
         super().__init__()
         if dictval is not None:
             self._from_dict(dictval)
-
-        self._token = token
+        else: 
+            self._token = token
 
 class Exception(BareNotification):
     """
@@ -2052,11 +2278,12 @@ class Exception(BareNotification):
     or non-nominal condition 
 
     """
-    def __init__(self, dictval=None, token=None, errmsg=None):
+    def __init__(self, dictval=None, token=EXCEPTION_NO_TOKEN, errmsg=None):
         super().__init__(dictval=dictval, token=token)
-        if errmsg is None and dictval is None:
-            errmsg = "Unspecified exception"
-        self._errmsg = errmsg
+        if dictval is None:
+            if errmsg is None:
+                errmsg = "Unspecified exception"
+            self._errmsg = errmsg
 
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
@@ -2165,6 +2392,62 @@ class Interrupt(StatementNotification):
     def validate(self):
         Specification.validate(self)
 
+#######################################################################
+# Envelope
+#######################################################################
+
+class Envelope(object):
+    """
+    Envelopes are used to contain other Messages.
+
+    """
+    _version = MPLANE_VERSION
+    _content_type = None
+    _messages = None
+
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+        super().__init__()
+        if dictval is not None:
+            self._from_dict(dictval)
+        else:
+          self._content_type = content_type
+          self._messages = []
+
+    def __repr__(self):
+        return "<Envelope "+self._content_type+\
+                " ("+str(len(self._messages))+"): "+\
+                " ".join(map(repr, self._messages))+">"
+
+    def append_message(self, msg):
+        self._messages.append(msg)
+
+    def messages(self):
+        return iter(self._messages)
+
+    def kind_str(self):
+        return KIND_ENVELOPE
+
+    def to_dict(self):
+        d = {}
+        d[self.kind_str()] = self._content_type
+        d[KEY_VERSION] = self._version
+        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
+        return d
+
+    def _from_dict(self, d):
+        self._content_type = d[self.kind_str()]
+
+        if KEY_VERSION in d:
+            if int(d[KEY_VERSION]) > MPLANE_VERSION:
+                raise ValueError("Version mismatch")
+
+        for md in self[KEY_CONTENTS]:
+          self.append_message(message_from_dict(md))
+
+#######################################################################
+# Utility methods
+#######################################################################
+
 def message_from_dict(d):
     """
     Given a dictionary returned from to_dict(), return a decoded
@@ -2178,7 +2461,8 @@ def message_from_dict(d):
                  KIND_REDEMPTION : Redemption,
                  KIND_WITHDRAWAL : Withdrawal,
                  KIND_INTERRUPT : Interrupt,
-                 KIND_EXCEPTION : Exception}
+                 KIND_EXCEPTION : Exception,
+                 KIND_ENVELOPE : Envelope}
 
     for k in classmap.keys():
         if k in d:

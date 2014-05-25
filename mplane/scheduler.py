@@ -1,4 +1,7 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
+#
 # mPlane Protocol Reference Implementation
 # Component and Client Job Scheduling
 #
@@ -28,6 +31,7 @@ results within the mPlane reference component.
 from datetime import datetime, timedelta
 import threading
 import mplane.model
+import mplane.sec
 
 class Service(object):
     """
@@ -76,38 +80,49 @@ class Job(object):
     instance of a Service presently running, or ready to run at some 
     point in the future.
 
-    Each Job will result in a single Result; Specifications with a
-    schedule: section are represented by MultiJob.
-
+    Each Job will result in a single Result.
     """
+    result = None
+    exception = None
+    _thread = None
+    _started_at = None
+    _ended_at = None
+    _exception_at = None
+    _replied_at = None
+    service = None
+    session = None
+    specification = None
+    receipt = None
+    _interrupt = None
+
     def __init__(self, service, specification, session=None):
         super(Job, self).__init__()
         self.service = service
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self.result = None
-        self._thread = None
-        self._started_at = None
-        self._ended_at = None
-        self._replied_at = None
         self._interrupt = threading.Event()
+
+    def __repr__(self):
+        return "<Job for "+repr(self.specification)+">"
 
     def _run(self):
         self._started_at = datetime.utcnow()
-        self.result = self.service.run(self.specification, 
-                                       self._check_interrupt)
+        try:
+            self.result = self.service.run(self.specification, 
+                                           self._check_interrupt)
+        except Exception as e:
+            self.exception = mplane.model.Exception(
+                            token=self.specification.get_token(), 
+                            errmsg=str(e))
+            print("Got exception in _run(), returning "+str(self.exception))
+            self._exception_at = datetime.utcnow()
         self._ended_at = datetime.utcnow()
 
     def _check_interrupt(self):
         return self._interrupt.is_set()
 
     def _schedule_now(self):
-        """
-        Schedule this job to run immediately. 
-        Used internally by schedule().
-
-        """
         # spawn a thread to run the service
         threading.Thread(target=self._run).start()
         
@@ -115,10 +130,12 @@ class Job(object):
         """
         Schedule this job to run.
         """
-        # Get delay to start and end timers
-        (start_delay, end_delay) = self.specification.when().timer_delays()
+        # Always schedule queries immediately without interrupt
+        if self.specification.is_query():
+            (start_delay, end_delay) = (0, None)
+        else:
+            (start_delay, end_delay) = self.specification.when().timer_delays()
 
-        # Short-circuit on expired temporal scope
         if start_delay is None:
             return
 
@@ -130,7 +147,7 @@ class Job(object):
         # start start timer
         if start_delay > 0:            
             print("Scheduling "+repr(self)+" after "+str(start_delay)+" sec")
-            threading.timer(start_delay, self._schedule_now).start()
+            threading.Timer(start_delay, self._schedule_now).start()
         else:
             print("Scheduling "+repr(self)+" immediately")
             self._schedule_now()
@@ -138,6 +155,9 @@ class Job(object):
     def interrupt(self):
         """Interrupt this job."""
         self._interrupt.set()
+
+    def failed(self):
+        return self.exception is not None
 
     def finished(self):
         """Return True if the job is complete."""
@@ -151,24 +171,12 @@ class Job(object):
 
         """
         self._replied_at = datetime.utcnow()
-        if self.finished():
+        if self.failed():
+            return self.exception
+        elif self.finished():
             return self.result
         else:
             return self.receipt
-
-    def __repr__(self):
-        return "<Job for "+repr(self.specification)+">"
-
-class MultiJob(Job):
-    """
-    Represents a job that runs on a schedule and produces multiple Results.
-    Implementation pending. Currently, submitting a MultiJob will cause
-    the scheduled job to run once according to its inner temporal scope.
-
-    """
-    def __init__(self, service, specification, session=None):
-        super(MultiJob, self).__init(self, service, specification, session)
-
 
 class Scheduler(object):
     """
@@ -178,13 +186,14 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self):
+    def __init__(self, security):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
+        self.ac = mplane.sec.Authorization(security)
 
-    def receive_message(self, msg, session=None):
+    def receive_message(self, user, msg, session=None):
         """
         Receive and process a message. 
         Returns a message to send in reply.
@@ -192,7 +201,7 @@ class Scheduler(object):
         """
         reply = None
         if isinstance(msg, mplane.model.Specification):
-            reply = self.submit_job(specification=msg, session=session)
+            reply = self.submit_job(user, specification=msg, session=session)
         elif isinstance (msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
@@ -226,7 +235,7 @@ class Scheduler(object):
         """
         return self._capability_cache[key]
 
-    def submit_job(self, specification, session=None):
+    def submit_job(self, user, specification, session=None):
         """
         Search the available Services for one which can 
         service the given Specification, then create and schedule 
@@ -236,29 +245,35 @@ class Scheduler(object):
         # linearly search the available services
         for service in self.services:
             if specification.fulfills(service.capability()):
-                # Found. Create a new job.
-                print(repr(service)+" matches "+repr(specification))
-                if (specification.has_schedule()):
-                    new_job = MultiJob(service=service,
-                                       specification=specification,
-                                       session=session)
-                else:
-                    new_job = Job(service=service,
-                                  specification=specification,
-                                  session=session)
+                if self.ac.check_azn(service.capability()._label, user):
+		            # Found. Create a new job.
+                    print(repr(service)+" matches "+repr(specification))
+                    if (specification.has_schedule()):
+                        new_job = MultiJob(service=service,
+		                                   specification=specification,
+		                                   session=session)
+                    else:
+                        new_job = Job(service=service,
+		                              specification=specification,
+		                              session=session)
 
-                # Key by the receipt's token, and return
-                job_key = new_job.receipt.get_token()
-                if job_key in self.jobs:
-                    # Job already running. Return receipt
-                    print(repr(self.jobs[job_key])+" already running")
-                    return self.jobs[job_key].receipt
+                    # Key by the receipt's token, and return
+                    job_key = new_job.receipt.get_token()
+                    if job_key in self.jobs:
+                        # Job already running. Return receipt
+                        print(repr(self.jobs[job_key])+" already running")
+                        return self.jobs[job_key].receipt
 
-                # Keep track of the job and return receipt
-                new_job.schedule()
-                self.jobs[job_key] = new_job
-                print("Returning "+repr(new_job.receipt))
-                return new_job.receipt
+                    # Keep track of the job and return receipt
+                    new_job.schedule()
+                    self.jobs[job_key] = new_job
+                    print("Returning "+repr(new_job.receipt))
+                    return new_job.receipt
+                    
+                # user not authorized to request the capability
+                print("Not allowed to request this capability: " + repr(specification))
+                return mplane.model.Exception(token=specification.get_token(),
+                            errmsg="User has no permission to request this capability")
 
         # fall-through, no job
         print("No service for "+repr(specification))

@@ -1,4 +1,6 @@
 #
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+##
 # mPlane Protocol Reference Implementation
 # Simple mPlane client and CLI (JSON over HTTP)
 #
@@ -20,12 +22,16 @@
 #
 
 import mplane.model
+import mplane.utils
 import sys
 import cmd
 import readline
-import urllib.request
 import html.parser
-import urllib.parse
+import urllib3
+from urllib3 import HTTPSConnectionPool
+from urllib3 import HTTPConnectionPool
+import os.path
+import argparse
 
 from datetime import datetime, timedelta
 
@@ -62,17 +68,29 @@ class HttpClient(object):
     Caches retrieved Capabilities, Receipts, and Results.
 
     """
-    def __init__(self, posturl, capurl=None):
+    def __init__(self, security, posturl, capurl=None, certfile=None):
         # store urls
         self._posturl = posturl
         if capurl is not None:
-            self._capurl = capurl
-        else:
-            self._capurl = self._posturl
-            if self._capurl[-1] != "/":
-                self._capurl += "/"
-            self._capurl += CAPABILITY_PATH_ELEM
-        print(self._capurl)
+            if capurl[0] != "/": 
+                self._capurl = "/" + capurl 
+            else: 
+                self._capurl = capurl 
+        else: 
+            self._capurl = "/" + CAPABILITY_PATH_ELEM 
+        url = urllib3.util.parse_url(posturl) 
+
+        if security == True: 
+            cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
+            key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
+            ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
+            mplane.utils.check_file(cert)
+            mplane.utils.check_file(key)
+            mplane.utils.check_file(ca)
+            self.pool = HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
+        else: 
+            self.pool = HTTPConnectionPool(url.host, url.port) 
+
         print("new client: "+self._posturl+" "+self._capurl)
 
         # empty capability and measurement lists
@@ -90,25 +108,22 @@ class HttpClient(object):
 
         """
         if postmsg is not None:
+            print(postmsg)
             if url is None:
-                url = self._posturl
-            req = urllib.request.Request(url, 
-                    data=mplane.model.unparse_json(postmsg).encode("utf-8"),
-                    headers={"Content-Type": "application/x-mplane+json"}, 
-                    method="POST")
+                url = "/"
+            res = self.pool.urlopen('POST', url, 
+                    body=mplane.model.unparse_json(postmsg).encode("utf-8"), 
+                    headers={"content-type": "application/x-mplane+json"})
         else:
-            req = urllib.request.Request(url)
-
-        with urllib.request.urlopen(req) as res:
-            print("get_mplane_reply "+url+" "+str(res.status)+
-                  " Content-Type "+res.getheader("Content-Type"))
-            if res.status == 200 and \
-               res.getheader("Content-Type") == "application/x-mplane+json":
-                print("parsing json")
-                return mplane.model.parse_json(res.read().decode("utf-8"))
-            else:
-                print("giving up")
-                return None
+            res = self.pool.request('GET', url)
+        print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("content-type"))
+        if res.status == 200 and \
+           res.getheader("content-type") == "application/x-mplane+json":
+            print("parsing json")
+            return mplane.model.parse_json(res.data.decode("utf-8"))
+        else:
+            print("giving up")
+            return None
 
     def handle_message(self, msg):
         """
@@ -159,17 +174,16 @@ class HttpClient(object):
             listurl = self._capurl
             self.clear_capabilities()
 
-        print("getting capabilities from "+listurl)
-        with urllib.request.urlopen(listurl) as res:
-            if res.status == 200:
-                parser = CrawlParser(strict=False)
-                parser.feed(res.read().decode("utf-8"))
-                parser.close()
-                for capurl in parser.urls:
-                    self.handle_message(
-                        self.get_mplane_reply(url=urllib.parse.urljoin(listurl, capurl)))
-            else:
-                print(listurl+": "+str(res.status))
+        print("getting capabilities from "+self._capurl)
+        res = self.pool.request('GET', self._capurl)
+        if res.status == 200:
+            parser = CrawlParser(strict=False)
+            parser.feed(res.data.decode("utf-8"))
+            parser.close()
+            for capurl in parser.urls:
+                self.handle_message(self.get_mplane_reply(url=capurl))
+        else:
+            print(listurl+": "+str(res.status))
        
     def receipts(self):
         """Iterate over receipts (pending measurements)"""
@@ -201,7 +215,7 @@ class HttpClient(object):
 
     def add_result(self, msg):
         """Add a receipt. Check for duplicates."""
-        if msg.get_token() not in [result.get_token() for results in self.results()]:
+        if msg.get_token() not in [result.get_token() for result in self.results()]:
             self._results.append(msg)
             self._delete_receipt_for(msg.get_token())
 
@@ -221,25 +235,49 @@ class HttpClient(object):
     def _handle_exception(self, exc):
         print(repr(exc))
 
+
+class SshClient(object):
+    """ Skeleton for SSH Client"""
+    
+    def __init__(self, security, posturl, capurl=None):
+        pass
+
 class ClientShell(cmd.Cmd):
 
     intro = 'Welcome to the mplane client shell.   Type help or ? to list commands.\n'
     prompt = '|mplane| '
 
     def preloop(self):
+        global args
+        parse_args()
+        mplane.utils.check_file(args.certfile)
+        self._certfile = args.certfile
         self._client = None
         self._defaults = {}
         self._when = None
 
     def do_connect(self, arg):
-        """Connect to a probe or supervisor via HTTP and retrieve capabilities"""
+        """Connect to a probe or supervisor and retrieve capabilities"""
         args = arg.split()
         if len(args) >= 2:
-            self._client = HttpClient(posturl=args[0], capurl=args[1])
+            capurl = args[1]     
         elif len(args) >= 1:
-            self._client = HttpClient(posturl=args[0])
+            capurl = None
         else:
             print("Cannot connect without a url")
+
+        proto = args[0].split('://')[0]
+        if proto == 'http':
+            self._client = HttpClient(False, args[0], capurl)
+        elif proto == 'https':
+            if self._certfile is not None:
+                self._client = HttpClient(True, args[0], capurl, self._certfile)
+            else:
+                raise SyntaxError("For https, need to specify the --certfile parameter when launching the client")
+        elif proto == 'ssh':
+            self._client = SshClient(True, args[0], capurl)
+        else:
+            raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https(, ssh)")
 
         self._client.retrieve_capabilities()
 
@@ -299,7 +337,13 @@ class ClientShell(cmd.Cmd):
 #            print ("No such capability "+arg)
 #            return
 
-        # Set temporal scope
+        # Set temporal scope or prompt for new one
+        while self._when is None or \
+              not self._when.follows(cap.when()) or \
+              (self._when.period is None and cap.when().period() is not None):
+            sys.stdout.write("|when| = ")
+            self._when = mplane.model.When(input())
+
         spec.set_when(self._when)
 
         # Fill in single values
@@ -380,7 +424,14 @@ class ClientShell(cmd.Cmd):
         """Exit the shell by typing ^D"""
         print("Ciao!")
         return True
-
+        
+def parse_args():
+    global args
+    parser = argparse.ArgumentParser(description="Run an mPlane client")
+    parser.add_argument('--certfile', metavar="cert-file-location",
+                        help="Location of the configuration file for certificates")
+    args = parser.parse_args()
+    
 if __name__ == "__main__":
     mplane.model.initialize_registry()
     ClientShell().cmdloop()
