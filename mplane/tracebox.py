@@ -394,6 +394,10 @@ def parse_args():
                         help="Launch Tracebox from the given IPv4 address")
     parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
                         help="Launch Tracebox from the given IPv6 address")
+    parser.add_argument('--sec', metavar="security-on-off",
+                        help="Toggle security on/off. Values: 0=on,1=off")
+    parser.add_argument('--certfile', metavar="cert-file-location",
+                        help="Location of the configuration file for certificates")
     args = parser.parse_args()
 
 # For right now, start a Tornado-based tracebox server
@@ -416,10 +420,24 @@ if __name__ == "__main__":
             raise ValueError("invalid IPv6 address")
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
+
+    if args.sec is None:
+        raise ValueError("need --sec parameter (0=True,1=False)")
+    else:
+        if args.sec == '0':
+            if args.certfile is None:
+                raise ValueError("if --sec=0, need to specify cert file")
+            else:
+                security = True
+                mplane.utils.check_file(args.certfile)
+                certfile = args.certfile
+        else:
+            security = False
+            certfile = None
     
     #manually_test_tracebox()
     
-    scheduler = mplane.scheduler.Scheduler()
+    scheduler = mplane.scheduler.Scheduler(security)
     if ip4addr is not None:
         scheduler.add_service(TraceboxService(tracebox4_standard_capability(ip4addr)))
         scheduler.add_service(TraceboxService(tracebox4_specific_capability(ip4addr)))
@@ -428,5 +446,5 @@ if __name__ == "__main__":
         scheduler.add_service(TraceboxService(tracebox6_standard_capability(ip6addr)))
         scheduler.add_service(TraceboxService(tracebox6_specific_capability(ip6addr)))
         scheduler.add_service(TraceboxService(tracebox6_specific_quotesize_capability(ip6addr)))    
-    mplane.httpsrv.runloop(scheduler)
+    mplane.httpsrv.runloop(scheduler, security, certfile)
     

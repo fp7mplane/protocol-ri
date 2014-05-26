@@ -454,6 +454,42 @@
     {
       "name": "period.ns",
       "prim": "natural"
+    },
+    {
+      "name": "tracebox.udp",
+      "prim": "boolean",
+      "desc": "Uses UDP probes"
+    },
+    {
+      "name": "tracebox.dport",
+      "prim": "natural",
+      "desc": "specifies the destination port for the packets being sent."
+    },
+    {
+      "name": "tracebox.probe",
+      "prim": "string",
+      "desc": "specifies the destination port for the packets being sent."
+    },
+    {
+      "name": "tracebox.hop.modifications",
+      "prim": "string",
+      "desc": "modifications as observed by Tracebox"
+    },
+    {
+      "name": "tracebox.hop.ip4",
+      "prim": "address",
+      "desc": "hop v4 address which did answer to a Tracebox probe"
+    },
+    {
+      "name": "tracebox.hop.ip6",
+      "prim": "address",
+      "desc": "hop v6 address which did answer to a Tracebox probe"
+    },
+    {
+      "name": "tracebox.hop.icmp.payload.len",
+      "prim": "string",
+      "desc": "hop icmp TTL-expired packet quoting length"
     }
+
   ]
 }
