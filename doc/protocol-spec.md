@@ -367,6 +367,18 @@ The `metadata` section contains message __metadata__: key-value pairs associated
 
 ### Export
 
+The `export` section contains a URL or partial URL for __indirect export__. Its meaning depends on the kind and verb of the message.
+
+For capabilities with the `collect` verb, the `export` section contains the URL of the collector which can accept indirect export for the schema defined by the `parameters` and `results` sections of the capability, using the protocol identified by the URL's schema. If the URL schema is `mplane-http`, result messages matching the capability can be directly sent to the collector at the given URL via HTTP `POST`. Otherwise, the binding between elements in the capability's registry and representations of these elements in the export protocol is protocol-specific.
+
+For capabilities with any verb other than `collect`, the `export` section contains either the URL of a collector to which the component can indirectly export results, or a URL schema identifying a protocol over which the component can export to arbitrary collectors.
+
+For specifications with any verb other than `collect`, the `export` section contains the URL of a collector to which the component should indirectly export results. A receipt will be returned for such specifiations.
+
+Capabilities with an `export` section can only be used by specifications with a matching `export` section. If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability.
+
+*[**Editor's Note**: This text implies that the export section of a statement is part of the statement's unique hash; this is not the case in the implementation. Fix this.]*
+
 ### Link
 
 ### Label
@@ -376,6 +388,8 @@ The `metadata` section contains message __metadata__: key-value pairs associated
 ### Version
 
 ### Registry
+
+## Measurement Uniqueness
 
 # Session Protocols
 
