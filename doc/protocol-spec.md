@@ -402,6 +402,8 @@ An indirection message can be returned for a specification by a component, direc
 
 ### Token
 
+*[**Editor's Note:** the reference implementation does not yet handle tokens as described here. Fix this.]*
+
 The `token` section contains an arbitrary string by which a message may be identified in subsequent communications in an abbreviated fashion. Unlike labels, tokens are not necessarily intended to be human-readable; instead, they provide a way to reduce redundancy on the wire by replacing the parameters, metadata, and results sections in messages within a workflow, at the expense of requiring more state at clients and components. Their use is optional. 
 
 Tokens are scoped to the association between the component and client in which they are first created.
@@ -412,15 +414,31 @@ If a specification contains a token, it must be retained by the component, and a
 
 If a receipt contains a token, it may be redeemed by the same client using a redemption containing the token instead of the parameters, metadata, and results sections.
 
-*[**Editor's Note:** the reference implementation does not yet handle tokens this way. Fix this.]*
-
 ### Contents
 
 The `contents` section appears only in envelopes, and is an ordered list of messages. If the envelope's kind identifies a message kind, the contents may contain only messages of the specified kind, otherwise if the kind is `message`, the contents may contain a mix of any kind of message.
 
-## Schema Identification and Message Idempotence
+## Message Uniqueness and Idempotence
 
-# Session Protocols
+*[**Editor's Note:** Verify that this is what the RI does, and fix the RI to comply.]*
+
+Messages in the mPlane protocol are intended to support state distribution: capabilities, specifications, and results are meant to be complete declarations of the state of a given measurement. In order for this to hold, it must be possible for messages to be uniquely identifiable, such that duplicate messages can be recognized. With one important exception, messages are _idempotent_: the receipt of a duplicate message at a client or component is a null operation.
+
+### Message Schema
+
+The combination of elements in the `parameters` and `results` sections, together with the registry from which these elements are drawn, is referred to as a message's __schema__. The schema of a measurement can be loosely thought of as the definition of the table that the message defines.
+
+### Message Identity
+
+A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata` `results`, and `export` sections taken together comprise the message's identity. 
+
+One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component can be taken as part of the message's identity as well.
+
+Implementations may use hashes over the values of the message's identity sections to uniquely identify messages.
+
+# Representations and Session Protocols
+
+The mPlane protocol is designed to support multiple representations and session protocols. 
 
 ## JSON representation
 
