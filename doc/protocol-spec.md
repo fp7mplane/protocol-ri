@@ -103,7 +103,7 @@ An element registry makes up the vocabulary by which mPlane components and clien
 
 - __registry-format__: currently `mplane-0`, determines the revision and supported features of the registry format.
 - __registry-uri__: the URI identifying the registry. The URI must be dereferenceable to retrieve the canonical version of this registry
-- __registry-revision__: a serial number starting with 0 and incremented with each revision, 
+- __registry-revision__: a serial number starting with 0 and incremented with each revision to the content of the registry, 
 - __includes__: a list of URLs to retrieve additional registries from. Included registries will be evaluated in depth-first order, and elements with identical names will be replaced by registries parsed later.
 - __elements__: a list of objects, each of which has the following three keys:
     - __name__: The name of the element
@@ -161,7 +161,7 @@ The mPlane protocol supports the following primitive types for elements in the t
 - __real__: a real (floating-point) number
 - __bool__: a true or false (boolean) value
 - __time__: a timestamp, expressed in terms of UTC. The precision of the timestamp is taken to be unambiguous based on its representation.
-- __address__: an identifier of a network-level entity, including an address family. The address family is presumed to be 
+- __address__: an identifier of a network-level entity, including an address family. The address family is presumed to be implicit in the format of the message, or explicitly stored.
 - __url__: a uniform resource locator
 
 ## Message Types
@@ -246,17 +246,18 @@ Each message is made up of sections, as described in the subsection below. The f
 | Verb            | req.       | req.          | req.   | req.        |          |
 | Content Type    |            |               |        |             | req.     |
 | `version:`      | req.       | req.          | req.   | req.        | req.     |
+| `registry:`     | req.       | req.          | req.   | opt.        |          |
 | `label:`        | opt.       | opt.          | opt.   | opt.        | opt.     |
-| `token:`        |            |               |        |             |          |
-| `contents:`     |            |               |        |             | req.     |
 | `when:`         | req.       | req.          | req.   | req.        |          |
 | `schedule:`     |            | opt.          |        |             |          |
-| `parameters:`   | req.       | req.          | req.   | opt.        |          |
-| `metadata:`     | opt.       | opt.          | opt.   | opt.        |          |
-| `results:`      | req.       | req.          | req.   | opt.        |          |
+| `parameters:`   | req./token | req.          | req.   | opt./token  |          |
+| `metadata:`     | opt./token | opt.          | opt.   | opt./token  |          |
+| `results:`      | req./token | req.          | req.   | opt./token  |          |
 | `resultvalues:` |            |               | req.   |             |          |
 | `export:`       | opt.       | opt.          | opt.   | opt.        |          |
 | `link:`         | opt.       |               |        |             |          |
+| `token:`        | opt.       | opt.          | opt.   | opt.        |          |
+| `contents:`     |            |               |        |             | req.     |
 
 ### Kind and Verb
 
@@ -271,6 +272,20 @@ In the JSON and YAML representations of mPlane messages, the verb is the value o
 Within the Reference Implementation, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
 
 Envelopes have no verb; instead, the value of the `envelope` key is the kind of messages the envelope contains, or `message` if the envelope contains a mixture of kinds of messages.
+
+### Version
+
+The `version` section contains the version of the mPlane protocol to which the message conforms, as an integer serially incremented with each new protocol revision. This section is required in all messages. This document describes version 0 of the protocol; the final revision of this document will describe version 1.
+
+### Registry
+
+The `registry` section contains the URL identifying the element registry used by this message, and from which the registry can be retrieved. This section is required in all messages containing element names (statements, and receipts/redemptions/interrupts not using tokens for identification; see the `token` section below). The default core registry for mPlane is identified by `http://ict-mplane.eu/registry/core`. *[**Editor's Note**: this is not yet the case, get the core registry done and make sure it's available there.]*
+
+### Label
+
+The `label` section of a statement contains a human-readable label identifying it, intended solely for use when displaying information about messages in user interfaces. Results, receipts, redemptions, and interrupts inherit their label from the specification from which they follow; otherwise, client and component software can arbitrarily assign labels . The use of labels is optional in all messages, but as labels do greatly ease human-readability of arbitrary messages within user interfaces, their use is recommended.
+
+mPlane clients and components should __never__ use the label as a unique identifier for a message, or assume any semantic meaning in the label -- the test of message equality and relatedness is always based upon the schema and values as in the section on message uniqueness and idempotence below.
 
 ### Temporal Scope (When)
 
@@ -342,12 +357,12 @@ The `parameters` section of a message contains an ordered list of the __paramete
 
 Four kinds of constraints are currently supported for mPlane parameters:
 
-- No constraint: all values are allowed. This is signified by the special constraint string `*`.
+- No constraint: all values are allowed. This is signified by the special constraint string '`*`'.
 - Single value constraint: only a single value is allowed. This is intended for use for capabilities which are conceivably configurable, but for which a given component only supports a single value for a given parameter due to its own out-of-band configuration or the permissions of the client for which the capability is valid.
-- Set constraint: multiple values are allowed, and are explicitly listed, separated by the `,` character.
-- Range constraint: multiple values are allowed, between two ordered values, separated by the special string `...`. Range constraints are inclusive.
+- Set constraint: multiple values are allowed, and are explicitly listed, separated by the '`,`' character.
+- Range constraint: multiple values are allowed, between two ordered values, separated by the special string '`...`'. Range constraints are inclusive.
 
-Future versions of the protocol may support additional types or combinations constraints. *[**Editor's Note**: we should also support networks as an implicit range, but we don't yet.]*
+Future versions of the protocol may support additional types or combinations constraints. *[**Editor's Note**: we should also support networks with netmasks as an implicit range, but we don't yet.]*
 
 Values and values in constraints must be a representation of an instance of the primitive type of the associated element.
 
@@ -367,13 +382,11 @@ The `metadata` section contains message __metadata__: key-value pairs associated
 
 ### Export
 
-The `export` section contains a URL or partial URL for __indirect export__. Its meaning depends on the kind and verb of the message.
+The `export` section contains a URL or partial URL for __indirect export__. Its meaning depends on the kind and verb of the message: 
 
-For capabilities with the `collect` verb, the `export` section contains the URL of the collector which can accept indirect export for the schema defined by the `parameters` and `results` sections of the capability, using the protocol identified by the URL's schema. If the URL schema is `mplane-http`, result messages matching the capability can be directly sent to the collector at the given URL via HTTP `POST`. Otherwise, the binding between elements in the capability's registry and representations of these elements in the export protocol is protocol-specific.
-
-For capabilities with any verb other than `collect`, the `export` section contains either the URL of a collector to which the component can indirectly export results, or a URL schema identifying a protocol over which the component can export to arbitrary collectors.
-
-For specifications with any verb other than `collect`, the `export` section contains the URL of a collector to which the component should indirectly export results. A receipt will be returned for such specifiations.
+- For capabilities with the `collect` verb, the `export` section contains the URL of the collector which can accept indirect export for the schema defined by the `parameters` and `results` sections of the capability, using the protocol identified by the URL's schema. If the URL schema is `mplane-http`, result messages matching the capability can be directly sent to the collector at the given URL via HTTP `POST`. Otherwise, the binding between elements in the capability's registry and representations of these elements in the export protocol is protocol-specific.
+- For capabilities with any verb other than `collect`, the `export` section contains either the URL of a collector to which the component can indirectly export results, or a URL schema identifying a protocol over which the component can export to arbitrary collectors.
+- For specifications with any verb other than `collect`, the `export` section contains the URL of a collector to which the component should indirectly export results. A receipt will be returned for such specifiations.
 
 Capabilities with an `export` section can only be used by specifications with a matching `export` section. If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability.
 
@@ -381,19 +394,35 @@ Capabilities with an `export` section can only be used by specifications with a 
 
 ### Link
 
-### Label
+The `link` section contains the URL to which messages in the next step in the workflow can be send, providing __indirection__ in capability and indirection messages. The link URL must currently have the schema `mplane-http`, and refers to posting of messages via HTTP `POST`.
+
+If present in a capability, the client should `POST` specifications for the given capability to the component at the URL given in order to use the capability.
+
+An indirection message can be returned for a specification by a component, directing the client to send the specification to the component at the URL given in the link in order to retrieve results or initiate measurement.
 
 ### Token
 
-### Version
+The `token` section contains an arbitrary string by which a message may be identified in subsequent communications in an abbreviated fashion. Unlike labels, tokens are not necessarily intended to be human-readable; instead, they provide a way to reduce redundancy on the wire by replacing the parameters, metadata, and results sections in messages within a workflow, at the expense of requiring more state at clients and components. Their use is optional. 
 
-### Registry
+Tokens are scoped to the association between the component and client in which they are first created.
 
-## Measurement Uniqueness
+If a capability contains a token, it may be subsequently withdrawn by the same component using a withdrawal containing the token instead of the parameters, metadata, and results sections.
+
+If a specification contains a token, it must be retained by the component, and all results and receipts following from the specification must contain the same token. A specification containing a token may be answered by the component with a receipt containing the token instead of the parameters, metadata, and results sections. A specification containing a token may likewise be interrupted by the client with an interrupt containing the token.
+
+If a receipt contains a token, it may be redeemed by the same client using a redemption containing the token instead of the parameters, metadata, and results sections.
+
+*[**Editor's Note:** the reference implementation does not yet handle tokens this way. Fix this.]*
+
+### Contents
+
+The `contents` section appears only in envelopes, and is an ordered list of messages. If the envelope's kind identifies a message kind, the contents may contain only messages of the specified kind, otherwise if the kind is `message`, the contents may contain a mix of any kind of message.
+
+## Schema Identification and Message Idempotence
 
 # Session Protocols
 
-### JSON representation
+## JSON representation
 
 ## mPlane over HTTPS
 
@@ -406,8 +435,6 @@ Capabilities with an `export` section can only be used by specifications with a 
 ## Component-as-Client
 
 ## Capability Discovery
-
-## 
 
 # Authentication and Authorization
 
