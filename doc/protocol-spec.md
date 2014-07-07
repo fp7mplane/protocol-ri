@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 30 June 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 7 July 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
@@ -20,7 +20,7 @@ and further described in the rest of the document. The _capability - specificati
 
 ![Figure 1](./arch-overview.png)
 
-This document borrows heavily from mPlane project [Deliverable 1.3](https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables//697mplane-d13.pdf), of 31 October 2013, by B. Trammell, M. Mellia, A. Finamore, S. Traverso, T. Szemethy, B. Szabó, R. Winter, M. Faath, D. Rossi, B. Donnet, F. Invernizzi, and D. Papadimitriou. Updates to the present state of the mPlane protocol are in progress.
+This document borrows heavily from mPlane project [Deliverable 1.3](https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables//697mplane-d13.pdf), of 31 October 2013, by B. Trammell, M. Mellia, A. Finamore, S. Traverso, T. Szemethy, B. Szabó, R. Winter, M. Faath, D. Rossi, B. Donnet, F. Invernizzi, and D. Papadimitriou. It will be the basis of mPlane project Deliverable 1.4. Updates to the present state of the mPlane protocol are in progress.
 
 # mPlane Architecture
 
@@ -70,20 +70,20 @@ therefore the definition of a type __registry__.
 
 ## Components and Clients
 
-A component is any entity which implements the mPlane protocol specified
+A __component__ is any entity which implements the mPlane protocol specified
 within this document, advertises its capabilities and accepts 
 specifications which request the use of those capabilities. The measurements,
 analyses, storage facilities and other services provided by a component are
 completely defined by its capabilities.
 
-Conversely, a client is any entity which implements the mPlane protocol, 
+Conversely, a __client__ is any entity which implements the mPlane protocol, 
 receives capabilities published by one or more components, and sends 
 specifications to those component(s) to those components to perform measurements
 and analysis.
 
 ## Supervisors and Federation
 
-An entity which implements both the client and component interfaces can be used to build and federate infrastructures of mPlane components. The supervisor is responsible for collecting capabilities from a set of components, and providing
+An entity which implements both the client and component interfaces can be used to build and federate infrastructures of mPlane components. This __supervisor__ is responsible for collecting capabilities from a set of components, and providing
 capabilities based on these to its clients. Application-specific algortihms at the supervisor aggregate the lower-level capabilities provided by these components into
 higher-level capabilities exposed to its clients. 
 
@@ -92,6 +92,8 @@ Since a supervisor allows the aggregation of control, it is in the general case 
 The set of components which respond to specifications from a single supervisor
 is referred to as an mPlane __domain__. Interdomain measurement is supported
 by federation among supervisors: a local supervisor delegates measurements in a remote domain to that domain's supervisor. 
+
+Note that, since the logic for aggregating control and data for a given application is very specific to that application, there is no _generic_ supervisor implementation provided with the mPlane Reference Implementation.
 
 # Protocol Information Model
 
@@ -349,7 +351,7 @@ In a Specification requesting that a measurement run from a specified point in t
 
 ### Schedule *(not yet implemented)*
 
-*[**Editor's Note**: determine which definition to use for this before writing this section]*
+*[**Editor's Note**: determine which definition to use for this before writing this section; we need a contribution from FHA here.]*
 
 ### Parameters
 
@@ -422,7 +424,7 @@ The `contents` section appears only in envelopes, and is an ordered list of mess
 
 *[**Editor's Note:** Verify that this is what the RI does, and fix the RI to comply.]*
 
-Messages in the mPlane protocol are intended to support state distribution: capabilities, specifications, and results are meant to be complete declarations of the state of a given measurement. In order for this to hold, it must be possible for messages to be uniquely identifiable, such that duplicate messages can be recognized. With one important exception, messages are _idempotent_: the receipt of a duplicate message at a client or component is a null operation.
+Messages in the mPlane protocol are intended to support __state distribution__: capabilities, specifications, and results are meant to be complete declarations of the state of a given measurement. In order for this to hold, it must be possible for messages to be uniquely identifiable, such that duplicate messages can be recognized. With one important exception, messages are _idempotent_: the receipt of a duplicate message at a client or component is a null operation.
 
 ### Message Schema
 
@@ -438,13 +440,61 @@ Implementations may use hashes over the values of the message's identity section
 
 # Representations and Session Protocols
 
-The mPlane protocol is designed to support multiple representations and session protocols. 
+The mPlane protocol is defined as an abstract data model in order to support multiple representations and session protocols. The canonical representation supported by the present reference implementation involves JSON objects transported via HTTP over TLS (HTTPS). 
 
 ## JSON representation
 
+In the JSON representation, an mPlane message is a JSON object, mapping sections by name to their contents. The name of the message type is a special section key, which maps to the message's verb, or to the message's content type in the case of an envelope.
+
+Each section name key in the object has a value represented in JSON as follows:
+
+- `version` : an integer identifying the mPlane message version.
+- `registry` : a URL identifying the registry from which element names are taken.
+- `label` : an arbitrary string.
+- `when` : a string containing a temporal scope, as described in the "Temporal Scope" subsection above.
+- `schedule` : a schedule object, as described in the "Schedule" subsection above.
+- `parameters` : a JSON object mapping (non-qualified) element names, either to constraints or to parameter values, as appropriate, and as described in the "Parameters" subsection above.
+- `metadata` : a JSON object mapping (non-qualified) element names to metadata values.
+- `results` : an array of element names.
+- `resultvalues` : an array of arrays of element values in row major order, where each row array contains values in the same order as the element names in the `results` section.
+- `export` : a URL for indirect export
+- `link` : a URL for message indirection
+- `token` : an arbitrary string
+- `contents` : an array of objects containing messages
+
+### Textual representations of element values
+
+Each primitive type is represented as a value in JSON as follows, following [Textual Representation of IPFIX Abstract Data Types](http://tools.ietf.org/html/draft-ietf-ipfix-text-adt-06).
+
+Natural and real values are represented in JSON using native JSON representation for numbers.
+
+Booleans are represented by the reserved words `true` and `false`. 
+
+Strings and URLs are represented as JSON strings subject to JSON escaping rules.
+
+Addresses are represented as dotted quads for IPv4 addresses as they would be in URLs, and canonical IPv6 textual addresses as in section 2.2 of [RFC 4291](http://tools.ietf.org/html/4291) as updated by section 4 of [RFC 5952](http://tools.ietf.org/html/4291). When representing networks, addresses may be suffixed as in CIDR notation, with a '`/`' character followed by the mask length in bits n, provided that the least significant 32 − n or 128 − n bits of the address are zero, for IPv4 and IPv6 respectively.
+
+Timestamps are represented in [RFC 3339](http://tools.ietf.org/html/3339) and ISO 8601, with two important differences. First, all mPlane timestamps are are expressed in terms of UTC, so time zone offsets are neither required nor supported, and are always taken to be 0. Second, fractional seconds are represented with a variable number of digits after an optional decimal point after the fraction.
+
 ## mPlane over HTTPS
 
+The default transport protocol for mPlane messages is HTTP over
+TLS with mutual authentication. An mPlane component may act either as a TLS server or a TLS client, depending on the workflow. When an mPlane client initiates a connection to a component, it acts as a TLS client, and must present a client certificate, which the component will verify against its allowable peers before proceeding; and the component acts as a TLS server, and must present a server certificate, which the client will verify against its allowable peers before proceeding. When an mPlane component initiates a connection to a client (or, more commonly, the client interface of a supervisor), this arragmenent is reversed: the component acts as a TLS client, the client as a TLS server, and mutual authentication is still mandatory.
+
+For components with simple authorization policies, the ability to establish a connection
+may imply authorization to continue with any capability offered by the component.
+For components with more complex policies, the identity of the peer's
+certificate may be mapped to an internal identity on which access control
+decisions can be made. Details are given in the Authentication and Authorization section below.
+
+Since HTTPS is not a bidirectional protocol (i.e., clients send requests, while
+servers send responses), while mPlane envisions a bidirectional message channel, it is necessary to specify mappings between this bidirectional message channel and the sequence of HTTPS requests and responses for each deployment scenario. These mappings are given in the Workflows section below.Note that in a given mPlane domain, any or all of these mappings may be used simultaneously.
+
+When sending mPlane messages over HTTPS, the Content-Type of the message indicates the message representation. The MIME Content-Type for mPlane messages using JSON representation over HTTPS is `application/x-mplane+json`. When sending exception notifications in HTTP response bodies, the response should contain an appropriate 400 (Client Error) or 500 (Server Error) response code. When sending indirections, the response should contain an appropriate 300 (Redirection) response code. Otherwise, the response should contain response code 200 OK.
+
 ## mPlane over SSH
+
+*[**Editor's Note**: this is not presently implemented; determine whether it will be.]*
 
 # Workflows
 
@@ -455,6 +505,8 @@ The mPlane protocol is designed to support multiple representations and session 
 ## Capability Discovery
 
 # Authentication and Authorization
+
+*[**Editor's Note**: we need a contribution from SSB here]*
 
 # The Role of the Supervisor
 
