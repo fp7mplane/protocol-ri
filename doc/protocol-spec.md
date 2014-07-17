@@ -81,6 +81,10 @@ receives capabilities published by one or more components, and sends
 specifications to those component(s) to those components to perform measurements
 and analysis.
 
+### Probes and Repositories
+
+*[**Editor's Note:** define probes and repositories in general; later we can define these in terms of verbs]*
+
 ## Supervisors and Federation
 
 An entity which implements both the client and component interfaces can be used to build and federate infrastructures of mPlane components. This __supervisor__ is responsible for collecting capabilities from a set of components, and providing
@@ -464,7 +468,7 @@ Each section name key in the object has a value represented in JSON as follows:
 
 ### Textual representations of element values
 
-Each primitive type is represented as a value in JSON as follows, following [Textual Representation of IPFIX Abstract Data Types](http://tools.ietf.org/html/draft-ietf-ipfix-text-adt-06).
+Each primitive type is represented as a value in JSON as follows, following the [Textual Representation of IPFIX Abstract Data Types](http://tools.ietf.org/html/draft-ietf-ipfix-text-adt-06).
 
 Natural and real values are represented in JSON using native JSON representation for numbers.
 
@@ -478,8 +482,7 @@ Timestamps are represented in [RFC 3339](http://tools.ietf.org/html/3339) and IS
 
 ## mPlane over HTTPS
 
-The default transport protocol for mPlane messages is HTTP over
-TLS with mutual authentication. An mPlane component may act either as a TLS server or a TLS client, depending on the workflow. When an mPlane client initiates a connection to a component, it acts as a TLS client, and must present a client certificate, which the component will verify against its allowable peers before proceeding; and the component acts as a TLS server, and must present a server certificate, which the client will verify against its allowable peers before proceeding. When an mPlane component initiates a connection to a client (or, more commonly, the client interface of a supervisor), this arragmenent is reversed: the component acts as a TLS client, the client as a TLS server, and mutual authentication is still mandatory.
+The default session protocol for mPlane messages is HTTP over TLS with mutual authentication. An mPlane component may act either as a TLS server or a TLS client, depending on the workflow. When an mPlane client initiates a connection to a component, it acts as a TLS client, and must present a client certificate, which the component will verify against its allowable peers before proceeding; and the component acts as a TLS server, and must present a server certificate, which the client will verify against its allowable peers before proceeding. When an mPlane component initiates a connection to a client (or, more commonly, the client interface of a supervisor), this arragmenent is reversed: the component acts as a TLS client, the client as a TLS server, and mutual authentication is still mandatory.
 
 For components with simple authorization policies, the ability to establish a connection
 may imply authorization to continue with any capability offered by the component.
@@ -494,24 +497,66 @@ When sending mPlane messages over HTTPS, the Content-Type of the message indicat
 
 ## mPlane over SSH
 
-*[**Editor's Note**: this is not presently implemented; determine whether it will be.]*
+Though not presently implemented by the reference implementation, the mPlane protocol specification is designed such that it can also use the Secure Shell (SSH) protocol as a session layer. In the SSH binding, a connection initiator (SSH client) identifies itself with an RSA, DSA, or ECDSA public key, which is bound to a specific identity, and the connection responder (SSH server) identifies itself with a host public key. As with TLS certificates, these are mapped to an internal identity on which access control decisions can be made.
 
-# Workflows
+Once an SSH connection is established, mPlane messages can be exchanged bidirectionally over the channel.
 
-## Component-as-Server
-
-## Component-as-Client
-
-## Capability Discovery
+Implementation and further specification of SSH as a session layer is a matter for future work.
 
 # Authentication and Authorization
 
 *[**Editor's Note**: we need a contribution from SSB here]*
 
+# Workflows
+
+*[**Editor's Note**: frontmatter]*
+
+## Client-Initiated
+
+*[**Editor's Note**: describe]*
+
+![Figure 2](./client-initiated.png)
+
+### Capability Discovery
+
+*[**Editor's Note**: describe]*
+
+![Figure 3](./client-initiated-discovery.png)
+
+## Component-Initiated
+
+*[**Editor's Note**: describe]*
+
+![Figure 4](./component-initiated.png)
+
+## Indirect Export
+
+*[**Editor's Note**: describe]*
+
+![Figure 5](./indirect-export.png)
+
 # The Role of the Supervisor
+
+From the point of view of the mPlane protocol, a supervisor is merely a combined component and client. The logic binding client and component interfaces within the supervisor is application-specific, as it involves the following operations according to the semantics of each application:
+
+- translating lower-level capabilities from subordinate components into higher-level (composed) capabilities, according to the application's semantics
+- translating higher-level specifications from subordinate components into lower-level (decomposed) specifications
+- relaying or aggregating results from 
+
+The workflows on each side of the supervisor are independent; indeed, the supervisor itself will generally respond to client-initiated exhanges, and An example combination of workflows at a supervisor is shown below:
+
+![Figure 6](./supervisor-example.png)
+
+Here, *[**Editor's Note** discuss this]*
 
 ## Component Registration
 
 ## Client Authentication
 
-## Capability Composition
+## Capability Composition and Specification Decomposition
+
+*[**Editor's Note**: describe]*
+
+An example is shown below. Here,  *[**Editor's Note** discuss this]*
+
+![Figure 7](./comp-decomp-example.png)
