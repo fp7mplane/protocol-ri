@@ -325,7 +325,21 @@ duration = [ <n> 'd' ] # days
            [ <n> 's' ] # seconds 
 
 iso8601 = <n> '-' <n> '-' <n> [' ' <n> ':' <n> ':' <n> [ '.' <n> ]
+
+repeated-when = 'repeat' <outer-when> '{' <inner-when> '}' |
+                'repeat' <outer-when> 'cron' <crontab> '{' <inner-when> '}'
+
+outer-when = <range> ' / ' <duration>
+
+inner-when = 'now' | 
+             'now' ' + ' <duration> |
+             'now' ' + ' <duration> / <duration>
+
+crontab = ???
+
 ```
+
+*[**Editor's Note*: repeated-when and inner-when productions are not yet implemented.]*
 
 All absolute times are __always__ given in UTC and expressed in ISO8601 format with variable precision.
 
@@ -353,9 +367,9 @@ In a Specification requesting that a measurement run from a specified point in t
 
 `when: 2017-11-23 18:30:00 ... future`
 
-### Schedule *(not yet implemented)*
+#### Repeating Measurements
 
-*[**Editor's Note**: determine which definition to use for this before writing this section; we need a contribution from FHA here.]*
+*[**Editor's Note**: talk about how new schedules work]*
 
 ### Parameters
 
