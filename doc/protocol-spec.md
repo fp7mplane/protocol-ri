@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 7 July 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 24 July 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
@@ -78,12 +78,19 @@ completely defined by its capabilities.
 
 Conversely, a __client__ is any entity which implements the mPlane protocol, 
 receives capabilities published by one or more components, and sends 
-specifications to those component(s) to those components to perform measurements
-and analysis.
+specifications to those component(s) to those components to perform 
+measurements and analysis.
 
 ### Probes and Repositories
 
-*[**Editor's Note:** define probes and repositories in general; later we can define these in terms of verbs]*
+Measurement components can be divided into two categories: __probes__ and
+__repositories__. Roughly, probes perform measurements, and repositories
+provide access to stored measurements, analysis of stored measurements, or
+other access to related external data sources. Probes and repositories can
+cooperate, with probes sending new measurements to the repositories for
+subsequent queries for analysis. However, this categorization is very rough:
+what a component can do is completely described by its capabilities, and some
+components may combine properties of both probes and repositories.
 
 ## Supervisors and Federation
 
@@ -275,6 +282,8 @@ The __verb__ is the action to be performed by the component. The following verbs
 	
 In the JSON and YAML representations of mPlane messages, the verb is the value of the key corresponding to the statement's __kind__, represented as a lowercase string (e.g. `capability`, `specification`, `result` and so on).
 
+Roughly speaking, the probes implement `measure` capabilities, and repositories implement `query` and `collect` capabilities.
+
 Within the Reference Implementation, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
 
 Envelopes have no verb; instead, the value of the `envelope` key is the kind of messages the envelope contains, or `message` if the envelope contains a mixture of kinds of messages.
@@ -325,21 +334,7 @@ duration = [ <n> 'd' ] # days
            [ <n> 's' ] # seconds 
 
 iso8601 = <n> '-' <n> '-' <n> [' ' <n> ':' <n> ':' <n> [ '.' <n> ]
-
-repeated-when = 'repeat' <outer-when> '{' <inner-when> '}' |
-                'repeat' <outer-when> 'cron' <crontab> '{' <inner-when> '}'
-
-outer-when = <range> ' / ' <duration>
-
-inner-when = 'now' | 
-             'now' ' + ' <duration> |
-             'now' ' + ' <duration> / <duration>
-
-crontab = ???
-
 ```
-
-*[**Editor's Note*: repeated-when and inner-when productions are not yet implemented.]*
 
 All absolute times are __always__ given in UTC and expressed in ISO8601 format with variable precision.
 
@@ -369,7 +364,39 @@ In a Specification requesting that a measurement run from a specified point in t
 
 #### Repeating Measurements
 
-*[**Editor's Note**: talk about how new schedules work]*
+Within Specifications, the temporal scope can be extended to support 
+__repeated specification__. A repeated specification can be thought of as
+a specification that is retained at the component and initiated multiple times.
+
+The general form of a temporal scope in a repeated specification is as follows (BNF-like syntax):
+
+```
+repeated-when = 'repeat' <outer-when> |                       # implicit inner scope of now
+                'repeat' <outer-when> '{' <inner-when> '}' |  # simple range/period 
+                'repeat' <outer-when> 'cron' <crontab> '{' <inner-when> '}'  # with crontab
+
+outer-when = <range> ' / ' <duration>
+
+inner-when = 'now' | 
+             'now' ' + ' <duration> |
+             'now' ' + ' <duration> / <duration>
+
+crontab = ???
+```
+
+A repeated specification has an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification evaluated independently at each repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. Submitting a repeated specification may still result in a single receipt, or in in multiple results. The multiple results resulting from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`.
+
+*[**Editor's Note**: Explain in more detail if necessary]*
+
+*[**Editor's Note**: Specify and explain crontab]*
+
+For example, a repeated specification to take measurements every second for five minutes, repeating once an hour indefinitely would be:
+
+`when: repeat now ... future { now + 5s / 1s }`
+
+*[**Editor's Note**: More examples]*
+
+*[**Editor's Note**: This is not yet implemented in the RI; Michael Faath is taking care of this.]*
 
 ### Parameters
 
@@ -452,7 +479,7 @@ The combination of elements in the `parameters` and `results` sections, together
 
 A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata` `results`, and `export` sections taken together comprise the message's identity. 
 
-One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component can be taken as part of the message's identity as well.
+One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked can be taken as part of the message's identity as well.
 
 Implementations may use hashes over the values of the message's identity sections to uniquely identify messages.
 
@@ -555,9 +582,11 @@ From the point of view of the mPlane protocol, a supervisor is merely a combined
 
 - translating lower-level capabilities from subordinate components into higher-level (composed) capabilities, according to the application's semantics
 - translating higher-level specifications from subordinate components into lower-level (decomposed) specifications
-- relaying or aggregating results from 
+- relaying or aggregating results from subordinate components to supervisor clients
 
-The workflows on each side of the supervisor are independent; indeed, the supervisor itself will generally respond to client-initiated exhanges, and An example combination of workflows at a supervisor is shown below:
+The workflows on each side of the supervisor are independent; indeed, the supervisor itself will generally respond to client-initiated exhanges, and use both component-initiated and supervisor-initiated exchanges with subordinate components.
+
+An example combination of workflows at a supervisor is shown below:
 
 ![Figure 6](./supervisor-example.png)
 
