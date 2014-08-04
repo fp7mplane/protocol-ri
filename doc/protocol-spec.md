@@ -241,12 +241,13 @@ An __exception__ is sent from a client to a component or from a component to a c
 
 ### Envelope
 
-An __envelope__ is used to contain other messages. Currently, envelopes are intended to be used for two distinct purposes:
+An __envelope__ is used to contain other messages. Currently, envelopes are intended to be used for three distinct purposes:
 
-- To return multiple Results for a single receipt or specification if appropriate (e.g., if a specification has run repeated instances of a measurement on a schedule).
+- To return multiple results for a single receipt or specification if appropriate (e.g., if a specification has run repeated instances of a measurement on a schedule).
 - To group multiple capabilities together within a single message (e.g., all the capabilities a given component has).
+- To group multiple specifications into a single message (e.g., to simultaneously send a measurement specification along with a callback control specification).
 
-However, it is legal to group any kind of message in an envelope.
+However, it is legal to group any kind of message, and to mix messages of different types, in an envelope.
 
 ## Message Sections
 
@@ -279,6 +280,7 @@ The __verb__ is the action to be performed by the component. The following verbs
 - `measure`: Perform a measurement
 - `query`: Query a database about a past measurement
 - `collect`: Receive results via indirect export
+- `callback`: Used for callback control in component-initated workflows
 	
 In the JSON and YAML representations of mPlane messages, the verb is the value of the key corresponding to the statement's __kind__, represented as a lowercase string (e.g. `capability`, `specification`, `result` and so on).
 
@@ -286,7 +288,7 @@ Roughly speaking, the probes implement `measure` capabilities, and repositories 
 
 Within the Reference Implementation, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
 
-Envelopes have no verb; instead, the value of the `envelope` key is the kind of messages the envelope contains, or `message` if the envelope contains a mixture of kinds of messages.
+Envelopes have no verb; instead, the value of the `envelope` key is the kind of messages the envelope contains, or `message` if the envelope contains a mixture of different unspecified kinds of messages.
 
 ### Version
 
@@ -381,20 +383,28 @@ inner-when = 'now' |
              'now' ' + ' <duration> |
              'now' ' + ' <duration> / <duration>
 
-crontab = ???
+crontab = # to be determined
 ```
 
-A repeated specification has an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification evaluated independently at each repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. Submitting a repeated specification may still result in a single receipt, or in in multiple results. The multiple results resulting from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`.
+A repeated specification has an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification evaluated independently at each repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`.
 
-*[**Editor's Note**: Explain in more detail if necessary]*
+Submitting a repeated specification will still result in a single receipt, or in multiple results. These multiple results, resulting either directly from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. 
 
 *[**Editor's Note**: Specify and explain crontab]*
 
 For example, a repeated specification to take measurements every second for five minutes, repeating once an hour indefinitely would be:
 
-`when: repeat now ... future { now + 5s / 1s }`
+`when: repeat now ... future / 1h { now + 5m / 1s }`
 
-*[**Editor's Note**: More examples]*
+A repeated specification to take measurements every second for five minutes, repeating every half hour within a specific timeframe would be:
+
+`when: repeat 2014-01-01 13:00:00 ... 2014-06-01 14:00:00 / 30m { now + 5m / 1s }
+
+A repeated specification taking singleton measurements every hour indefinitely with an implicit inner temporal specification:
+
+`when: repeat now ... future / 1h`
+
+*[**Editor's Note**: Add crontab examples once crontab is specified]*
 
 *[**Editor's Note**: This is not yet implemented in the RI; Michael Faath is taking care of this.]*
 
@@ -409,9 +419,9 @@ Four kinds of constraints are currently supported for mPlane parameters:
 - Set constraint: multiple values are allowed, and are explicitly listed, separated by the '`,`' character.
 - Range constraint: multiple values are allowed, between two ordered values, separated by the special string '`...`'. Range constraints are inclusive.
 
-Future versions of the protocol may support additional types or combinations constraints. *[**Editor's Note**: we should also support networks with netmasks as an implicit range, but we don't yet.]*
+*[**Editor's Note**: Per discussion in Budapest we should also support networks with netmasks as an implicit range, but we don't yet.]*
 
-Values and values in constraints must be a representation of an instance of the primitive type of the associated element.
+Parameter and constraint values must be a representation of an instance of the primitive type of the associated element.
 
 ### Result Columns
 
@@ -550,31 +560,70 @@ Implementation and further specification of SSH as a session layer is a matter f
 
 # Workflows
 
-*[**Editor's Note**: frontmatter]*
+The mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__ and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS.
 
 ## Client-Initiated
 
-*[**Editor's Note**: describe]*
+Client-initiated workflows are appropriate for stationary components, those with stable, routable addresses, which can therefore act as HTTPS servers. This is generally the case for supervisors, large repositories, repositories acting as gateways to external data sources, and certain large-scale or public probes. The client-initiated pattern is illustrated below:
 
 ![Figure 2](./client-initiated.png)
 
+Here, the client opens an HTTPS connection the the component, and GETs a capability message, or an envelope containing capability messages, at a known URL. It then subsequently uses these capabilities by POSTing a specification, either to a known URL or to the URL given in the `link` section of the capability. The HTTP response to the POSTed specification contains either a result directly, or contains a receipt which can be redeemed later by POSTing a redemption to the component.
+
 ### Capability Discovery
 
-*[**Editor's Note**: describe]*
+For direct client-initiated workflows, the URL(s) from which to GET capabilities is a client configuration parameter. The client-initiated workflow also allows indirection in capability discovery. Instead of GETting capabilities direct from a component, they can also be retrieved from a _capability discovery server_ containing capabilities for multiple components providing capabilities via client-initiated workflows. These components are then identified by the `link` section of each capability. The capabilities may be grouped in an envelope retrieved from the capability discovery server, or linked to in an HTML object retrieved therefrom.
+
+In this way, a client needs only be configured with a single URL for capability discovery, instead of URLs for each component with which it wants to communicate.
+
+This arrangement is shown in the figure below.
 
 ![Figure 3](./client-initiated-discovery.png)
 
 ## Component-Initiated
 
-*[**Editor's Note**: describe]*
+Component-initiated workflows are appropriate for components which do not have stable addresses, and which are used by clients that do. Common examples of such components are lightweight probes on mobile devices and customer equipment on access networks, interacting directly with a supervisor.
+
+In this case, the usual client-server relationship is reversed, as shown in the figure below.
 
 ![Figure 4](./component-initiated.png)
 
+Here, the component opens an HTTPS connection to the client and POSTs its capabilities to a known URL. The client remembers which capabilities it wishes to use on which components, and prepares a specification for later retrieval by the client. The component then periodically polls the client, opening HTTPS connections and attempting to GET a specification from a known URL. The client will either respond 404 Not Found if the client has no current specification for the component, or with a specification to run matching a previously POSTed capability.
+
+After completing the specification, the component then calls back and POSTs the results to the client at a known URL.
+
+In this case, the component must be configured with the client's URL(s).
+
+### Callback Control *(not yet implemented)*
+
+Continuous polling of a client by thousands of components would put a network under significant load, and the polling delay introduces a difficult tradeoff between timeliness of specification and polling load. mPlane uses the `callback` verb  with component-initiated workflows in order to allow the client finer-grained control over when components will call back.
+
+To use callback control, the component advertises the following capability along with the others it provides:
+
+```
+{
+ 'capability': 'callback',
+ 'version':    0,
+ 'registry':   'http://ict-mplane.eu/registry/core',
+ 'when':       'now ... future',
+ 'parameters': {},
+ 'results':    []
+}
+```
+
+Then, when the component polls the client the first time, it responds with an envelope containing two specifications: the measurement it wants the client to perform, and a callback specification, containing the time at which the client should poll again in the temporal scope. If the client has no work for the component, it returns a single callback specification as opposed to returning 404.
+
+The component then ceases polling the client, and calls back at the specified time in the future, if it is able. This facility allows very fine-grained scheduling of specifications on components, limited only by component clock accuracy.
+
 ## Indirect Export
 
-*[**Editor's Note**: describe]*
+Many common measurement infrastructures involve a large number of probes exporting large volumes of data to a (much) smaller number of repositories, where data is reduced and analyzed. Since (1) the mPlane protocol is not particularly well-suited to the bulk transfer of data and (2) fidelity is better ensured when minimizing translations between representations, the channel between the probes and the repositories is in this case external to mPlane. This **indirect export** channel either a standard export protocol such as IPFIX, or a proprietary protocol unique to the probe/repository pair; all that is necessary is that (1) the client, exporter, and collector agree on a schema to define the data to be transferred and (2) the exporter and collector share a common protocol for export
+
+An example arrangement is shown in the figure below:
 
 ![Figure 5](./indirect-export.png)
+
+*[**Editor's Note** discuss this]*
 
 # The Role of the Supervisor
 
