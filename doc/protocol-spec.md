@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 24 July 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 5 August 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
@@ -254,9 +254,7 @@ However, it is legal to group any kind of message, and to mix messages of differ
 Each message is made up of sections, as described in the subsection below. The following table shows the presence of each of these sections in each of the message types supported by mPlane: "req." means the section is required, "opt." means it is optional; see the subsection on each message section for details.
 
 | Section         | Capability | Specification | Result | Receipt     | Envelope |
-|                 | Withdrawal |               |        | Redemption  |          |
-|                 |            |               |        | Interrupt   |          |
-|-----------------|------------|---------------|--------|-------------|----------|
+| --------------- | ---------- | ------------- | ------ | ----------- |----------|
 | Verb            | req.       | req.          | req.   | req.        |          |
 | Content Type    |            |               |        |             | req.     |
 | `version:`      | req.       | req.          | req.   | req.        | req.     |
@@ -273,9 +271,14 @@ Each message is made up of sections, as described in the subsection below. The f
 | `token:`        | opt.       | opt.          | opt.   | opt.        |          |
 | `contents:`     |            |               |        |             | req.     |
 
+Withdrawals take the same sections as capabilities, and redemptions and interrupts 
+take the same sections as receipts; see the subsection on the token section, below.
+
 ### Kind and Verb
 
-The __verb__ is the action to be performed by the component. The following verbs are supported by the base mPlane protocol, but arbitrary verbs may be specified by applications:
+The __verb__ is the action to be performed by the component. The following verbs 
+are supported by the base mPlane protocol, but arbitrary verbs may be specified 
+by applications:
 
 - `measure`: Perform a measurement
 - `query`: Query a database about a past measurement
@@ -447,6 +450,8 @@ The `export` section contains a URL or partial URL for __indirect export__. Its 
 
 Capabilities with an `export` section can only be used by specifications with a matching `export` section. If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability.
 
+The special export schema `mplane-http` implies that the exporter will POST mPlane result messages matching the collector's capability to the collector at the specified URL. All other export schemas are application-specific, and the mPlane protocol implementation is only responsible for ensuring the schemas and protocol identifiers match between collector and exporter. 
+
 *[**Editor's Note**: This text implies that the export section of a statement is part of the statement's unique hash; this is not the case in the implementation. Fix this.]*
 
 ### Link
@@ -554,6 +559,10 @@ Once an SSH connection is established, mPlane messages can be exchanged bidirect
 
 Implementation and further specification of SSH as a session layer is a matter for future work.
 
+## Example mPlane Capabilities and Specifications
+
+*[**Editor's Note**: make up some examples: ping, traceroute, flows?]*
+
 # Authentication and Authorization
 
 *[**Editor's Note**: we need a contribution from SSB here]*
@@ -617,13 +626,15 @@ The component then ceases polling the client, and calls back at the specified ti
 
 ## Indirect Export
 
-Many common measurement infrastructures involve a large number of probes exporting large volumes of data to a (much) smaller number of repositories, where data is reduced and analyzed. Since (1) the mPlane protocol is not particularly well-suited to the bulk transfer of data and (2) fidelity is better ensured when minimizing translations between representations, the channel between the probes and the repositories is in this case external to mPlane. This **indirect export** channel either a standard export protocol such as IPFIX, or a proprietary protocol unique to the probe/repository pair; all that is necessary is that (1) the client, exporter, and collector agree on a schema to define the data to be transferred and (2) the exporter and collector share a common protocol for export
+Many common measurement infrastructures involve a large number of probes exporting large volumes of data to a (much) smaller number of repositories, where data is reduced and analyzed. Since (1) the mPlane protocol is not particularly well-suited to the bulk transfer of data and (2) fidelity is better ensured when minimizing translations between representations, the channel between the probes and the repositories is in this case external to mPlane. This **indirect export** channel either a standard export protocol such as IPFIX, or a proprietary protocol unique to the probe/repository pair; all that is necessary is that (1) the client, exporter, and collector agree on a schema to define the data to be transferred and (2) the exporter and collector share a common protocol for export.
 
 An example arrangement is shown in the figure below:
 
 ![Figure 5](./indirect-export.png)
 
-*[**Editor's Note** discuss this]*
+Here, we consider a client speaking to both an exporter and a collector via a client-initiated connection. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export). The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
+
+The exporter initiates export to the collector using the specified protocol, and replies with a receipt that can be used to interrupt the export, should it have an indefinite temporal scope. In the meantime, it sends data matching the capability's schema directly to the collector.
 
 # The Role of the Supervisor
 
@@ -639,16 +650,43 @@ An example combination of workflows at a supervisor is shown below:
 
 ![Figure 6](./supervisor-example.png)
 
-Here, *[**Editor's Note** discuss this]*
+Here we see a a very simple arrangement with a single client using a single supervisor to perform measurements using a single component. The component uses a component-initiated workflow to associate with a supervisor, and the client uses a client-initiated workflow. 
+
+First, the component registers with the supervisor, POSTing its capabilities. The supervisor creates composed capabilities derived from these component capabilities, and makes them available to its client, which GETs them when it connects.
+
+The client then initiates a measurement by POSTing a specification to the supervisor, which decomposes it into a more-specific specification to pass to the component, and hands the client a receipt for a the measurement. When the component polls the supervisor -- controlled, perhaps, by callback control as described above -- the supervisor passes this derived specification to the component, which executes it and POSTs its results back to the supervisor. When the client redeems its receipt, the supervisor returns results composed from those received from the component.
+
+This simple example illustrates the three main responsibilities of the supervisor, which are described in more detail below.
 
 ## Component Registration
 
+In order to be able to plan the use of components to perform measurements, the supervisor must __register__ the components associated with it. For client-initiated workflows -- large repositories and the address of the components is often a configuration parameter of the supervisor. Capabilities describing the available measurements and queries at large-scale components can even be part of the supervisor's externally managed static configuration, or can be dynamically retrieved and updated from the components or from a capability discovery server.
+
+For component-initiated workflows, components connect to the supervisor and POST capabilities and withdrawals, which requires the supervisor to maintain a set of capabilities associated with a set of components currently part of the mPlane infrastructure it supervises.
+
 ## Client Authentication
+
+For many components -- probes and simple repositories -- very simple authentication often suffices, such that any client with a certificate with an issuer recognized as valid is acceptable, and all capabilities are available to. Larger repositories often need finer grained control, mapping specific peer certificates to identities internal to the repository's access control system (e.g. database users).
+
+In an mPlane infrastructure, it is therefore the supervisor's responsbility to map client identities to the set of capabilities each client is authorized to access. This mapping is part of the supervisor's configuration.
 
 ## Capability Composition and Specification Decomposition
 
-*[**Editor's Note**: describe]*
+The most dominant responsibility of the supervisor is _composing_ capabilities from its subordinate components into aggregate capabilities, and _decomposing_ specifications from clients to more-specific specifications to pass to each component. This operation is always application-specific, as the semantics of the composition and decomposition operations depend on the capabilities available from the components, the granularity of the capabilities to be provided to the clients. It is for this reason that the mPlane reference implementation does not provide a generic supervisor.
 
-An example is shown below. Here,  *[**Editor's Note** discuss this]*
+# An example mPlane infrastructure
+
+An example mPlane infrastructure, containing a client/reasoner, supervisor, probe and repository components, demonstrating all common data and control flows, is shown below.
 
 ![Figure 7](./comp-decomp-example.png)
+
+Here, two probes export raw data to a repository, which performs aggregation and analysis and presents results to a client via a supervisor.
+
+Each probe provides an export capability ('Ce') stating that it can perform measurements according to a schema, and export them using a given protocol. The repository provides two capabilites, a collect capability ('Cc') stating it can collect what the exporters export, and a query capability ('C') stating it can run a certain query over the collected data.
+
+When the supervisor receives these capabilities, its composition logic derives two capabilities from them: one which exports measurements from the two probes to the repository, aggregates them at the repository, and sends the results back to the client, and one which provides mediated access to the query capability provided by the repository.
+
+When the client wishes to run a measurement, it sends a specification matching the first capability to the supervisor, whose decomposition logic splits it into three specifications: one each to the probes to run the measurements, and one to the repository to query the resulting aggregated data. The repository then sends the result of the third specification back to the supervisor, which relays it to the client.
+
+Note that not all interaction among components in an mPlane infrastructure must be mediated by the supervisor: indeed, for more detailed queries of the repository, the client may directly access the repository via a backchannel.
+
