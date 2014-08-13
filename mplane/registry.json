@@ -6,105 +6,115 @@
     {
       "name": "start",
       "prim": "time",
-      "desc": "The start time of an event/flow that has a duration"
+      "desc": "Start time of an event/flow that may have a non-zero duration"
     },
     {
       "name": "end",
       "prim": "time",
-      "desc": "The end time of an event/flow that has a duration"
+      "desc": "End time of an event/flow that may have a non-zero duration"
     },
     {
       "name": "time",
       "prim": "time",
-      "desc": "The time at which an event occurred"
+      "desc": "Time at which an single event occurred"
     },
     {
       "name": "duration.s",
       "prim": "natural",
-      "desc": "The duration of an event"
+      "desc": "Duration of an event/flow in seconds"
     },
     {
       "name": "duration.ms",
       "prim": "natural",
-      "desc": "The duration of an event"
+      "desc": "Duration of an event/flow in milliseconds"
     },
     {
       "name": "duration.us",
       "prim": "natural",
-      "desc": "The duration of an event"
+      "desc": "Duration of an event/flow in microseconds"
     },
     {
       "name": "duration.ns",
       "prim": "natural",
-      "desc": "The duration of an event"
+      "desc": "Duration of an event/flow in nanoseconds"
     },
     {
       "name": "source.ip4",
-      "prim": "address"
+      "prim": "address",
+      "desc": "Source IPv4 address of an event/flow, or the IPv4 address from which an active measurement was taken"
     },
     {
       "name": "source.ip6",
-      "prim": "address"
+      "prim": "address",
+      "desc": "Source IPv6 address of an event/flow, or the IPv6 address from which an active measurement was taken"
     },
     {
       "name": "source.port",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Source layer 4 port of an event/flow, or the port from which packets were sent when an active measurement was taken"
     },
     {
       "name": "source.mac",
-      "prim": "string"
-    },
-    {
-      "name": "source.link",
-      "prim": "string"
+      "prim": "address"
     },
     {
       "name": "source.interface",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of an interface to which the source of an event/flow is attached, or from which an active measurement was taken"
     },
     {
       "name": "source.device",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of a source device of an event/flow, or from which an active measurement was taken"
+    },
+    {
+      "name": "source.as",
+      "prim": "natural",
+      "desc": "BGP AS number of the source of an event/flow, or AS originating an active measurement"
     },
     {
       "name": "destination.ip4",
-      "prim": "address"
+      "prim": "address",
+      "desc": "The destination IPv4 address of an event/flow, or the IPv4 address of the target of an active measurement"
     },
     {
       "name": "destination.ip6",
-      "prim": "address"
+      "prim": "address",
+      "desc": "The destination IPv6 address of an event/flow, or the IPv6 address of the target of an active measurement"
     },
     {
       "name": "destination.port",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "The destination layer 4 port of an event/flow, or the port to which packets were sent when an active measurement was taken"
     },
     {
       "name": "destination.mac",
-      "prim": "string"
-    },
-    {
-      "name": "destination.link",
-      "prim": "string"
+      "prim": "address"
     },
     {
       "name": "destination.interface",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of an interface to which the destination of an event/flow is attached, or the target interface of an active measurement"
     },
     {
       "name": "destination.device",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of a destination device of an event/flow, or the target of an active measurement"
+    },
+    {
+      "name": "destination.as",
+      "prim": "natural",
+      "desc": "BGP AS number of the destination of an event/flow, or AS target of an active measurement"
     },
     {
       "name": "observer.ip4",
-      "prim": "address"
+      "prim": "address",
+      "desc": "The IPv4 address of the observation point of a passive measurement"
     },
     {
       "name": "observer.ip6",
-      "prim": "address"
-    },
-    {
-      "name": "observer.port",
-      "prim": "natural"
+      "prim": "address",
+      "desc": "The IPv6 address of the observation point of a passive measurement"
     },
     {
       "name": "observer.mac",
@@ -112,348 +122,392 @@
     },
     {
       "name": "observer.link",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of the link on which a passive measurement was observed"
     },
     {
       "name": "observer.interface",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of the interface on which a passive measurement was observed"
     },
     {
       "name": "observer.device",
-      "prim": "string"
+      "prim": "string",
+      "desc": "A locally-scoped identifier of the device on which a passive measurement was observed"
+    },
+    {
+      "name": "observer.as",
+      "prim": "natural",
+      "desc": "BGP AS number of the observer of a passive measurement or looking glass"
     },
     {
       "name": "intermediate.ip4",
-      "prim": "address"
+      "prim": "address",
+      "desc": "IPv4 address of a given entity along the path of a measurement; often scoped by hops.ip"
     },
     {
       "name": "intermediate.ip6",
-      "prim": "address"
+      "prim": "address",
+      "desc": "IPv6 address of a given entity along the path of a measurement; often scoped by hops.ip"
     },
     {
       "name": "intermediate.port",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Layer 4 port on which a flow/event was observed on a given entity along the path; used for NAPT applications"
     },
     {
       "name": "intermediate.mac",
       "prim": "string"
     },
     {
-      "name": "intermediate.link",
-      "prim": "string"
-    },
-    {
-      "name": "intermediate.interface",
-      "prim": "string"
-    },
-    {
-      "name": "intermediate.device",
-      "prim": "string"
+      "name": "intermedate.as",
+      "prim": "natural",
+      "desc": "BGP AS number of a given entity along the path of a measurement; often scoped by hops.as"
     },
     {
       "name": "octets.ip",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 3 (including IP headers) associated with a flow, event, or measurement"
     },
     {
       "name": "octets.tcp",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 4 (including TCP headers) associated with a flow, event, or measurement"
     },
     {
       "name": "octets.udp",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 4 (including UDP headers) associated with a flow, event, or measurement"
     },
     {
       "name": "octets.transport",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 4 (including all sub-network-layer headers) associated with a flow, event, or measurement"
     },
     {
       "name": "octets.layer5",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 5 (i.e., excluding network and transport layer headers) associated with a flow, event, or measurement"
     },
     {
       "name": "octets.layer7",
-      "prim": "natural"
-    },
-    {
-      "name": "octets.duplicate",
-      "prim": "natural"
-    },
-    {
-      "name": "octets.outoforder",
-      "prim": "natural"
-    },
-    {
-      "name": "octets.lost",
-      "prim": "natural"
-    },
-    {
-      "name": "octets.unreported",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of octets at layer 7 (i.e., passed up to the application, excluding network and transport layer headers and octets in retransmitted packets) associated with a flow, event, or measurement"
     },
     {
       "name": "packets.ip",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of IP packets associated with flow, event, or measurement"
     },
     {
       "name": "packets.tcp",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of TCP segments associated with flow, event, or measurement"
     },
     {
       "name": "packets.udp",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of UDP segments associated with flow, event, or measurement"
     },
     {
       "name": "packets.transport",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of packets with a transport-layer header associated with a flow, event, or measurement"
     },
     {
       "name": "packets.layer5",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of packets with non-empty transport-layer payload associated with a flow, event, or measurement"
     },
     {
       "name": "packets.layer7",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of packets carrying unique data at layer 7 (i.e., packets.layer5 minus retransmissions) associated with a flow, event, or measurement"
     },
     {
       "name": "packets.duplicate",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of duplicated packets observed in a flow, event, or measurement"
     },
     {
       "name": "packets.outoforder",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of out-of-order packets observed in a flow, event, or measurement"
     },
     {
       "name": "packets.lost",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of packets observed or inferred as lost in a flow, event, or measurement"      
     },
     {
-      "name": "packets.unreported",
-      "prim": "natural"
+      "name": "packets.unobserved",
+      "prim": "natural",
+      "desc": "Count of packets observed or inferred as delivered but unobserved in a flow, event, or measurement"      
     },
     {
       "name": "flows",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of unidirectional flows (see RFC 7011) associated with an event or measurement"      
     },
     {
-      "name": "flows.unreported",
-      "prim": "natural"
+      "name": "flows.bidirectional",
+      "prim": "natural",
+      "desc": "Count of bidirectional flows (see RFC 7011 and 5103) associated with an event or measurement"      
     },
     {
       "name": "delay.twoway.icmp.us",
       "prim": "natural",
-      "desc": "Singleton two-way delay as measured by ICMP Echo Request/Reply"
+      "desc": "Singleton two-way delay in microseconds as measured by ICMP Echo Request/Reply (see RFC 792)"
     },
     {
       "name": "delay.twoway.icmp.us.min",
       "prim": "natural",
-      "desc": "Minimum two-way delay as measured by ICMP Echo Request/Reply"
+      "desc": "Minimum two-way delay in microseconds as measured by ICMP Echo Request/Reply (see RFC 792)"
     },
     {
       "name": "delay.twoway.icmp.us.mean",
       "prim": "natural",
-      "desc": "Mean two-way delay as measured by ICMP Echo Request/Reply"
+      "desc": "Mean two-way delay as in microseconds measured by ICMP Echo Request/Reply (see RFC 792)"
+    },
+    {
+      "name": "delay.twoway.icmp.us.50pct",
+      "prim": "natural",
+      "desc": "Median two-way delay in microseconds as measured by ICMP Echo Request/Reply (see RFC 792)"
     },
     {
       "name": "delay.twoway.icmp.us.max",
       "prim": "natural",
-      "desc": "Maximum two-way delay as measured by ICMP Echo Request/Reply"
+      "desc": "Maximum two-way delay in microseconds as measured by ICMP Echo Request/Reply (see RFC 792)"
     },
     {
-      "name": "delay.twoway.icmp.us.count",
+      "name": "delay.twoway.icmp.count",
       "prim": "natural",
-      "desc": "Count of valid ICMP Echo Replies received when measuring two-way delay using ICMP Echo Request/Reply"
+      "desc": "Count of valid ICMP Echo Replies received when measuring two-way delay using ICMP Echo Request/Reply (see RFC 792)"
     },
     {
-      "name": "delay.oneway.s",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.us",
+      "prim": "natural",
+      "desc": "Singleton one-way delay along a path as measured by OWAMP (see RFC 3763) in microseconds"
     },
     {
-      "name": "delay.twoway.icmp.s",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.us.min",
+      "prim": "natural",
+      "desc": "Minimum one-way delay along a path as measured by OWAMP (see RFC 3763) in microseconds"
     },
     {
-      "name": "delay.oneway.ms",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.us.mean",
+      "prim": "natural",
+      "desc": "Mean one-way delay along a path as measured by OWAMP (see RFC 3763) in microseconds"
     },
     {
-      "name": "delay.oneway.us",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.us.50pct",
+      "prim": "natural",
+      "desc": "Median one-way delay along a path as measured by OWAMP (see RFC 3763) in microseconds"
     },
     {
-      "name": "delay.oneway.ns",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.us.max",
+      "prim": "natural",
+      "desc": "Maximum one-way delay along a path as measured by OWAMP (see RFC 3763) in microseconds"
     },
     {
-      "name": "delay.twoway.icmp.ns",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.queue.s",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.buffer.s",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.queue.ms",
-      "prim": "natural"
+      "name": "delay.oneway.owamp.count",
+      "prim": "natural",
+      "desc": "Count of samples for one-way delay measurements using OWAMP (see RFC 3763)"
     },
     {
       "name": "delay.queue.us",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Singleton measured or inferred delay attributable to queueing along a path in microseconds"
+    },
+    {
+      "name": "delay.queue.us.min",
+      "prim": "natural",
+      "desc": "Minimum measured or inferred delay attributable to queueing along a path in microseconds"
+    },
+    {
+      "name": "delay.queue.us.mean",
+      "prim": "natural",
+      "desc": "Mean measured or inferred delay attributable to queueing along a path in microseconds"
+    },
+    {
+      "name": "delay.queue.us.50pct",
+      "prim": "natural",
+      "desc": "Median measured or inferred delay attributable to queueing along a path in microseconds"
+    },
+    {
+      "name": "delay.queue.us.max",
+      "prim": "natural",
+      "desc": "Maximum measured or inferred delay attributable to queueing along a path in microseconds"
     },
     {
       "name": "delay.buffer.us",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.buffer.ms",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.queue.ns",
-      "prim": "natural"
-    },
-    {
-      "name": "delay.buffer.ns",
-      "prim": "natural"
-    },
-    {
-      "name": "rtt.s",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Delay attributable to buffering at an endpoint in microseconds"
     },
     {
       "name": "rtt.ms",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Round-trip time as measured or estimated at the sender in milliseconds"
     },
     {
       "name": "rtt.us",
-      "prim": "natural"
-    },
-    {
-      "name": "rtt.ns",
-      "prim": "natural"
-    },
-    {
-      "name": "iat.s",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Round-trip time as measured or estimated at the sender in microseconds"
     },
     {
       "name": "iat.ms",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Packet interarrival or event interoccurance time in milliseconds"
     },
     {
       "name": "iat.us",
-      "prim": "natural"
-    },
-    {
-      "name": "iat.ns",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Packet interarrival or event interoccurance time in microseconds"
     },
     {
       "name": "connectivity.ip",
-      "prim": "boolean"
+      "prim": "boolean",
+      "desc": "Assertion (or negation) that layer 3 connectivity between the identified source and destination is available"
     },
     {
       "name": "connectivity.as",
-      "prim": "boolean"
+      "prim": "boolean",
+      "desc": "Assertion (or negation) that control plane connectivity (i.e. BGP routability) between the identified source and destination is available"
     },
     {
       "name": "hops.ip",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of layer 3 hops or subhops along the identified path"
     },
     {
       "name": "hops.as",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of control-plane hops or subhops along the identified path"
     },
     {
       "name": "bandwidth.nominal.bps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Nominal (advertised) bandwidth at a point or along a path in bits per second"
     },
     {
       "name": "bandwidth.nominal.kbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Nominal (advertised) bandwidth at a point or along a path in kilobits per second"
     },
     {
       "name": "bandwidth.nominal.Mbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Nominal (advertised) bandwidth at a point or along a path in megabits per second"
     },
     {
       "name": "bandwidth.partial.bps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Partial bandwidth attributable to a given flow in bits per second"
     },
     {
       "name": "bandwidth.partial.kbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Partial bandwidth attributable to a given flow in kilobits per second"
     },
     {
       "name": "bandwidth.partial.Mbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Partial bandwidth attributable to a given flow in megabits per second"
     },
     {
       "name": "bandwidth.imputed.bps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Bandwidth assumed to be available along a path according to measurement and heuristics in bits per second"
     },
     {
       "name": "bandwidth.imputed.kbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Bandwidth assumed to be available along a path according to measurement and heuristics in kilobits per second"
     },
     {
       "name": "bandwidth.imputed.Mbps",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Bandwidth assumed to be available along a path according to measurement and heuristics in megabits per second"
     },
     {
       "name": "url",
-      "prim": "url"
+      "prim": "url",
+      "desc": "A URL identifying a target of an active measurement"
     },
     {
       "name": "sessions.transport",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of transport-layer sessions associated with an event"
     },
     {
       "name": "sessions.layer7",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of application-layer sessions associated with an event"
     },
     {
       "name": "cpuload",
-      "prim": "real"
+      "prim": "real",
+      "desc": "Normalized CPU load on the identified device"
     },
     {
       "name": "memload",
-      "prim": "real"
+      "prim": "real",
+      "desc": "Normalized memory load on the identified device"
     },
     {
       "name": "linkload",
-      "prim": "real"
+      "prim": "real",
+      "desc": "Normalized link load on the identified interface or link"
     },
     {
       "name": "bufferload",
-      "prim": "real"
+      "prim": "real",
+      "desc": "Normalized buffer load on the identified device"
     },
     {
       "name": "bufferstalls",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "Count of buffer stalls (imputed playback quality degradation) associated with a flow/event"
     },
     {
       "name": "snr",
-      "prim": "real"
+      "prim": "real",
+      "desc": "Signal to noise ratio in decibels, either in a radio access network or in an audio transmission context"
     },
     {
       "name": "period.s",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "DEPRECATED and to be removed before D1.4. Use temporal scopes instead."
     },
     {
       "name": "period.ms",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "DEPRECATED and to be removed before D1.4. Use temporal scopes instead."
     },
     {
       "name": "period.us",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "DEPRECATED and to be removed before D1.4. Use temporal scopes instead."
     },
     {
       "name": "period.ns",
-      "prim": "natural"
+      "prim": "natural",
+      "desc": "DEPRECATED and to be removed before D1.4. Use temporal scopes instead."
+    },
+    {
+      "name": "measurement.identifier",
+      "prim": "string",
+      "desc": "Free-form string identifying the implementation of the measurement on the component; often the name of the external program"
+    },
+    {
+      "name": "measurement.revision",
+      "prim": "natural",
+      "desc": "Release or deployment serial number of the implementation of the measurement on the component"
+    },
+    {
+      "name": "measurement.algorithm",
+      "prim": "string",
+      "desc": "Free-form string identifying the algorithm used for the measurement on the component"
     }
   ]
 }
