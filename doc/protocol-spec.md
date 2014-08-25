@@ -181,7 +181,7 @@ The mPlane protocol supports the following primitive types for elements in the t
 
 Workflows in mPlane are built around the _capability - specification - result_ cycle. Capabilities, specifications, and results are kinds of __statements__: a capability is a statement that a component can perform some action (generally a measurement); a specification is a statement that a client would like a component to perform the action advertised in a capability; and a result is a statement that a component measured a given set of values at a given point in time according to a specification.
 
-Messages outside this nominal cycle are referred to as __notifications__, as they notify clients or components of conditions within the measurement infrastructure itself, as opposed to containing informations about measurements or observations.
+Other types of messages outside this nominal cycle are also supported: Withdrawals, Interrupts, Receipts, Redemptions, Indirections, and Exceptions. These notify clients or components of conditions within the measurement infrastructure itself, as opposed to containing information about measurements or observations.
 
 Messages may also be grouped together into a single message, referred to as an __envelope__.
 
@@ -191,7 +191,7 @@ The following types of messages are supported by the mPlane protocol.
 
 A __capability__ is a statement of a component's ability and willingness to perform a specific operation, conveyed from a component to a client. It does not represent a guarantee that the specific operation can or will be performed at a specific point in time.
 
-### Withdrawal *(not yet implemented)*
+### Withdrawal
 
 A __withdrawal__ is a statement of a component's inability or unwillingness to perform a specific operation. It cancels a previously advertised capability.
 
@@ -544,7 +544,7 @@ decisions can be made.
 Since HTTPS is not a bidirectional protocol (i.e., clients send requests, while
 servers send responses), while mPlane envisions a bidirectional message channel, it is necessary to specify mappings between this bidirectional message channel and the sequence of HTTPS requests and responses for each deployment scenario. These mappings are given in the Workflows section below. Note that in a given mPlane domain, any or all of these mappings may be used simultaneously.
 
-When sending mPlane messages over HTTPS, the Content-Type of the message indicates the message representation. The MIME Content-Type for mPlane messages using JSON representation over HTTPS is `application/x-mplane+json`. When sending exception notifications in HTTP response bodies, the response should contain an appropriate 400 (Client Error) or 500 (Server Error) response code. When sending indirections, the response should contain an appropriate 300 (Redirection) response code. Otherwise, the response should contain response code 200 OK.
+When sending mPlane messages over HTTPS, the Content-Type of the message indicates the message representation. The MIME Content-Type for mPlane messages using JSON representation over HTTPS is `application/x-mplane+json`. When sending exceptions in HTTP response bodies, the response should contain an appropriate 400 (Client Error) or 500 (Server Error) response code. When sending indirections, the response should contain an appropriate 300 (Redirection) response code. Otherwise, the response should contain response code 200 OK.
 
 ## mPlane over SSH
 
@@ -704,6 +704,28 @@ An example arrangement is shown in the figure below:
 Here, we consider a client speaking to both an exporter and a collector via a client-initiated connection. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export). The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
 
 The exporter initiates export to the collector using the specified protocol, and replies with a receipt that can be used to interrupt the export, should it have an indefinite temporal scope. In the meantime, it sends data matching the capability's schema directly to the collector.
+
+## Error Handling in mPlane Workflows
+
+Any component may signal an error to its client or supervisor at any time by
+sending an exception message. While the taxonomy of error messages is at
+this time left up to each individual component, exceptions should be used
+sparingly, and only to notify components and clients of errors which may
+require external human intervention to correct.
+
+Specifically, components in component-initiated workflows 
+should not use the exception mechanism for common error conditions (e.g., 
+device losing connectivity for small network-edge probes) -- specifications 
+sent to such components are expected to be best-effort. Exceptions should 
+also not be returned for specifications which would normally not be delayed 
+but are due to high load -- receipts should be used in this case, instead. 
+Likewise, specifications which cannot be fulfilled because they request the 
+use of capabilities that were once available but are no longer should be 
+answered with withdrawals.
+
+Exceptions *should* always be sent in reply to messages sent to 
+components or clients which cannot be handled due to a syntactic or semantic 
+error in the message itself.
 
 # The Role of the Supervisor
 

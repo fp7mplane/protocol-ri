@@ -50,6 +50,7 @@ _this will probably change when moving to a CLI-based httpsrv.py, so write this 
 The following classes and features are *not yet implemented* in the reference implementation:
 
 - Indirection messages
+- Withdrawal messages
 - mplane.model support for repeating measurements (assigned to FHA)
 - mplane.model support for prefix constraints
 - mplane.model support for the registry section (esp. default)
