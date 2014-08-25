@@ -54,10 +54,6 @@
       "desc": "Source layer 4 port of an event/flow, or the port from which packets were sent when an active measurement was taken"
     },
     {
-      "name": "source.mac",
-      "prim": "address"
-    },
-    {
       "name": "source.interface",
       "prim": "string",
       "desc": "A locally-scoped identifier of an interface to which the source of an event/flow is attached, or from which an active measurement was taken"
@@ -88,10 +84,6 @@
       "desc": "The destination layer 4 port of an event/flow, or the port to which packets were sent when an active measurement was taken"
     },
     {
-      "name": "destination.mac",
-      "prim": "address"
-    },
-    {
       "name": "destination.interface",
       "prim": "string",
       "desc": "A locally-scoped identifier of an interface to which the destination of an event/flow is attached, or the target interface of an active measurement"
@@ -115,10 +107,6 @@
       "name": "observer.ip6",
       "prim": "address",
       "desc": "The IPv6 address of the observation point of a passive measurement"
-    },
-    {
-      "name": "observer.mac",
-      "prim": "string"
     },
     {
       "name": "observer.link",
@@ -154,10 +142,6 @@
       "name": "intermediate.port",
       "prim": "natural",
       "desc": "Layer 4 port on which a flow/event was observed on a given entity along the path; used for NAPT applications"
-    },
-    {
-      "name": "intermediate.mac",
-      "prim": "string"
     },
     {
       "name": "intermedate.as",
