@@ -261,7 +261,6 @@ Each message is made up of sections, as described in the subsection below. The f
 | `registry:`     | req.       | req.          | req.   | opt.        |          |
 | `label:`        | opt.       | opt.          | opt.   | opt.        | opt.     |
 | `when:`         | req.       | req.          | req.   | req.        |          |
-| `schedule:`     |            | opt.          |        |             |          |
 | `parameters:`   | req./token | req.          | req.   | opt./token  |          |
 | `metadata:`     | opt./token | opt.          | opt.   | opt./token  |          |
 | `results:`      | req./token | req.          | req.   | opt./token  |          |
@@ -509,7 +508,6 @@ Each section name key in the object has a value represented in JSON as follows:
 - `registry` : a URL identifying the registry from which element names are taken.
 - `label` : an arbitrary string.
 - `when` : a string containing a temporal scope, as described in the "Temporal Scope" subsection above.
-- `schedule` : a schedule object, as described in the "Schedule" subsection above.
 - `parameters` : a JSON object mapping (non-qualified) element names, either to constraints or to parameter values, as appropriate, and as described in the "Parameters" subsection above.
 - `metadata` : a JSON object mapping (non-qualified) element names to metadata values.
 - `results` : an array of element names.
