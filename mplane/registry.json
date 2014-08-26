@@ -99,6 +99,11 @@
       "desc": "BGP AS number of the destination of an event/flow, or AS target of an active measurement"
     },
     {
+      "name": "destination.url",
+      "prim": "url",
+      "desc": "A URL identifying a target of an active measurement"
+    },
+    {
       "name": "observer.ip4",
       "prim": "address",
       "desc": "The IPv4 address of the observation point of a passive measurement"
@@ -329,6 +334,16 @@
       "desc": "Delay attributable to buffering at an endpoint in microseconds"
     },
     {
+      "name": "delay.resolution.ms",
+      "prim": "natural",
+      "desc": "Delay from transaction start to completion of resolution of a name or URL to an address, in milliseconds"
+    },
+    {
+      "name": "delay.firstbyte.ms",
+      "prim": "natural",
+      "desc": "Delay from transaction start to receipt of first byte of content at the initiator, in milliseconds"
+    },
+    {
       "name": "rtt.ms",
       "prim": "natural",
       "desc": "Round-trip time as measured or estimated at the sender in milliseconds"
@@ -414,9 +429,34 @@
       "desc": "Bandwidth assumed to be available along a path according to measurement and heuristics in megabits per second"
     },
     {
-      "name": "url",
+      "name": "content.url",
       "prim": "url",
-      "desc": "A URL identifying a target of an active measurement"
+      "desc": "A URL identifying some content, access to which is passively or actively measured"
+    },
+    {
+      "name": "fps.nominal",
+      "prim": "float",
+      "desc": "Nominal frame rate in frames per second of the identified audio/video content"
+    },
+    {
+      "name": "fps.achieved",
+      "prim": "float",
+      "desc": "Achieved frame rate in frames per second of the identified audio/video content"
+    },
+    {
+      "name": "fps.achieved.min",
+      "prim": "float",
+      "desc": "Minumum achieved frame rate in frames per second of the identified audio/video content"
+    },
+    {
+      "name": "fps.achieved.mean",
+      "prim": "float",
+      "desc": "Mean achieved frame rate in frames per second of the identified audio/video content"
+    },
+    {
+      "name": "fps.achieved.max",
+      "prim": "float",
+      "desc": "Maximum achieved frame rate in frames per second of the identified audio/video content"
     },
     {
       "name": "sessions.transport",

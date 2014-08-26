@@ -484,7 +484,11 @@ Messages in the mPlane protocol are intended to support __state distribution__: 
 
 ### Message Schema
 
-The combination of elements in the `parameters` and `results` sections, together with the registry from which these elements are drawn, is referred to as a message's __schema__. The schema of a measurement can be loosely thought of as the definition of the table that the message defines.
+The combination of elements in the `parameters` and `results` sections, together with the registry from which these elements are drawn, is referred to as a message's __schema__. The schema of a measurement can be loosely thought of as the definition of the table, rows of which the message represents.
+
+The schema contributes not only to the identity of a message, but also to the semantic intepretation of the parameter and result values. The meanings of element values in mPlane are dependent on the other elements present in the message; in other words, the key to interpreting an mPlane message is that _the unit of semantic identity is a message_. For example, the element '`destination.ip4`' as a parameter means "the target of an given active measurement" when together with an elements describing an active metric (e.g. '`delay.twoway.icmp.us`'), but "the destination of the packets in a flow" when together with other elements in result columns describing a passively-observed flow. 
+
+The interpretation of the semantics of an entire message is application-specific. The protocol does not forbid the transmission of messages representing semantically meaningless or ambiguous schemas.
 
 ### Message Identity
 
@@ -492,7 +496,7 @@ A message's identity is composed of its schema, together with its temporal scope
 
 One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked can be taken as part of the message's identity as well.
 
-Implementations may use hashes over the values of the message's identity sections to uniquely identify messages.
+Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens. 
 
 # Representations and Session Protocols
 

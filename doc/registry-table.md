@@ -19,6 +19,7 @@
 | destination.interface | string | A locally-scoped identifier of an interface to which the destination of an event/flow is attached, or the target interface of an active measurement |
 | destination.device | string | A locally-scoped identifier of a destination device of an event/flow, or the target of an active measurement |
 | destination.as | natural | BGP AS number of the destination of an event/flow, or AS target of an active measurement |
+| destination.url | url | A URL identifying a target of an active measurement |
 | observer.ip4 | address | The IPv4 address of the observation point of a passive measurement |
 | observer.ip6 | address | The IPv6 address of the observation point of a passive measurement |
 | observer.link | string | A locally-scoped identifier of the link on which a passive measurement was observed |
@@ -65,6 +66,8 @@
 | delay.queue.us.50pct | natural | Median measured or inferred delay attributable to queueing along a path in microseconds |
 | delay.queue.us.max | natural | Maximum measured or inferred delay attributable to queueing along a path in microseconds |
 | delay.buffer.us | natural | Delay attributable to buffering at an endpoint in microseconds |
+| delay.resolution.ms | natural | Delay from transaction start to completion of resolution of a name or URL to an address, in milliseconds |
+| delay.firstbyte.ms | natural | Delay from transaction start to receipt of first byte of content at the initiator, in milliseconds |
 | rtt.ms | natural | Round-trip time as measured or estimated at the sender in milliseconds |
 | rtt.us | natural | Round-trip time as measured or estimated at the sender in microseconds |
 | iat.ms | natural | Packet interarrival or event interoccurance time in milliseconds |
@@ -82,7 +85,12 @@
 | bandwidth.imputed.bps | natural | Bandwidth assumed to be available along a path according to measurement and heuristics in bits per second |
 | bandwidth.imputed.kbps | natural | Bandwidth assumed to be available along a path according to measurement and heuristics in kilobits per second |
 | bandwidth.imputed.Mbps | natural | Bandwidth assumed to be available along a path according to measurement and heuristics in megabits per second |
-| url | url | A URL identifying a target of an active measurement |
+| content.url | url | A URL identifying some content, access to which is passively or actively measured |
+| fps.nominal | float | Nominal frame rate in frames per second of the identified audio/video content |
+| fps.achieved | float | Achieved frame rate in frames per second of the identified audio/video content |
+| fps.achieved.min | float | Minumum achieved frame rate in frames per second of the identified audio/video content |
+| fps.achieved.mean | float | Mean achieved frame rate in frames per second of the identified audio/video content |
+| fps.achieved.max | float | Maximum achieved frame rate in frames per second of the identified audio/video content |
 | sessions.transport | natural | Count of transport-layer sessions associated with an event |
 | sessions.layer7 | natural | Count of application-layer sessions associated with an event |
 | cpuload | real | Normalized CPU load on the identified device |
