@@ -90,7 +90,9 @@ devices within its own network would be an example of an mPlane client.
 Measurement components can be divided into two categories: __probes__ and
 __repositories__. Roughly, probes perform measurements, and repositories
 provide access to stored measurements, analysis of stored measurements, or
-other access to related external data sources. Probes and repositories can
+other access to related external data sources. External databases and data sources (e.g., routing looking glasses, WHOIS services, DNS, etc.) can be made available to mPlane clients through repositories acting as gateways to these external sources, as well.
+
+Probes and repositories can
 cooperate, with probes sending new measurements to the repositories for
 subsequent queries for analysis. However, this categorization is very rough:
 what a component can do is completely described by its capabilities, and some
@@ -114,7 +116,19 @@ Within an mPlane domain, a special client known as a __reasoner__ may control au
 
 ## Workflows
 
-*[**Editor's Note**: per Mirja, introduce workflows already. Important distinctions here: component- versus client-initiated versus bidirectional, and indirect export. Make clear that we expect indirect export to be the primary way to move ]*
+A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail.
+
+![Figure 2](./message-paths.png)
+
+The mPlane protocol supports three patterns of __workflow__: 
+
+  - __Client-initiated__ in which clients connect directly to components at known, stable, routable URLs. Client-initiated workflows are intended for use between clients and supervisors, for access to repositories, and for access to probes embedded within a network infrastructure.
+
+  - __Component-initiated__ in which components initiate connections to clients. Component-initiated workflows are intended for use between components without stable routable addresses and supervisors, e.g. for small probes on embedded devices, mobile devices, or software probes embedded in browsers on personal computers.
+
+  - __Indirect export__ in which one component is directed to send results to another component using an external protocol, generally from a probe to a repository or between repositories. Since the mPlane Result message is not particularly well-suited to the bulk transfer of high-volume results, this workflow is intended to be the primary method for moving large amounts of data from probes to repositories.
+
+Within a given mPlane domain, these workflow patterns cam be combined to facilitate complex interactions among clients and components according to the requirements imposed by the application and the deployment of components in the network.
 
 # Protocol Information Model
 
@@ -297,7 +311,7 @@ by applications:
 - `collect`: Receive results via indirect export
 - `callback`: Used for callback control in component-initated workflows
 	
-In the JSON and YAML representations of mPlane messages, the verb is the value of the key corresponding to the message's type, represented as a lowercase string (e.g. `capability`, `specification`, `result` and so on).
+In the JSON representation of mPlane messages, the verb is the value of the key corresponding to the message's type, represented as a lowercase string (e.g. `capability`, `specification`, `result` and so on).
 
 Roughly speaking, probes implement `measure` capabilities, and repositories implement `query` and `collect` capabilities.
 
@@ -429,28 +443,28 @@ The `parameters` section of a message contains an ordered list of the __paramete
 Four kinds of constraints are currently supported for mPlane parameters:
 
 - No constraint: all values are allowed. This is signified by the special constraint string '`*`'.
-- Single value constraint: only a single value is allowed. This is intended for use for capabilities which are conceivably configurable, but for which a given component only supports a single value for a given parameter due to its own out-of-band configuration or the permissions of the client for which the capability is valid. For example, the source address of an active measurement of a single-homed probe might be given as '`source.ip4: 192.0.2.3`'.
-- Set constraint: multiple values are allowed, and are explicitly listed, separated by the '`,`' character. For example, a multi-homed probe allowing two potential source addresses on two different networks might be given as '`source.ip4: 192.0.2.3, 192.0.3.4`'.
+- Single value constraint: only a single value is allowed. This is intended for use for capabilities which are conceivably configurable, but for which a given component only supports a single value for a given parameter due to its own out-of-band configuration or the permissions of the client for which the capability is valid. For example, the source address of an active measurement of a single-homed probe might be given as '`source.ip4: 192.0.2.19`'.
+- Set constraint: multiple values are allowed, and are explicitly listed, separated by the '`,`' character. For example, a multi-homed probe allowing two potential source addresses on two different networks might be given as '`source.ip4: 192.0.2.19, 192.0.3.21`'.
 - Range constraint: multiple values are allowed, between two ordered values, separated by the special string '`...`'. Range constraints are inclusive. A measurement allowing a restricted range of source ports might be expressed as '`source.port: 32768 ... 65535`'
 - Prefix constraint: multiple values are allowed within a single network, as specified by a network address and a prefix. A prefix constraint may be satisfied by any network of host address completely contained within the prefix. An example allowing probing of any host within a given /24 might be '`destination.ip4: 192.0.2.0/24`'.
 
 Parameter and constraint values must be a representation of an instance of the primitive type of the associated element.
 
-*[**Editor's Note**: work pointer]*
-
-### Result Columns
-
-The `results` section contains an ordered list of __result columns__ for a given measurement: values which will be returned by the measurement. The result columns are identified the names of the elements from the element registry.
-
-### Result Values
-
-The `resultvalues` section contains an ordered list of ordered lists (or, rather, a two dimensional array) of values of results for a given measurement, in row-major order. The columns in the result values appear in the same order as the columns in the `results` section. Result values appear only in result messages.
-
-Values for each column must be a representation of an instance of the primitive type of the associated result column element.
-
 ### Metadata
 
-The `metadata` section contains message __metadata__: key-value pairs associated with a capability inherited by its specification and results. Metadata can also be thought of as immutable parameters. This is intended to represent information which can be used to make decisions at the client as to the applicability of a given capability (e.g. details of algorithms used or implementation-specific information) as well as to make adjustments at post-measurement analysis time when contained within results.
+The `metadata` section contains measurement __metadata__: key-value pairs associated with a capability inherited by its specification and results. Metadata can also be thought of as immutable parameters. This is intended to represent information which can be used to make decisions at the client as to the applicability of a given capability (e.g. details of algorithms used or implementation-specific information) as well as to make adjustments at post-measurement analysis time when contained within results.
+
+An example metadata element might be '`measurement.identifier: qof`', which identifies the underlying tool taking measurements, such that later analysis can correct for known peculiarities in the implementation of the tool.  Another example might be '`location.longitude = 8.55272`', which while not particularly useful for analysis purposes, can be used to draw maps of measurements.
+
+### Result Columns and Values
+
+Results are represented using two sections: `results` which identify the elements to be returned by the measurement, and `resultvalues` which contains the actual values. `results` appear in all statements, while `resultvalues` appear only in result messages.
+
+The `results` section contains an ordered list of __result columns__ for a given measurement: names of elements which will be returned by the measurement. The result columns are identified by the names of the elements from the element registry.
+
+The `resultvalues` section contains an ordered list of ordered lists (or, rather, a two dimensional array) of values of results for a given measurement, in row-major order. The columns in the result values appear in the same order as the columns in the `results` section.
+
+Values for each column must be a representation of an instance of the primitive type of the associated result column element.
 
 ### Export
 
@@ -462,17 +476,17 @@ The `export` section contains a URL or partial URL for __indirect export__. Its 
 
 Capabilities with an `export` section can only be used by specifications with a matching `export` section. If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability.
 
-The special export schema `mplane-http` implies that the exporter will POST mPlane result messages matching the collector's capability to the collector at the specified URL. All other export schemas are application-specific, and the mPlane protocol implementation is only responsible for ensuring the schemas and protocol identifiers match between collector and exporter. 
+The special export schema `mplane-http` implies that the exporter will POST mPlane result messages to the collector at the specified URL. All other export schemas are application-specific, and the mPlane protocol implementation is only responsible for ensuring the schemas and protocol identifiers match between collector and exporter. 
 
 *[**Editor's Note**: This text implies that the export section of a statement is part of the statement's unique hash; this is not the case in the implementation. Fix this.]*
 
 ### Link
 
-The `link` section contains the URL to which messages in the next step in the workflow can be send, providing __indirection__ in capability and indirection messages. The link URL must currently have the schema `mplane-http`, and refers to posting of messages via HTTP `POST`.
+The `link` section contains the URL to which messages in the next step in the workflow (i.e. a specification for a capability, a result or receipt for a specification) can be sent, providing indirection. The link URL must currently have the schema `mplane-http`, and refers to posting of messages via HTTP `POST`.
 
-If present in a capability, the client should `POST` specifications for the given capability to the component at the URL given in order to use the capability.
+If present in a capability, the client must `POST` specifications for the given capability to the component at the URL given in order to use the capability, as opposed to simply posting them to the known or assumed URL for a component. If present in a specification, the component must `POST` results for the given specification back to the client at the URL given, as opposed to . See the section on workflows below for details.
 
-An indirection message can be returned for a specification by a component, directing the client to send the specification to the component at the URL given in the link in order to retrieve results or initiate measurement.
+If present in an indirection message returned for a specification by a component, the client must send the specification to the component at the URL given in the link in order to retrieve results or initiate measurement.
 
 ### Token
 
@@ -492,6 +506,10 @@ If a receipt contains a token, it may be redeemed by the same client using a red
 
 The `contents` section appears only in envelopes, and is an ordered list of messages. If the envelope's kind identifies a message kind, the contents may contain only messages of the specified kind, otherwise if the kind is `message`, the contents may contain a mix of any kind of message.
 
+## Multivalue Parameters in Specifications
+
+*[**Editor's Note:** Add a section here describing how to handle the ENST case of multiple-value parameters. In this case, the parameter element must appear both as a parameter and as a result column, or the result columns must all be aggregates, and an additional multi-value rule must be specified as a parameter. It is not clear this capability will be added as part of the D1.4 protocol.]*
+
 ## Message Uniqueness and Idempotence
 
 *[**Editor's Note:** Verify that this is what the RI does, and fix the RI to comply.]*
@@ -510,13 +528,13 @@ The interpretation of the semantics of an entire message is application-specific
 
 A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata` `results`, and `export` sections taken together comprise the message's identity. 
 
-One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked can be taken as part of the message's identity as well.
+One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked must be taken as part of the message's identity as well.
 
 Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens. 
 
 # Representations and Session Protocols
 
-The mPlane protocol is defined as an abstract data model in order to support multiple representations and session protocols. The canonical representation supported by the present reference implementation involves JSON objects transported via HTTP over TLS (HTTPS). 
+The mPlane protocol is defined as an abstract data model in order to support multiple representations and session protocols. The canonical representation supported by the present reference implementation involves JSON ([RFC 7159](http://tools.ietf.org/html/7159)) objects transported via HTTP ([RFC 7230](http://tools.ietf.org/html/7230)) over TLS ([RFC 5246](http://tools.ietf.org/html/5246))(HTTPS). 
 
 ## JSON representation
 
@@ -532,10 +550,10 @@ Each section name key in the object has a value represented in JSON as follows:
 - `metadata` : a JSON object mapping (non-qualified) element names to metadata values.
 - `results` : an array of element names.
 - `resultvalues` : an array of arrays of element values in row major order, where each row array contains values in the same order as the element names in the `results` section.
-- `export` : a URL for indirect export
-- `link` : a URL for message indirection
-- `token` : an arbitrary string
-- `contents` : an array of objects containing messages
+- `export` : a URL for indirect export.
+- `link` : a URL for message indirection.
+- `token` : an arbitrary string.
+- `contents` : an array of objects containing messages.
 
 ### Textual representations of element values
 
@@ -658,15 +676,17 @@ Results are merely specifications with result values filled in and an absolute t
 
 # Workflows
 
-The mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__ and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS.
+As noted above, mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__, and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS.
 
 ## Client-Initiated
 
-Client-initiated workflows are appropriate for stationary components, those with stable, routable addresses, which can therefore act as HTTPS servers. This is generally the case for supervisors, large repositories, repositories acting as gateways to external data sources, and certain large-scale or public probes. The client-initiated pattern is illustrated below:
+Client-initiated workflows are appropriate for stationary components, i.e., those with stable, routable addresses, which can therefore act as HTTPS servers. This is generally the case for supervisors, large repositories, repositories acting as gateways to external data sources, and certain large-scale or public probes. The client-initiated pattern is illustrated below:
 
-![Figure 2](./client-initiated.png)
+![Client-initiated workflow](./client-initiated.png)
 
-Here, the client opens an HTTPS connection the the component, and GETs a capability message, or an envelope containing capability messages, at a known URL. It then subsequently uses these capabilities by POSTing a specification, either to a known URL or to the URL given in the `link` section of the capability. The HTTP response to the POSTed specification contains either a result directly, or contains a receipt which can be redeemed later by POSTing a redemption to the component.
+Here, the client opens an HTTPS connection the the component, and GETs a capability message, or an envelope containing capability messages, at a known URL. It then subsequently uses these capabilities by POSTing a specification, either to a known URL or to the URL given in the `link` section of the capability. The HTTP response to the POSTed specification contains either a result directly, or contains a receipt which can be redeemed later by POSTing a redemption to the component. This latter case is illustrated below:
+
+![Client-initiated workflow with delayed result](./client-initiated-delayed.png)
 
 ### Capability Discovery
 
@@ -686,9 +706,11 @@ In this case, the usual client-server relationship is reversed, as shown in the 
 
 ![Figure 4](./component-initiated.png)
 
-Here, the component opens an HTTPS connection to the client and POSTs its capabilities to a known URL. The client remembers which capabilities it wishes to use on which components, and prepares a specification for later retrieval by the client. The component then periodically polls the client, opening HTTPS connections and attempting to GET a specification from a known URL. The client will either respond 404 Not Found if the client has no current specification for the component, or with a specification to run matching a previously POSTed capability.
+Here, when the component becomes available, it opens an HTTPS connection to the client and POSTs its capabilities to a known, configured URL at the supervisor. The supervisor remembers which capabilities it wishes to use on which components, and prepares specifications for later retrieval by the client. 
 
-After completing the specification, the component then calls back and POSTs the results to the client at a known URL.
+The component then periodically polls the supervisor, opening HTTPS connections and attempting to GET a specification from a known URL. The client will either respond 404 Not Found if the client has no current specification for the component, or with a specification to run matching a previously POSTed capability.
+
+After completing the specification, the component then calls back and POSTs the results to the supervisor at a known URL.
 
 In this case, the component must be configured with the client's URL(s).
 
@@ -715,15 +737,17 @@ The component then ceases polling the client, and calls back at the specified ti
 
 ## Indirect Export
 
-Many common measurement infrastructures involve a large number of probes exporting large volumes of data to a (much) smaller number of repositories, where data is reduced and analyzed. Since (1) the mPlane protocol is not particularly well-suited to the bulk transfer of data and (2) fidelity is better ensured when minimizing translations between representations, the channel between the probes and the repositories is in this case external to mPlane. This **indirect export** channel runs either a standard export protocol such as IPFIX, or a proprietary protocol unique to the probe/repository pair. All that is necessary is that (1) the client, exporter, and collector agree on a schema to define the data to be transferred and (2) the exporter and collector share a common protocol for export.
+Many common measurement infrastructures involve a large number of probes exporting large volumes of data to a (much) smaller number of repositories, where data is reduced and analyzed. Since (1) the mPlane protocol is not particularly well-suited to the bulk transfer of data and (2) fidelity is better ensured when minimizing translations between representations, the channel between the probes and the repositories is in this case external to mPlane. This **indirect export** channel runs either a standard export protocol such as IPFIX, or a proprietary protocol unique to the probe/repository pair. It coordinates an __exporter__ which will produce and export data with a __collector__ which will receive it. All that is necessary is that (1) the client, exporter, and collector agree on a schema to define the data to be transferred and (2) the exporter and collector share a common protocol for export.
 
 An example arrangement is shown in the figure below:
 
 ![Figure 5](./indirect-export.png)
 
-Here, we consider a client speaking to both an exporter and a collector via a client-initiated connection. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export). The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
+Here, we consider a client speaking to an exporter and a collector. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export), either via a client-initiated workflow or a capability disovery server. The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
 
 The exporter initiates export to the collector using the specified protocol, and replies with a receipt that can be used to interrupt the export, should it have an indefinite temporal scope. In the meantime, it sends data matching the capability's schema directly to the collector.
+
+This data, or data derived from the analysis thereof, can then be subsequently retrieved by a client using a client-initiated workflow to the collector.
 
 ## Error Handling in mPlane Workflows
 
@@ -771,7 +795,7 @@ This simple example illustrates the three main responsibilities of the superviso
 
 ## Component Registration
 
-In order to be able to plan the use of components to perform measurements, the supervisor must __register__ the components associated with it. For client-initiated workflows -- large repositories and the address of the components is often a configuration parameter of the supervisor. Capabilities describing the available measurements and queries at large-scale components can even be part of the supervisor's externally managed static configuration, or can be dynamically retrieved and updated from the components or from a capability discovery server.
+In order to be able to use components to perform measurements, the supervisor must __register__ the components associated with it. For client-initiated workflows -- large repositories and the address of the components is often a configuration parameter of the supervisor. Capabilities describing the available measurements and queries at large-scale components can even be part of the supervisor's externally managed static configuration, or can be dynamically retrieved and updated from the components or from a capability discovery server.
 
 For component-initiated workflows, components connect to the supervisor and POST capabilities and withdrawals, which requires the supervisor to maintain a set of capabilities associated with a set of components currently part of the mPlane infrastructure it supervises.
 
@@ -787,7 +811,7 @@ The most dominant responsibility of the supervisor is _composing_ capabilities f
 
 # An example mPlane infrastructure
 
-An example mPlane infrastructure, containing a client/reasoner, supervisor, probe and repository components, demonstrating all common data and control flows, is shown below.
+Bringing this all together, an example mPlane infrastructure, containing a client/reasoner, supervisor, probe and repository components, demonstrating all common data and control flows, is shown below.
 
 ![Figure 7](./comp-decomp-example.png)
 
@@ -800,4 +824,3 @@ When the supervisor receives these capabilities, its composition logic derives t
 When the client wishes to run a measurement, it sends a specification matching the first capability to the supervisor, whose decomposition logic splits it into three specifications: one each to the probes to run the measurements, and one to the repository to query the resulting aggregated data. The repository then sends the result of the third specification back to the supervisor, which relays it to the client.
 
 Note that not all interaction among components in an mPlane infrastructure must be mediated by the supervisor: indeed, for more detailed queries of the repository, the client may directly access the repository via a backchannel.
-

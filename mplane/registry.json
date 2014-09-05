@@ -532,6 +532,26 @@
       "name": "measurement.algorithm",
       "prim": "string",
       "desc": "Free-form string identifying the algorithm used for the measurement on the component"
+    },
+    {
+      "name": "location.latitude", 
+      "prim": "float", 
+      "desc": "The latitude of the component expressed as a floating point number of degrees north of the equator"
+    },
+    {
+      "name": "location.longitude", 
+      "prim": "float", 
+      "desc": "The longitude of the component expressed as a floating point number of degrees east of the standard meridian (on Earth, the Prime Meridian at Greenwich)"
+    },
+    {
+      "name": "location.altitude" , 
+      "prim": "float", 
+      "desc": "The altitude of the component expressed as a floating point number of meters above the standard zero altitude (on Earth, mean sea level)"
+    },
+    {
+      "name": "location.civil", 
+      "prim": "string", 
+      "desc": "A free-form identifier of the civil location (postal address, city name, building name, etc) of the component"
     }
   ]
 }
