@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 25 August 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 5 September 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
