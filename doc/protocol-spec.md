@@ -18,7 +18,7 @@ acts as both a client (to the components it supervises) and a component (to the
 clients it serves), and provides application-specific decomposition of specifications and composition of results. This arrangement is shown below, 
 and further described in the rest of the document. The _capability - specification - result_ cycle in this diagram comprises the mPlane protocol.
 
-![Figure 1](./arch-overview.png)
+![General arrangement of entities in the mPlane architecture](./arch-overview.png)
 
 This document borrows heavily from mPlane project [Deliverable 1.3](https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables//697mplane-d13.pdf), of 31 October 2013, by B. Trammell, M. Mellia, A. Finamore, S. Traverso, T. Szemethy, B. Szabó, R. Winter, M. Faath, D. Rossi, B. Donnet, F. Invernizzi, and D. Papadimitriou. It will be the basis of mPlane project Deliverable 1.4. Updates to the present state of the mPlane protocol are in progress.
 
@@ -118,7 +118,7 @@ Within an mPlane domain, a special client known as a __reasoner__ may control au
 
 A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail.
 
-![Figure 2](./message-paths.png)
+![Potential sequences of messages in the mPlane protocol](./message-paths.png)
 
 The mPlane protocol supports three patterns of __workflow__: 
 
@@ -696,7 +696,7 @@ In this way, a client needs only be configured with a single URL for capability 
 
 This arrangement is shown in the figure below.
 
-![Figure 3](./client-initiated-discovery.png)
+![Capability discovery in client-initiated workflows](./client-initiated-discovery.png)
 
 ## Component-Initiated
 
@@ -704,7 +704,7 @@ Component-initiated workflows are appropriate for components which do not have s
 
 In this case, the usual client-server relationship is reversed, as shown in the figure below.
 
-![Figure 4](./component-initiated.png)
+![Component-initiated workflow](./component-initiated.png)
 
 Here, when the component becomes available, it opens an HTTPS connection to the client and POSTs its capabilities to a known, configured URL at the supervisor. The supervisor remembers which capabilities it wishes to use on which components, and prepares specifications for later retrieval by the client. 
 
@@ -741,7 +741,7 @@ Many common measurement infrastructures involve a large number of probes exporti
 
 An example arrangement is shown in the figure below:
 
-![Figure 5](./indirect-export.png)
+![Indirect export workflow](./indirect-export.png)
 
 Here, we consider a client speaking to an exporter and a collector. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export), either via a client-initiated workflow or a capability disovery server. The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
 
