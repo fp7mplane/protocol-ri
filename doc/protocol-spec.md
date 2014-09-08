@@ -124,7 +124,7 @@ The mPlane protocol supports three patterns of __workflow__:
 
   - __Client-initiated__ in which clients connect directly to components at known, stable, routable URLs. Client-initiated workflows are intended for use between clients and supervisors, for access to repositories, and for access to probes embedded within a network infrastructure.
 
-  - __Component-initiated__ in which components initiate connections to clients. Component-initiated workflows are intended for use between components without stable routable addresses and supervisors, e.g. for small probes on embedded devices, mobile devices, or software probes embedded in browsers on personal computers.
+  - __Component-initiated__ in which components initiate connections to clients. Component-initiated workflows are intended for use between components without stable routable addresses and supervisors, e.g. for small probes on embedded devices, mobile devices, or software probes embedded in browsers on personal computers behind network-address translators (NATs) or firewalls which prevent a client from establishing a connection to them.
 
   - __Indirect export__ in which one component is directed to send results to another component using an external protocol, generally from a probe to a repository or between repositories. Since the mPlane Result message is not particularly well-suited to the bulk transfer of high-volume results, this workflow is intended to be the primary method for moving large amounts of data from probes to repositories.
 
@@ -336,9 +336,9 @@ A temporal scope refers to when a measurement can be run (in a Capability), when
 The general form of a temporal scope (in BNF-like syntax) is as follows:
 
 ```
-when = <singleton> |            # A single point in time
-       <range> |                # A range between two points in time
-       <range> ' / ' <duration> # A range with a period
+simple-when = <singleton> |            # A single point in time
+              <range> |                # A range between two points in time
+              <range> ' / ' <duration> # A range with a period
 
 singleton = <iso8601> | # absolute singleton
             'now'       # relative singleton
@@ -408,9 +408,11 @@ inner-when = 'now' |
              'now' ' + ' <duration> / <duration>
 
 crontab = # to be determined
+
+when = <simple-when> | <repeated-when>
 ```
 
-A repeated specification consists of an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification which applies to each individual repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`. *[**Editor's Note* explain this better]*
+A repeated specification consists of an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification which applies to each individual repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`. 
 
 Submitting a repeated specification will still result in a single receipt, or in multiple results. These multiple results, resulting either directly from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. 
 
@@ -420,23 +422,25 @@ For example, a repeated specification to take measurements every second for five
 
 `when: repeat now ... future / 1h { now + 5m / 1s }`
 
-*[**Editor's Note**: Show how this expands]*
+This repeated specification is equivalent to the repeated submission of the same specification with a temporal scope of `when: { now + 5m / 1s }` once an hour until the specification is cancelled with an interrupt notification. 
 
-A repeated specification to take measurements every second for five minutes, repeating every half hour within a specific timeframe would be:
+As a second example, a repeated specification to take measurements every second for five minutes, repeating every half hour within a specific timeframe would be:
 
 `when: repeat 2014-01-01 13:00:00 ... 2014-06-01 14:00:00 / 30m { now + 5m / 1s }`
 
-*[**Editor's Note**: Show how this expands]*
+Likewise, this repeated specification is equivalend to the submission of the same specification with a temporal scope of `when: { now + 5m / 1s }` at `2014-01-01 13:00:00`, `2014-01-01 13:30:00`, `2014-01-01 14:00:00`, `2014-01-01 14:30:00`, and so on =, until (and including) `2014-06-01 13:30:00` and `2014-06-01 14:00:00`.
 
 A repeated specification taking singleton measurements every hour indefinitely with an implicit inner temporal specification:
 
 `when: repeat now ... future / 1h`
 
+equivalent to submitting a specification with the temporal scope `now` hourly forever until interrupted.
+
 *[**Editor's Note**: Add crontab examples once crontab is specified]*
 
 ### Parameters
 
-The `parameters` section of a message contains an ordered list of the __parameters__ for a given measurement: values which must be provided by a client to a component in a specification to convey the specifics of the measurement to perform. Each parameter in an mPlane message is a key-value pair, where the key is the name of an element from the element registry. In specifications and results, the value is the value of the parameter. In capabilities, the value is a __constraint__ on the possible values the component will accept for the parameter in a subsequent specification.
+The `parameters` section of a message contains an ordered list of the __parameters__ for a given measurement: values which must be provided by a client to a component in a specification to convey the specifics of the measurement to perform. Each parameter in an mPlane message is a __key-value pair__, where the key is the name of an element from the element registry. In specifications and results, the value is the value of the parameter. In capabilities, the value is a __constraint__ on the possible values the component will accept for the parameter in a subsequent specification.
 
 Four kinds of constraints are currently supported for mPlane parameters:
 
@@ -472,7 +476,7 @@ The `export` section contains a URL or partial URL for __indirect export__. Its 
 - For capabilities with any verb other than `collect`, the `export` section contains either the URL of a collector to which the component can indirectly export results, or a URL schema identifying a protocol over which the component can export to arbitrary collectors.
 - For specifications with any verb other than `collect`, the `export` section contains the URL of a collector to which the component should indirectly export results. A receipt will be returned for such specifiations.
 
-Capabilities with an `export` section can only be used by specifications with a matching `export` section. If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability.
+If a component can indirectly export or indirectly collect using multiple protocols, each of those protocols must be identified by its own capability; capabilities with an `export` section can only be used by specifications with a matching `export` section.
 
 The special export schema `mplane-http` implies that the exporter will POST mPlane result messages to the collector at the specified URL. All other export schemas are application-specific, and the mPlane protocol implementation is only responsible for ensuring the schemas and protocol identifiers match between collector and exporter. 
 
@@ -702,7 +706,7 @@ This arrangement is shown in the figure below.
 
 ## Component-Initiated
 
-Component-initiated workflows are appropriate for components which do not have stable addresses, and which are used by clients that do. Common examples of such components are lightweight probes on mobile devices and customer equipment on access networks, interacting directly with a supervisor.
+Component-initiated workflows are appropriate for components which do not have stable routable addresses (i.e., are behind NATs and/or are mobile), and which are used by clients that do. Common examples of such components are lightweight probes on mobile devices and customer equipment on access networks, interacting directly with a supervisor.
 
 In this case, the usual client-server relationship is reversed, as shown in the figure below.
 
