@@ -573,24 +573,41 @@ Timestamps are represented in [RFC 3339](http://tools.ietf.org/html/3339) and IS
 
 ## mPlane over HTTPS
 
-The default session protocol for mPlane messages is HTTP over TLS with mandatory mutual authentication. An mPlane component may act either as a TLS server or a TLS client, depending on the workflow. When an mPlane client initiates a connection to a component, it acts as a TLS client, and must present a client certificate, which the component will verify against its allowable clients and map to an internal identity for making access control decisions before proceeding. The component, on the other hand, acts as a TLS server, and must present a server certificate, which the client will verify against its accepted certificates for the component before proceeding. When an mPlane component initiates a connection to a client (or, more commonly, the client interface of a supervisor), this arragmenent is reversed: the component acts as a TLS client, the client as a TLS server, and mutual authentication is still mandatory.
+The default session protocol for mPlane messages is HTTP over TLS with mandatory mutual authentication. This grants confidentiality and integrity to the exchange of mPlane messages through a link security approach, and is transparent to the client. HTTP over TLS was chosen in part because of its ubiquitous implementation on many platforms.
 
-For components with simple authorization policies, the ability to establish a connection (which implies verification of a client certificate)
-may imply authorization to continue with any capability offered by the component.
-For components with more complex policies, the identity of the peer's
-certificate is mapped to an internal identity on which access control
-decisions can be made. 
+An mPlane component may act either as a TLS server or a TLS client, depending on the workflow. When an mPlane client initiates a connection to a component, it acts as a TLS client, and must present a client certificate, which the component will verify against its allowable clients and map to an internal identity for making access control decisions before proceeding. The component, on the other hand, acts as a TLS server, and must present a server certificate, which the client will verify against its accepted certificates for the component before proceeding. When an mPlane component initiates a connection to a client (or, more commonly, the client interface of a supervisor), this arragmenent is reversed: the component acts as a TLS client, the client as a TLS server, and mutual authentication is still mandatory.
 
 Since HTTPS is not a bidirectional protocol (i.e., clients send requests, while
 servers send responses), while mPlane envisions a bidirectional message channel, it is necessary to specify mappings between this bidirectional message channel and the sequence of HTTPS requests and responses for each deployment scenario. These mappings are given in the Workflows section below. Note that in a given mPlane domain, any or all of these mappings may be used simultaneously.
 
 When sending mPlane messages over HTTPS, the Content-Type of the message indicates the message representation. The MIME Content-Type for mPlane messages using JSON representation over HTTPS is `application/x-mplane+json`. When sending exceptions in HTTP response bodies, the response should contain an appropriate 400 (Client Error) or 500 (Server Error) response code. When sending indirections, the response should contain an appropriate 300 (Redirection) response code. Otherwise, the response should contain response code 200 OK.
 
+### Access Control
+
+For components with simple authorization policies (i.e., many probes), the ability to establish a connection 
+(which implies verification of a client certificate)
+further implies authorization to continue with any capability offered by the component.
+For components with more complex policies (i.e., many repositories) the identity of the peer's
+certificate is mapped to an internal identity on which access control decisions can be made. For access control purposes, the identity of an mPlane client or component is based on the Distinguished Name extracted from the certificate, which uniquely and securely identifies the entity carrying it.
+
+In an mPlane infrastructure containing a supervisor, each component trusts 
+its supevisor completely, and accepts every message that can be identified 
+as coming from the supervisor. Access control enforcement takes place on 
+the supervisor, using a RBAC approach: the identity of the clients 
+connecting to it are mapped to a role based on the DN extracted from 
+their certificate. Each role has access only to a subset of the whole set 
+of capabilities provided by that to a supervisor, as composed from the capabilities
+offered by the associated components, according to its privileges.
+Therefore, any client will only has access to capabilities at the supervisor 
+that it is authorized to execute. The same controls are enforced on specifications.
+
 ## mPlane over SSH
 
 Though not presently implemented by the reference implementation, the mPlane protocol specification is designed such that it can also use the Secure Shell (SSH) protocol as a session layer. In the SSH binding, a connection initiator (SSH client) identifies itself with an RSA, DSA, or ECDSA public key, which is bound to a specific identity, and the connection responder (SSH server) identifies itself with a host public key. As with TLS certificates, these are mapped to an internal identity on which access control decisions can be made.
 
 Once an SSH connection is established, mPlane messages can be exchanged bidirectionally over the channel.
+
+Access control in SSH is performed as in the HTTPS case, except that SSH public keys are mapped to identities at each component.
 
 Implementation and further specification of SSH as a session layer is a matter for future work.
 
