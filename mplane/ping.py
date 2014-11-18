@@ -107,7 +107,7 @@ def ping4_aggregate_capability(ipaddr):
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
-    cap.add_result_column("delay.twoway.icmp.us.count")
+    cap.add_result_column("delay.twoway.icmp.count")
     return cap
 
 def ping4_singleton_capability(ipaddr):
@@ -125,7 +125,7 @@ def ping6_aggregate_capability(ipaddr):
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
-    cap.add_result_column("delay.twoway.icmp.us.count")
+    cap.add_result_column("delay.twoway.icmp.count")
     return cap
 
 def ping6_singleton_capability(ipaddr):
@@ -147,7 +147,7 @@ class PingService(mplane.scheduler.Service):
                  cap.has_result_column("delay.twoway.icmp.us.min") or
                  cap.has_result_column("delay.twoway.icmp.us.mean") or                
                  cap.has_result_column("delay.twoway.icmp.us.max") or
-                 cap.has_result_column("delay.twoway.icmp.us.count"))):
+                 cap.has_result_column("delay.twoway.icmp.count"))):
             raise ValueError("capability not acceptable")
         super(PingService, self).__init__(cap)
 
@@ -212,8 +212,8 @@ class PingService(mplane.scheduler.Service):
                 res.set_result_value("delay.twoway.icmp.us.median", pings_median_delay(pings))
             if res.has_result_column("delay.twoway.icmp.us.max"):
                 res.set_result_value("delay.twoway.icmp.us.max", pings_max_delay(pings))
-            if res.has_result_column("delay.twoway.icmp.us.count"):
-                res.set_result_value("delay.twoway.icmp.us.count", len(pings))
+            if res.has_result_column("delay.twoway.icmp.count"):
+                res.set_result_value("delay.twoway.icmp.count", len(pings))
 
 
         return res
