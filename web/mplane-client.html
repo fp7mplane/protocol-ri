@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>mPlane Client Frontend</title>
+ 
+    <style>
+    .capsrc-hdr { font-size: 14px; color: green; }
+    .cap-hdr { font-size: 14px; color: red; }
+    .rec-hdr { font-size: 14px; color: orange; }
+    .res-hdr { font-size: 14px; color: blue;}
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        [ <a href="client.py">refresh</a> | 
+
+        ]
+    </div>
+    <div class="capsrc" id="capsrc-0">
+        <div class="capsrc-hdr" id="capsrc-hdr-0">
+            Capability Source http://mplane.corvid.ch/capabilities.json
+            [ <a class="show" id="capsrc-body-0-show">+</a> |
+              <a class="hide" id="capsrc-body-0-hide">-</a> | 
+              <a href="client.py?q=srcrefresh&id=0">reload</a> |
+              <a href="client.py?q=srcforget&id=0">forget</a> ]
+        </div>
+        <div class="capsrc-body" id="capsrc-body-0">
+            <div class="cap" id="cap-0">
+                <div class="cap-hdr" id="cap-hdr-0">
+                    Capability ping-average 
+                    [ <a class="show" id="capsrc-body-0-show">+</a> |
+                      <a class="hide" id="capsrc-body-0-hide">-</a> | 
+                      <a class="show" id="cap-form-0-show">new spec</a> ]
+                </div>
+                <div class="cap-form" id="cap-form-0">
+                </div>
+                <div class="cap-body" id="cap-body-0">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="jquery-2.1.1.js"/>
+    <script>
+    </script>
+
+</body>
+</html>
