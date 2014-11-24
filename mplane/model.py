@@ -788,7 +788,9 @@ class When(object):
         Return the duration of this temporal scope as a timedelta.
 
         """
-        if self._duration is not None:
+        if self.is_repeated() and self._inner_duration is not None:
+            return self._inner_duration
+        elif not self.is_repeated() and self._duration is not None:
             return self._duration
         elif self._b is None:
             return timedelta()
@@ -799,7 +801,10 @@ class When(object):
             return end - start
 
     def period(self):
-        return self._period
+        if self.is_repeated():
+            return self._inner_period
+        else:
+            return self._period
 
     def timer_delays(self, tzero=None):
         """
