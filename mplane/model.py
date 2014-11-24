@@ -244,7 +244,11 @@ results:
 
 """
 
-from ipaddress import ip_address
+try:
+    from ipaddress import ip_address
+except ImportError:
+    from ipaddr import IPAddress as ip_address
+
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
 import urllib.request
@@ -1343,7 +1347,7 @@ def element(name, reguri=None):
     global _base_registry
     global _registries
     if reguri:
-        return _registries[uri][name]
+        return _registries[reguri][name]
     else:
         return _base_registry[name]
 
@@ -1950,7 +1954,7 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
-               " r " + " ".join(sorted(self._resultcolumns.keys())) +
+               " r " + " ".join(sorted(self._resultcolumns.keys())) + \
                " ex " + str(self._export)
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
