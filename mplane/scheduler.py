@@ -249,6 +249,7 @@ class Scheduler(object):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
                     if (specification.has_schedule()):
+                    if (specification.when().is_repeated()):
                         new_job = MultiJob(service=service,
                                            specification=specification,
                                            session=session)
