@@ -77,7 +77,7 @@ total count of singleton measurements taken and packets lost:
 >>> cap.add_result_column("delay.twoway.icmp.us.min")
 >>> cap.add_result_column("delay.twoway.icmp.us.max")
 >>> cap.add_result_column("delay.twoway.icmp.us.mean")
->>> cap.add_result_column("delay.twoway.icmp.us.count")
+>>> cap.add_result_column("delay.twoway.icmp.count")
 >>> cap.add_result_column("packets.lost")
 
 Now we have a capability we could transform into JSON and make 
@@ -86,14 +86,16 @@ download or configuration:
 
 >>> capjson = mplane.model.unparse_json(cap)
 >>> capjson # doctest: +SKIP
-'{"capability": "measure", 
+'{"capability": "measure",
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core", 
   "when": "now ... future / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "*"},
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"]}'
 
 On the client side, we'd receive this capability as a JSON object and turn it
@@ -102,7 +104,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token 4e66a52f schema 5ce99352 p(v)/m/r 2(0)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters, 
 no metadata, and five result columns.
@@ -133,6 +135,8 @@ the component from which we got the capability:
 >>> specjson = mplane.model.unparse_json(spec)
 >>> specjson # doctest: +SKIP
 '{"specification": "measure", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
   "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
@@ -140,7 +144,7 @@ the component from which we got the capability:
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"]}'
 
 On the component side, likewise, we'd receive this specification as a JSON
@@ -165,7 +169,7 @@ measured:
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
->>> res.set_result_value("delay.twoway.icmp.us.count", 58220)
+>>> res.set_result_value("delay.twoway.icmp.count", 58220)
 >>> res.set_result_value("packets.lost", 2)
 
 The result can then be serialized and sent back to the client:
@@ -173,6 +177,8 @@ The result can then be serialized and sent back to the client:
 >>> resjson = json.dumps(res.to_dict())
 >>> resjson # doctest: +SKIP
 '{"result": "measure", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
   "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
   "parameters": {"source.ip4": "10.0.27.2", 
@@ -180,7 +186,7 @@ The result can then be serialized and sent back to the client:
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"],  
   "resultvalues": [["33155", "192307", "55166", "58220", "2"]]}'
 
@@ -188,7 +194,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)>
+<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -199,7 +205,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'48d7393c75aec14043c3a5af4f461013'
+'4e66a52f575499129f748a60eb0a26c7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -211,14 +217,16 @@ which can be used to quickly identify it in the future.
 >>> jsonrcpt = json.dumps(rcpt.to_dict())
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
-  "token": "48d7393c75aec14043c3a5af4f461013", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
+  "token": "4e66a52f575499129f748a60eb0a26c7", 
   "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"],}'
 
 The component keeps the receipt, keyed by token, and returns it to the
@@ -227,17 +235,21 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<receipt: 48d7393c75aec14043c3a5af4f461013>
+<receipt: 4e66a52f575499129f748a60eb0a26c7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<redemption: 48d7393c75aec14043c3a5af4f461013>
+<redemption: 4e66a52f575499129f748a60eb0a26c7>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
 results:
 
->>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "version": 0, "token": "48d7393c75aec14043c3a5af4f461013"}'
+>>> json.dumps(rdpt.to_dict(token_only=True)) # doctest: +SKIP
+'{"redemption": "measure", 
+  "version": 1, 
+  "registry": "http://ict-mplane.eu/registry/core", 
+  "token": "4e66a52f575499129f748a60eb0a26c7"
+}'
 
 .. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
  
@@ -743,123 +755,123 @@ class When(object):
 
 when_infinite = When(a=time_past, b=time_future)
 
-class Schedule(object):
-    """
-    Defines a schedule for repeated operations based on crontab-like
-    sets of months, days, days of weeks, hours, minutes, and seconds.
-    Used to specify repetitions of single measurements in a Specification.
-    Designed to be broadly compatible with LMAP calendar-based scheduling.
+# class Schedule(object):
+#     """
+#     Defines a schedule for repeated operations based on crontab-like
+#     sets of months, days, days of weeks, hours, minutes, and seconds.
+#     Used to specify repetitions of single measurements in a Specification.
+#     Designed to be broadly compatible with LMAP calendar-based scheduling.
 
-    This class is not yet fully implemented or integrated into the
-    information model.
+#     This class is not yet fully implemented or integrated into the
+#     information model.
 
-    """
-    def __init__(self, dictval=None, when=None):
-        super().__init__()
-        self._when = when
-        self._months = set()
-        self._days = set()
-        self._weekdays = set()
-        self._hours = set()
-        self._minutes = set()
-        self._seconds = set()
+#     """
+#     def __init__(self, dictval=None, when=None):
+#         super().__init__()
+#         self._when = when
+#         self._months = set()
+#         self._days = set()
+#         self._weekdays = set()
+#         self._hours = set()
+#         self._minutes = set()
+#         self._seconds = set()
 
-        if dictval is not None:
-            self._from_dict(dictval)
+#         if dictval is not None:
+#             self._from_dict(dictval)
 
-    def __repr__(self):
-        rs = "<Schedule "
-        if self._when is not None:
-            rs += repr(self._when) + " "
-        rs += "cron "
-        rs += "/".join(map(str, [len(self._months),
-                                 len(self._days),
-                                 len(self._weekdays),
-                                 len(self._hours),
-                                 len(self._minutes),
-                                 len(self._seconds)]))
-        rs += ">"
-        return rs
+#     def __repr__(self):
+#         rs = "<Schedule "
+#         if self._when is not None:
+#             rs += repr(self._when) + " "
+#         rs += "cron "
+#         rs += "/".join(map(str, [len(self._months),
+#                                  len(self._days),
+#                                  len(self._weekdays),
+#                                  len(self._hours),
+#                                  len(self._minutes),
+#                                  len(self._seconds)]))
+#         rs += ">"
+#         return rs
 
-    def to_dict(self):
-        """
-        Represents this schedule as a dictionary (for serialization).
+#     def to_dict(self):
+#         """
+#         Represents this schedule as a dictionary (for serialization).
 
-        """
-        d = {}
-        if self._when:
-            d[KEY_WHEN] = str(self._when)
-        if len(self._months):
-            d[KEY_MONTHS] = _unparse_numset(self._months)
-        if len(self._days):
-            d[KEY_DAYS] = _unparse_numset(self._days)
-        if len(self._weekdays):
-            d[KEY_WEEKDAYS] = _unparse_wdayset(self._weekdays)
-        if len(self._hours):
-            d[KEY_HOURS] = _unparse_numset(self._hours)
-        if len(self._minutes):
-            d[KEY_MINUTES] = _unparse_numset(self._minutes)
-        if len(self._seconds):
-            d[KEY_SECONDS] = _unparse_numset(self._seconds)
-        return d
+#         """
+#         d = {}
+#         if self._when:
+#             d[KEY_WHEN] = str(self._when)
+#         if len(self._months):
+#             d[KEY_MONTHS] = _unparse_numset(self._months)
+#         if len(self._days):
+#             d[KEY_DAYS] = _unparse_numset(self._days)
+#         if len(self._weekdays):
+#             d[KEY_WEEKDAYS] = _unparse_wdayset(self._weekdays)
+#         if len(self._hours):
+#             d[KEY_HOURS] = _unparse_numset(self._hours)
+#         if len(self._minutes):
+#             d[KEY_MINUTES] = _unparse_numset(self._minutes)
+#         if len(self._seconds):
+#             d[KEY_SECONDS] = _unparse_numset(self._seconds)
+#         return d
 
-    def _from_dict(self, d):
-        if KEY_WHEN in d:
-            self._when = When(valstr=d[KEY_WHEN])
-        if KEY_MONTHS in d:
-            self._months = _parse_numset(d[KEY_MONTHS])
-        if KEY_DAYS in d:
-            self._days = _parse_numset(d[KEY_DAYS])
-        if KEY_WEEKDAYS in d:
-            self._weekdays = _parse_wdayset(d[KEY_WEEKDAYS])
-        if KEY_HOURS in d:
-            self._hours = _parse_numset(d[KEY_HOURS])
-        if KEY_MINUTES in d:
-            self._minutes = _parse_numset(d[KEY_MINUTES])
-        if KEY_SECONDS in d:
-            self._seconds = _parse_numset(d[KEY_SECONDS])
+#     def _from_dict(self, d):
+#         if KEY_WHEN in d:
+#             self._when = When(valstr=d[KEY_WHEN])
+#         if KEY_MONTHS in d:
+#             self._months = _parse_numset(d[KEY_MONTHS])
+#         if KEY_DAYS in d:
+#             self._days = _parse_numset(d[KEY_DAYS])
+#         if KEY_WEEKDAYS in d:
+#             self._weekdays = _parse_wdayset(d[KEY_WEEKDAYS])
+#         if KEY_HOURS in d:
+#             self._hours = _parse_numset(d[KEY_HOURS])
+#         if KEY_MINUTES in d:
+#             self._minutes = _parse_numset(d[KEY_MINUTES])
+#         if KEY_SECONDS in d:
+#             self._seconds = _parse_numset(d[KEY_SECONDS])
 
-    def datetime_iterator(self, t=None):
-        """
-        Returns an iterator over datetimes generated by the schedule 
-        and period. 
+#     def datetime_iterator(self, t=None):
+#         """
+#         Returns an iterator over datetimes generated by the schedule 
+#         and period. 
 
-        """
-        # default to now, zero microseconds, initialize minus one second
-        if t is None:
-            t = datetime.utcnow().replace(microsecond=0)
+#         """
+#         # default to now, zero microseconds, initialize minus one second
+#         if t is None:
+#             t = datetime.utcnow().replace(microsecond=0)
 
-        # get base period (default 1s) and
-        period = None
-        if self._when is not None:
-            period = self._when.period()
-        if period is None:
-            period = timedelta(seconds=1)
+#         # get base period (default 1s) and
+#         period = None
+#         if self._when is not None:
+#             period = self._when.period()
+#         if period is None:
+#             period = timedelta(seconds=1)
 
-        # fast forward if necessary
-        lag = self._when.sort_scope(t)
-        if lag < 0:
-            t += timedelta(seconds=-lag)
+#         # fast forward if necessary
+#         lag = self._when.sort_scope(t)
+#         if lag < 0:
+#             t += timedelta(seconds=-lag)
 
-        # loop through time by period and check for match
-        t -= period
-        while True:
-            t += period
-            if self._when is not None and not self._when.in_scope(t):
-                break
-            if len(self._seconds) and (t.second not in self._seconds):
-                continue
-            if len(self._minutes) and (t.minute not in self._minutes):
-                continue
-            if len(self._hours) and (t.hour not in self._hours):
-                continue
-            if len(self._days) and (t.day not in self._days):
-                continue
-            if len(self._weekdays) and (t.weekday() not in self._weekdays):
-                continue
-            if len(self._months) and (t.month not in self._months):
-                continue
-            yield t
+#         # loop through time by period and check for match
+#         t -= period
+#         while True:
+#             t += period
+#             if self._when is not None and not self._when.in_scope(t):
+#                 break
+#             if len(self._seconds) and (t.second not in self._seconds):
+#                 continue
+#             if len(self._minutes) and (t.minute not in self._minutes):
+#                 continue
+#             if len(self._hours) and (t.hour not in self._hours):
+#                 continue
+#             if len(self._days) and (t.day not in self._days):
+#                 continue
+#             if len(self._weekdays) and (t.weekday() not in self._weekdays):
+#                 continue
+#             if len(self._months) and (t.month not in self._months):
+#                 continue
+#             yield t
 
 def test_tscope():
     """Test When"""
@@ -1915,7 +1927,7 @@ class Statement(object):
         else:
             return hstr
 
-    def _pv_hash(self, lim=None):
+    def _pv_hash(self, lim=None, astr=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         temporal scope, parameter values, and result columns 
@@ -1928,15 +1940,15 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
-        if not self._when.is_definite():
-            tstr += " wt " + str(datetime.utcnow())
+        if astr:
+            tstr += astr
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
         else:
             return hstr
 
-    def _mpcv_hash(self, lim=None):
+    def _mpcv_hash(self, lim=None, astr=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         temporal scope, parameter constraints, parameter values, metadata, metadata values, 
@@ -1956,6 +1968,8 @@ class Statement(object):
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys())) + \
                " ex " + str(self._export)
+        if astr:
+            tstr += astr
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
@@ -2206,6 +2220,15 @@ class Specification(Statement):
 
     def _default_token(self):
         return self._pv_hash()
+
+    def retoken(self, tzero = None):
+        """
+        Generate a new token, if necessary, taking into account the current time
+        if a specification has a relative temporal scope.
+
+        """
+        if not self._when.is_definite():
+            self._token = self._pv_hash(astr = repr(self._when.datetimes))
 
     def set_single_values(self):
         """Fill in values for all parameters whose constraints allow only one value."""
@@ -2526,4 +2549,8 @@ def parse_yaml(ystr):
 
 def unparse_yaml(msg):
     return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
+
+
+
+
 
