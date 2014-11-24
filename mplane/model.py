@@ -1160,7 +1160,7 @@ class Element(object):
         return self._name
 
     def __repr__(self):
-        return "<Element "+self.qualified_name()+" "+repr(self._prim)+" >"
+        return "<Element "+self._qualname+" "+repr(self._prim)+" >"
 
     def name(self):
         """Return the name of this Element"""
@@ -1299,90 +1299,124 @@ class Registry(object):
 
         return json.dumps(d, indent=4)
 
-_registry = None
+    def uri():
+        """
+        Return the URI by which this registry is known.
+
+         """
+        return _uri
+
+_base_registry = None
+_registries = {}
 
 def initialize_registry(uri=REGURI_DEFAULT):
     """
     Initializes the mPlane registry from a URI; if no URI is given,
     initializes the registry from the internal core registry.
-    """
-    global _registry
-    _registry = Registry(uri)
 
-def element(name):
-    return _registry[name]
+    Call this before doing anything else.
+
+    """
+    global _base_registry
+    global _registries
+    _base_registry = Registry(uri)
+    _registries[uri] = _base_registry
+
+def registry_for_uri(uri):
+    """
+    Get a registry for a given URI, maintaining a local cache.
+    Called when parsing statements; generally not useful in client code. 
+
+    """
+    global _registries
+
+    if uri not in _registries:
+        _registries[uri] = Registry(uri)
+
+    return _registries[uri]
+
+def base_registry():
+    global _base_registry
+    return _base_registry
+
+def element(name, reguri=None):
+    global _base_registry
+    global _registries
+    if reguri:
+        return _registries[uri][name]
+    else:
+        return _base_registry[name]
 
 #######################################################################
 # Old registry methods
 #######################################################################
 
-_typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
-_desc_re = re.compile('^\s+([^#]+)')
-_comment_re = re.compile('^\s*\#')
+# _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
+# _desc_re = re.compile('^\s+([^#]+)')
+# _comment_re = re.compile('^\s*\#')
 
-def _old_parse_elements(lines):
-    """
-    Given an iterator over lines from a file or stream describing
-    a set of Elements, returns a list of Elements. This file should 
-    contain element names and primitive names separated by ":" in the 
-    leftmost column, followed by zero or more indented lines of 
-    description. Used to initialize the mPlane element registry from a file;
-    call initialize_registry instead
+# def _old_parse_elements(lines):
+#     """
+#     Given an iterator over lines from a file or stream describing
+#     a set of Elements, returns a list of Elements. This file should 
+#     contain element names and primitive names separated by ":" in the 
+#     leftmost column, followed by zero or more indented lines of 
+#     description. Used to initialize the mPlane element registry from a file;
+#     call initialize_registry instead
        
-    """
-    elements = []
-    desclines = []
+#     """
+#     elements = []
+#     desclines = []
 
-    for line in lines:
-        m = _typedef_re.match(line)
-        if m:
-            if len(elements) and len(desclines):
-                elements[-1]._desc = " ".join(desclines)
-                desclines.clear()
-            elements.append(Element(m.group(1), _prim[m.group(2)]))
-        else:
-            m = _desc_re.match(line)
-            if m:
-                desclines.append(m.group(1))
+#     for line in lines:
+#         m = _typedef_re.match(line)
+#         if m:
+#             if len(elements) and len(desclines):
+#                 elements[-1]._desc = " ".join(desclines)
+#                 desclines.clear()
+#             elements.append(Element(m.group(1), _prim[m.group(2)]))
+#         else:
+#             m = _desc_re.match(line)
+#             if m:
+#                 desclines.append(m.group(1))
 
-    if len(elements) and len(desclines):
-        elements[-1]._desc = "".join(desclines)
+#     if len(elements) and len(desclines):
+#         elements[-1]._desc = "".join(desclines)
 
-    return elements
+#     return elements
 
-_old_element_registry = collections.OrderedDict()
+# _old_element_registry = collections.OrderedDict()
 
-def _old_parse_registry(filename=None):
-    """
-    Initializes the mPlane registry from a file; if no filename is given,
-    initializes the registry from the internal set of Elements.
-    """
-    _old_element_registry.clear()
+# def _old_parse_registry(filename=None):
+#     """
+#     Initializes the mPlane registry from a file; if no filename is given,
+#     initializes the registry from the internal set of Elements.
+#     """
+#     _old_element_registry.clear()
 
-    if filename is None:
-        filename = os.path.join(os.path.dirname(__file__), "registry.txt")
+#     if filename is None:
+#         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
 
-    with open(filename, mode="r") as file:
-        for elem in _old_parse_elements(file):
-            _old_element_registry[elem._name] = elem
+#     with open(filename, mode="r") as file:
+#         for elem in _old_parse_elements(file):
+#             _old_element_registry[elem._name] = elem
 
-def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
-    _old_parse_registry(in_filename)
+# def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
+#     _old_parse_registry(in_filename)
     
-    reg = Registry(uri=uri, parse=False)
-    reg._revision = 0
+#     reg = Registry(uri=uri, parse=False)
+#     reg._revision = 0
 
-    for elem in _old_element_registry.values():
-        reg._add_element(elem)
+#     for elem in _old_element_registry.values():
+#         reg._add_element(elem)
 
-    jstr = reg._dump_json()
+#     jstr = reg._dump_json()
 
-    if out_filename is not None:
-        with open(out_filename, "w") as jfile:
-            jfile.write(jstr)
-    else:
-        print(jstr)
-        
+#     if out_filename is not None:
+#         with open(out_filename, "w") as jfile:
+#             jfile.write(jstr)
+#     else:
+#         print(jstr)
 
 #######################################################################
 # Constraints
@@ -1679,10 +1713,11 @@ class Statement(object):
 
     """
     
-    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
         super().__init__()
         # Make a blank statement
         self._version = MPLANE_VERSION
+        self._reguri = REGURI_DEFAULT
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -1691,7 +1726,6 @@ class Statement(object):
         self._token = None
         self._link = None
         self._export = None
-        self._schedule = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -1706,6 +1740,8 @@ class Statement(object):
             elif isinstance(when, str):
                 when = When(when)           
             self._when = when
+            if reguri is not None:
+                self._reguri = reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -1737,9 +1773,9 @@ class Statement(object):
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
-        self._params[elem_name] = Parameter(element(elem_name), 
-                                  constraint=constraint,
-                                  val = val)
+        self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri), 
+                                            constraint=constraint,
+                                            val = val)
 
     def has_parameter(self, elem_name):
         """Return True if the statement has a parameter with the given name"""
@@ -1780,7 +1816,7 @@ class Statement(object):
 
     def add_metadata(self, elem_name, val):
         """Programatically add a metadata element to this statement."""
-        self._metadata[elem_name] = Metavalue(element(elem_name), val)
+        self._metadata[elem_name] = Metavalue(element(elem_name, reguri=self._reguri), val)
 
     def has_metadata(self, elem_name):
         """Return True if the statement has a metadata element with the given name"""
@@ -1796,7 +1832,7 @@ class Statement(object):
 
     def add_result_column(self, elem_name):
         """Programatically add a result column to this Statement."""
-        self._resultcolumns[elem_name] = ResultColumn(element(elem_name))
+        self._resultcolumns[elem_name] = ResultColumn(element(elem_name, reguri=self._reguri))
 
     def has_result_column(self, elem_name):
         return elem_name in self._resultcolumns
@@ -1866,7 +1902,8 @@ class Statement(object):
         and result columns (the schema) of this statement.
 
         """
-        sstr = "p " + " ".join(sorted(self._params.keys())) + \
+        sstr = self._reguri + \
+               " p " + " ".join(sorted(self._params.keys())) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
         hstr = hashlib.md5(sstr.encode('utf-8')).hexdigest()
         if lim is not None:
@@ -1883,7 +1920,7 @@ class Statement(object):
         """
         spk = sorted(self._params.keys())
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
-        tstr = self._verb + " w " + str(self._when) +\
+        tstr = self._reguri + self._verb + " w " + str(self._when) +\
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
@@ -1906,7 +1943,8 @@ class Statement(object):
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
         smk = sorted(self._metadata.keys())
         smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
-        tstr = self._verb + " w " + str(self._when) +\
+        tstr = self._reguri + self._verb + \
+               " w " + str(self._when) + \
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
@@ -1954,6 +1992,8 @@ class Statement(object):
 
         d[KEY_VERSION] = self._version
 
+        d[KEY_REGISTRY] = self._reguri
+
         if self._label is not None:
             d[KEY_LABEL] = self._label
 
@@ -1967,9 +2007,6 @@ class Statement(object):
             d[KEY_TOKEN] = self._token
 
         d[KEY_WHEN] = str(self._when)
-
-        if self._schedule is not None:
-            d[KEY_SCHEDULE] = self._schedule.to_dict()
 
         if self.count_parameters() > 0:
             d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
@@ -2009,6 +2046,10 @@ class Statement(object):
         if KEY_VERSION in d:
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
+
+        if KEY_REGISTRY in d:
+            self._reguri = d[KEY_REGISTRY]
+            registry_for_uri(self._reguri) # make sure the registry is loaded
 
         if KEY_LABEL in d:
             self._label = d[KEY_LABEL]
@@ -2110,21 +2151,17 @@ class Specification(Statement):
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, label=None, token=None, when=None, schedule=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
 
-        if dictval is None:
-            # No dictionary, fill in schedule
-            self._schedule = schedule
+        if dictval is None and capability is not None:
+            # Build a statement from a capabilitiy
+            self._verb = capability._verb
+            self._label = capability._label
+            self._metadata = capability._metadata
+            self._params = deepcopy(capability._params)
+            self._resultcolumns = deepcopy(capability._resultcolumns)
 
-            if capability is not None:
-                # Build a statement from a capabilitiy
-                self._verb = capability._verb
-                self._label = capability._label
-                self._metadata = capability._metadata
-                self._params = deepcopy(capability._params)
-                self._resultcolumns = deepcopy(capability._resultcolumns)
-
-                # inherit from capability only when necessary
-                if when is None:
-                    self._when = capability._when
+            # inherit from capability only when necessary
+            if when is None:
+                self._when = capability._when
 
     def _more_repr(self):
         return " p(v)/m/r "+str(self.count_parameters())+"("+\
@@ -2168,27 +2205,15 @@ class Specification(Statement):
         for param in self._params.values():
             param.set_single_value()
 
-    def has_schedule(self):
-        return self._schedule is not None
-
     def subspec_iterator(self):
         """
         Iterate over subordinate specifications if this specification is repeated 
-        (i.e., has a Schedule); otherwise yields self once. Each subordinate 
+        (i.e., has a repeated Temporal Scope); otherwise yields self once. Each subordinate 
         specification has an absolute temporal scope derived from this specification's
         relative temporal scope and schedule.
         """
+        yield self #FIXME write this
 
-        if not self.has_schedule:
-            yield self
-        else:
-            pass #FIXME write this
-
-    def _from_dict(self, d):
-        super()._from_dict(d)
-
-        if KEY_SCHEDULE in d:
-            self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
 
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
