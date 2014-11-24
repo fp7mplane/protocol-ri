@@ -1924,6 +1924,8 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
+        if not self._when.is_definite():
+            tstr += " wt " + str(datetime.utcnow())
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
@@ -1948,7 +1950,8 @@ class Statement(object):
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
-               " r " + " ".join(sorted(self._resultcolumns.keys()))
+               " r " + " ".join(sorted(self._resultcolumns.keys())) +
+               " ex " + str(self._export)
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
