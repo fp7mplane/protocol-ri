@@ -326,14 +326,14 @@ KEY_ELEMENTS = "elements"
 KEY_ELEMNAME = "name"
 KEY_ELEMPRIM = "prim"
 KEY_ELEMDESC = "desc"
-REGURI_DEFAULT = "http://ict-mplane.eu/registry/core.json"
+REGURI_DEFAULT = "http://ict-mplane.eu/registry/core"
 REGFMT_FLAT = "mplane-0"
 
 #######################################################################
 # Protocol constants
 #######################################################################
 
-MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
+MPLANE_VERSION = 1 # version 1 -- D1.4 protocol, interop guarantee
 
 #######################################################################
 # Reference implementation constants

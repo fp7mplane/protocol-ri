@@ -2,15 +2,16 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, revision in progress of 8 September 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, as submitted as mPlane Deliverable 1.4, 31 October 2014__
 - - -
 
 This document defines the present revision of the mPlane architecture for
 coordination of heterogeneous network measurement components: probes and
-repositories that measure, analyze, and store aspects of the network. The
-architecture is defined in terms of a single protocol, described in this
-document, used between __clients__ (which request measurements and analyses)
-and __components__ (which perform them). 
+repositories that measure, analyze, and store network measurements,
+data derived from measurements, and other ancillary data about elements
+of the network. The architecture is defined in terms of a single protocol, 
+described in this document, used between __clients__ (which request 
+measurements and analyses) and __components__ (which perform them). 
 
 Sets of components are organized
 into measurement infrastructures by association with a __supervisor__, which
@@ -20,7 +21,7 @@ and further described in the rest of the document. The _capability - specificati
 
 ![General arrangement of entities in the mPlane architecture](./arch-overview.png)
 
-This document borrows heavily from mPlane project [Deliverable 1.3](https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables//697mplane-d13.pdf), of 31 October 2013, by B. Trammell, M. Mellia, A. Finamore, S. Traverso, T. Szemethy, B. Szabó, R. Winter, M. Faath, D. Rossi, B. Donnet, F. Invernizzi, and D. Papadimitriou. It will be the basis of mPlane project Deliverable 1.4. Updates to the present state of the mPlane protocol are in progress.
+This document is the work of the mPlane consortium, specifically B. Trammell, M. Kühlewind, M. Mellia, A. Finamore, S. Pentassuglia, G. De Rosa, F. Invernizzi, M. Milanesio, D. Rossi, S. Niccolini, I. Leontiadis, T. Szemethy, B. Szabó, R. Winter, M. Faath, B. Donnet, and D. Papadimitriou. It reflects Version 1 of the mPlane protocol.
 
 # mPlane Architecture
 
@@ -116,11 +117,11 @@ Within an mPlane domain, a special client known as a __reasoner__ may control au
 
 ## Workflows
 
-A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail.
+A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail. In the figure below, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability).
 
 ![Potential sequences of messages in the mPlane protocol](./message-paths.png)
 
-The mPlane protocol supports three patterns of __workflow__: 
+Separate from the sequence of messages, the mPlane protocol supports three workflow patterns:
 
   - __Client-initiated__ in which clients connect directly to components at known, stable, routable URLs. Client-initiated workflows are intended for use between clients and supervisors, for access to repositories, and for access to probes embedded within a network infrastructure.
 
@@ -128,7 +129,7 @@ The mPlane protocol supports three patterns of __workflow__:
 
   - __Indirect export__ in which one component is directed to send results to another component using an external protocol, generally from a probe to a repository or between repositories. Since the mPlane Result message is not particularly well-suited to the bulk transfer of high-volume results, this workflow is intended to be the primary method for moving large amounts of data from probes to repositories.
 
-Within a given mPlane domain, these workflow patterns cam be combined to facilitate complex interactions among clients and components according to the requirements imposed by the application and the deployment of components in the network.
+Within a given mPlane domain, these workflow patterns can be combined to facilitate complex interactions among clients and components according to the requirements imposed by the application and the deployment of components in the network.
 
 # Protocol Information Model
 
@@ -139,13 +140,15 @@ The mPlane protocol is message-oriented, built on the representation- and sessio
 An element registry makes up the vocabulary by which mPlane components and clients can express the meaning of parameters, metadata, and result columns for mPlane statements. A registry is represented as a JSON ([RFC 7159](http://tools.ietf.org/html/7159)) object with the following keys:
 
 - __registry-format__: currently `mplane-0`, determines the revision and supported features of the registry format.
-- __registry-uri__: the URI identifying the registry. The URI must be dereferenceable to retrieve the canonical version of this registry
-- __registry-revision__: a serial number starting with 0 and incremented with each revision to the content of the registry, 
+- __registry-uri__: the URI identifying the registry. The URI must be dereferenceable to retrieve the canonical version of this registry.
+- __registry-revision__: a serial number starting with 0 and incremented with each revision to the content of the registry.
 - __includes__: a list of URLs to retrieve additional registries from. Included registries will be evaluated in depth-first order, and elements with identical names will be replaced by registries parsed later.
 - __elements__: a list of objects, each of which has the following three keys:
-    - __name__: The name of the element
-    - __prim__: The name of the primitive type of the element, from the list of primitives below
+    - __name__: The name of the element.
+    - __prim__: The name of the primitive type of the element, from the list of primitives below.
     - __desc__: An English-language description of the meaning of the element.
+
+Since the element names will be used as keys in mPlane messages, mPlane binds to JSON, and JSON mandates lowercase key names, element names must use only lowercase letters.
 
 An example registry with two elements and no includes follows:
 
@@ -307,7 +310,9 @@ by applications:
 	
 In the JSON representation of mPlane messages, the verb is the value of the key corresponding to the message's type, represented as a lowercase string (e.g. `capability`, `specification`, `result` and so on).
 
-Roughly speaking, probes implement `measure` capabilities, and repositories implement `query` and `collect` capabilities.
+Roughly speaking, probes implement `measure` capabilities, and repositories 
+implement `query` and `collect` capabilities. Of course, any single component 
+can implement capabilities with any number of different verbs.
 
 Within the Reference Implementation, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
 
@@ -319,7 +324,7 @@ The `version` section contains the version of the mPlane protocol to which the m
 
 ### Registry
 
-The `registry` section contains the URL identifying the element registry used by this message, and from which the registry can be retrieved. This section is required in all messages containing element names (statements, and receipts/redemptions/interrupts not using tokens for identification; see the `token` section below). The default core registry for mPlane is identified by `http://ict-mplane.eu/registry/core`. *[**Editor's Note**: this is not yet the case, get the core registry done and make sure it's available there.]*
+The `registry` section contains the URL identifying the element registry used by this message, and from which the registry can be retrieved. This section is required in all messages containing element names (statements, and receipts/redemptions/interrupts not using tokens for identification; see the `token` section below). The default core registry for mPlane is identified by `http://ict-mplane.eu/registry/core`.
 
 ### Label
 
@@ -397,9 +402,12 @@ component once, then retained at the component and initiated multiple times.
 The general form of a temporal scope in a repeated specification is as follows (BNF-like syntax):
 
 ```
-repeated-when = 'repeat' <outer-when> |                       # implicit inner scope of now
-                'repeat' <outer-when> '{' <inner-when> '}' |  # simple range/period 
-                'repeat' <outer-when> 'cron' <crontab> '{' <inner-when> '}'  # with crontab
+repeated-when = # implicit inner scope of now
+                'repeat' <outer-when> | 
+                # simple range/period 
+                'repeat' <outer-when> '{' <inner-when> '}' |
+                # with crontab
+                'repeat' <range> 'cron' <crontab> '{' <inner-when> '}' 
 
 outer-when = <range> ' / ' <duration>
 
@@ -407,16 +415,40 @@ inner-when = 'now' |
              'now' ' + ' <duration> |
              'now' ' + ' <duration> / <duration>
 
-crontab = # to be determined
+crontab = <seconds> <minutes> <hours> <days-of-month> <days-of-week> <months>
+
+seconds = '*' | <seconds-or-minutes-list>
+minutes = '*' | <seconds-or-minutes-list>
+seconds-or-minutes-list = <n> [ ',' <seconds-or-minutes-list> ] # 0<=n<60
+
+hours = '*' | <hours-list>
+hours-list = <n> [ ',' <hour-list> ] # 0<=n<24
+
+days-of-month = '*' | <days-of-month-list>
+days-of-month-list = <n> [ ',' <days-of-month-list> ] # 0<n<=31
+
+days-of-week = '*' | <days-of-week-list>
+days-of-week-list = <n> [ ',' <days-of-week-list> ] # 0<=n<=7
+                    # 0 = Sunday, 1 = Monday, ..., 7 = Sunday
+
+months = '*' | <months-list>
+months-list = <n> [ ',' <months-list> ] # 0<n<=12
 
 when = <simple-when> | <repeated-when>
 ```
 
 A repeated specification consists of an _outer_ temporal specification that governs how often and for how long the specification will repeat, and an _inner_ temporal specification which applies to each individual repetition. The inner temporal specifiation must _always_ be relative to the current time, i.e. the time of initiated of the repeated specification. If the inner temporal specification is omitted, the specification is presumed to have the relative singleton temporal scope of `now`. 
 
-Submitting a repeated specification will still result in a single receipt, or in multiple results. These multiple results, resulting either directly from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. 
+A repeated specification can have a cron-like schedule. In this case
+the _outer_ temporal specification only consists of a 
+_range_ scope to determine the time frame in which the cron-like 
+schedule is valid. The _crontab_ states the seconds, minutes, 
+hours, days of the week, days of the month, and months at which the 
+specification will repeat. An asterisk means to repeat at all
+legal values for that field. The specification is only repeated 
+if all fields match.
 
-*[**Editor's Note**: Specify and explain crontab]*
+Submitting a repeated specification will still result in a single receipt, or in multiple results. These multiple results, resulting either directly from a single repeated specification, or from the a redemption of a receipt resulting from a repeated specification, are grouped in an envelope message. 
 
 For example, a repeated specification to take measurements every second for five minutes, repeating once an hour indefinitely would be:
 
@@ -436,7 +468,13 @@ A repeated specification taking singleton measurements every hour indefinitely w
 
 equivalent to submitting a specification with the temporal scope `now` hourly forever until interrupted.
 
-*[**Editor's Note**: Add crontab examples once crontab is specified]*
+A crontab specification which is repeated on the first Monday of each
+month measuring every hour on that day for 5 minutes would be:
+\texttt{when: repeat now ... future cron 0 0 * 1,2,3,4,5,6,7 1 * \{ now + 5m \} }
+
+A repeated specification to take measurements each day 
+of the year at midnight would be:
+\texttt{when: repeat now ... future cron 0 0 0 * * * }
 
 ### Parameters
 
@@ -480,8 +518,6 @@ If a component can indirectly export or indirectly collect using multiple protoc
 
 The special export schema `mplane-http` implies that the exporter will POST mPlane result messages to the collector at the specified URL. All other export schemas are application-specific, and the mPlane protocol implementation is only responsible for ensuring the schemas and protocol identifiers match between collector and exporter. 
 
-*[**Editor's Note**: This text implies that the export section of a statement is part of the statement's unique hash; this is not the case in the implementation. Fix this.]*
-
 ### Link
 
 The `link` section contains the URL to which messages in the next step in the workflow (i.e. a specification for a capability, a result or receipt for a specification) can be sent, providing indirection. The link URL must currently have the schema `mplane-http`, and refers to posting of messages via HTTP `POST`.
@@ -491,8 +527,6 @@ If present in a capability, the client must `POST` specifications for the given 
 If present in an indirection message returned for a specification by a component, the client must send the specification to the component at the URL given in the link in order to retrieve results or initiate measurement.
 
 ### Token
-
-*[**Editor's Note:** the reference implementation does not yet handle tokens as described here. Fix this.]*
 
 The `token` section contains an arbitrary string by which a message may be identified in subsequent communications in an abbreviated fashion. Unlike labels, tokens are not necessarily intended to be human-readable; instead, they provide a way to reduce redundancy on the wire by replacing the parameters, metadata, and results sections in messages within a workflow, at the expense of requiring more state at clients and components. Their use is optional. 
 
@@ -508,15 +542,9 @@ If a receipt contains a token, it may be redeemed by the same client using a red
 
 The `contents` section appears only in envelopes, and is an ordered list of messages. If the envelope's kind identifies a message kind, the contents may contain only messages of the specified kind, otherwise if the kind is `message`, the contents may contain a mix of any kind of message.
 
-## Multivalue Parameters in Specifications
-
-*[**Editor's Note:** Add a section here describing how to handle the ENST case of multiple-value parameters. In this case, the parameter element must appear both as a parameter and as a result column, or the result columns must all be aggregates, and an additional multi-value rule must be specified as a parameter. It is not clear this capability will be added as part of the D1.4 protocol.]*
-
 ## Message Uniqueness and Idempotence
 
-*[**Editor's Note:** Verify that this is what the RI does, and fix the RI to comply.]*
-
-Messages in the mPlane protocol are intended to support __state distribution__: capabilities, specifications, and results are meant to be complete declarations of the state of a given measurement. In order for this to hold, it must be possible for messages to be uniquely identifiable, such that duplicate messages can be recognized. With one important exception, messages are _idempotent_: the receipt of a duplicate message at a client or component is a null operation.
+Messages in the mPlane protocol are intended to support __state distribution__: capabilities, specifications, and results are meant to be complete declarations of the state of a given measurement. In order for this to hold, it must be possible for messages to be uniquely identifiable, such that duplicate messages can be recognized. With one important exception (i.e., specifications with relative temporal scopes), messages are _idempotent_: the receipt of a duplicate message at a client or component is a null operation.
 
 ### Message Schema
 
@@ -528,15 +556,13 @@ The interpretation of the semantics of an entire message is application-specific
 
 ### Message Identity
 
-A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata` `results`, and `export` sections taken together comprise the message's identity. 
+A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata`, `results`, and `export` sections taken together comprise the message's identity. 
 
-One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked must be taken as part of the message's identity as well.
-
-Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens. 
+One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked must be taken as part of the message's identity as well. Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens. 
 
 # Representations and Session Protocols
 
-The mPlane protocol is defined as an abstract data model in order to support multiple representations and session protocols. The canonical representation supported by the present reference implementation involves JSON ([RFC 7159](http://tools.ietf.org/html/7159)) objects transported via HTTP ([RFC 7230](http://tools.ietf.org/html/7230)) over TLS ([RFC 5246](http://tools.ietf.org/html/5246))(HTTPS). 
+The mPlane protocol is built atop an abstract data model in order to support multiple representations and session protocols. The canonical representation supported by the present reference implementation involves JSON ([RFC 7159](http://tools.ietf.org/html/7159)) objects transported via HTTP ([RFC 7230](http://tools.ietf.org/html/7230)) over TLS ([RFC 5246](http://tools.ietf.org/html/5246))(HTTPS). 
 
 ## JSON representation
 
@@ -559,7 +585,7 @@ Each section name key in the object has a value represented in JSON as follows:
 
 ### Textual representations of element values
 
-Each primitive type is represented as a value in JSON as follows, following the [Textual Representation of IPFIX Abstract Data Types](http://tools.ietf.org/html/draft-ietf-ipfix-text-adt-06).
+Each primitive type is represented as a value in JSON as follows, following the [Textual Representation of IPFIX Abstract Data Types (RFC7373)](http://tools.ietf.org/html/7373).
 
 Natural and real values are represented in JSON using native JSON representation for numbers.
 
@@ -696,6 +722,26 @@ Results are merely specifications with result values filled in and an absolute t
 # Workflows
 
 As noted above, mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__, and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS.
+
+In this section, the following symbols have the following meanings:
+
+
+| Symbol | Description                           |
+| ------ | --------------------------------------|
+| C      | Capability                            |
+| Ccb    | Callback Capability                   |
+| Ce     | Export Capability                     |
+| Cc     | Collect Capability                    |
+| S      | Specification                         |
+| Scb    | Callback Specification                |
+| Se     | Export Specification                  |
+| R      | Result                                |
+| Rc     | Receipt                               |
+| Rd     | Redemption                            |
+| Ex     | External protocol for indirect export |
+| I      | Interrupt                             |
+
+Colors are as elsewhere in the document: blue for capabilities and capability-related messages, red for specifications, and black for results.
 
 ## Client-Initiated
 
