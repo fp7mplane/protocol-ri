@@ -25,13 +25,13 @@ import mplane.model
 import mplane.utils
 import sys
 import cmd
+import traceback
 import readline
 import html.parser
 import urllib3
-from urllib3 import HTTPSConnectionPool
-from urllib3 import HTTPConnectionPool
 import os.path
 import argparse
+import sys
 
 from datetime import datetime, timedelta
 
@@ -68,7 +68,7 @@ class HttpClient(object):
     Caches retrieved Capabilities, Receipts, and Results.
 
     """
-    def __init__(self, posturl, capurl=None, certfile=None):
+    def __init__(self, posturl, capurl=None, tlsconfig=None):
         # store urls
         self._posturl = posturl
         if capurl is not None:
@@ -80,16 +80,16 @@ class HttpClient(object):
             self._capurl = "/" + CAPABILITY_PATH_ELEM 
         url = urllib3.util.parse_url(posturl) 
 
-        if certfile: 
-            cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
-            key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
-            ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
+        if tlsconfig: 
+            cert = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "cert"))
+            key = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "key"))
+            ca = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "ca-chain"))
             mplane.utils.check_file(cert)
             mplane.utils.check_file(key)
             mplane.utils.check_file(ca)
-            self.pool = HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
+            self.pool = urllib3.HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
         else: 
-            self.pool = HTTPConnectionPool(url.host, url.port) 
+            self.pool = urllib3.HTTPConnectionPool(url.host, url.port) 
 
         print("new client: "+self._posturl+" "+self._capurl)
 
@@ -173,6 +173,7 @@ class HttpClient(object):
     def clear_capabilities(self):
         """Clear the capability cache"""
         self._capabilities.clear()
+        self._caplabels.clear()
 
     def retrieve_capabilities(self, listurl=None):
         """
@@ -261,17 +262,17 @@ class ClientShell(cmd.Cmd):
             'Type help or ? to list commands. ^D to exit.\n'
     prompt = '|mplane| '
 
-    def preloop(self):
-        global args
-        parse_args()        
-        if args.certfile is not None:
-            mplane.utils.check_file(args.certfile)
-            self._certfile = args.certfile
-        else:
-            self._certfile = None
+    def __init__(self, tlsconfig=None):
+        super().__init__()
+        self.exited = False
         self._client = None
         self._defaults = {}
         self._when = None
+        self._tlsconfig = tlsconfig 
+        self._mserial = 0
+
+        # don't print tracebacks by default
+        self._print_tracebacks = False
 
     def do_connect(self, arg):
         """Connect to a probe or supervisor and retrieve capabilities"""
@@ -287,10 +288,10 @@ class ClientShell(cmd.Cmd):
         if proto == 'http':
             self._client = HttpClient(args[0], capurl)
         elif proto == 'https':
-            if self._certfile is not None:
-                self._client = HttpClient(args[0], capurl, self._certfile)
+            if self._tlsconfig is not None:
+                self._client = HttpClient(args[0], capurl, self._tlsconfig)
             else:
-                raise SyntaxError("For HTTPS, need to specify the --certfile parameter when launching the client")
+                raise SyntaxError("For HTTPS, need to specify the --tlsconfig parameter when launching the client")
         else:
             raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https")
 
@@ -343,14 +344,34 @@ class ClientShell(cmd.Cmd):
         scope and defaults for parameters. Prompts for parameters 
         not yet entered.
 
+        Usage: runcap (number or label) (spec label)]
+
         """
-        # Retrieve a capability and create a specification
-#        try:
-        cap = self._client.capability_at(int(arg.split()[0]))
+
+        arglist = arg.split()
+
+        if len(arglist) >= 1:
+            capspec = arglist[0]
+            if len(arglist) >= 2:
+                relabel = arglist[1]
+            else:
+                relabel = None
+        else:
+            raise ValueError("runcap requires a capability index or label")
+
+        # Retrieve a capability
+        try:
+            capnum = int(capspec)
+        except:
+            capnum = None
+
+        if capnum:
+            cap = self._client.capability_at(capnum)
+        else:
+            cap = self._client.capability_by_label(capspec)
+
+        # and create a specification
         spec = mplane.model.Specification(capability=cap)
-#        except:
-#            print ("No such capability "+arg)
-#            return
 
         # Set temporal scope or prompt for new one
         while self._when is None or \
@@ -361,7 +382,7 @@ class ClientShell(cmd.Cmd):
 
         spec.set_when(self._when)
 
-        # Fill in single values
+        # Fill in single values and retoken the spec
         spec.set_single_values()
 
         # Fill in parameter values
@@ -381,6 +402,16 @@ class ClientShell(cmd.Cmd):
 
         # Validate specification
         spec.validate()
+
+        # Retoken and relabel the specification
+        spec.retoken()
+        if relabel:
+            spec.relabel(relabel)
+        else:
+            spec.relabel(cap.get_label() + "-" + str(self._mserial))
+
+        # Increase sent serial number
+        self._mserial += 1
 
         # And send it to the server
         self._client.handle_message(self._client.get_mplane_reply(postmsg=spec))
@@ -435,18 +466,46 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't unset default(s) "+arg)
 
+    def do_tbenable(self, arg):
+        """Enable tracebacks on uncaught exceptions"""
+        self._print_tracebacks = True
+
     def do_EOF(self, arg):
         """Exit the shell by typing ^D"""
         print("Ciao!")
+        self.exited = True
         return True
+
+    def handle_uncaught(self, e):
+        print("An exception occurred:")
+        print(e)
+        if self._print_tracebacks:
+            traceback.print_tb(sys.exc_info()[2])
+        print("You can try to continue, but client state may be inconsistent.")
+        print("Use the connect command to start over.\n")
+
         
 def parse_args():
-    global args
     parser = argparse.ArgumentParser(description="Run an mPlane client")
-    parser.add_argument('--certfile', metavar="cert-file-location",
-                        help="Location of the configuration file for certificates")
-    args = parser.parse_args()
+    parser.add_argument('--tlsconfig', metavar="config-file",
+                        help="TLS configuration file")
+    return parser.parse_args()
     
 if __name__ == "__main__":
+    # boot the model
     mplane.model.initialize_registry()
-    ClientShell().cmdloop()
+
+    # look for TLS configuration
+    args = parse_args()
+    if args.tlsconfig is not None:
+        mplane.utils.check_file(args.tlsconfig)
+
+    # create a shell
+    cs = ClientShell(tlsconfig=args.tlsconfig)
+
+    while not cs.exited:
+        try:
+            cs.cmdloop()
+        except Exception as e:
+            cs.handle_uncaught(e)
+ 
