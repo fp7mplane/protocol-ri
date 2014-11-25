@@ -22,6 +22,9 @@
 import os.path
 
 def read_setting(filepath, param):
+    """
+    FIXME what does this do?
+    """
     with open(filepath,'r') as f:
         for line in f.readlines():
             if line[0] != "#":
@@ -35,12 +38,18 @@ def read_setting(filepath, param):
                         return line.split('= ')[1]
     return None
     
-def check_file(filename):       
+def check_file(filename):
+    """
+    Raise ValueError(??) if the given path does not exist.
+    """       
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
         exit(1)
         
 def normalize_path(path):
+    """
+    Make relative paths absolute
+    """
     if path[0] != '/':
         return os.path.abspath(path)
     else:

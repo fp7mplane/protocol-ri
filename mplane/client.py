@@ -60,7 +60,7 @@ class CrawlParser(html.parser.HTMLParser):
 
 class HttpClient(object):
     """
-    Implements an mPlane HTTP client endpoint for component-push workflows. 
+    Implements an mPlane HTTP client endpoint for client-initiated workflows. 
     This client endpoint can retrieve capabilities from a given URL, then post 
     Specifications to the component and retrieve Results or Receipts; it can
     also present Redeptions to retrieve Results.
@@ -68,7 +68,7 @@ class HttpClient(object):
     Caches retrieved Capabilities, Receipts, and Results.
 
     """
-    def __init__(self, security, posturl, capurl=None, certfile=None):
+    def __init__(self, posturl, capurl=None, certfile=None):
         # store urls
         self._posturl = posturl
         if capurl is not None:
@@ -80,7 +80,7 @@ class HttpClient(object):
             self._capurl = "/" + CAPABILITY_PATH_ELEM 
         url = urllib3.util.parse_url(posturl) 
 
-        if security == True: 
+        if certfile: 
             cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
             key = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "key"))
             ca = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "ca-chain"))
@@ -97,6 +97,9 @@ class HttpClient(object):
         self._capabilities = []
         self._receipts = []
         self._results = []
+
+        # empty capability label index
+        self._caplabels = {}
 
     def get_mplane_reply(self, url=None, postmsg=None):
         """
@@ -128,7 +131,7 @@ class HttpClient(object):
     def handle_message(self, msg):
         """
         Processes a message. Caches capabilities, receipts, 
-        and results, and handles Exceptions.
+        and results, opens Envelopes, and handles Exceptions.
 
         """
         print("got message:")
@@ -142,9 +145,11 @@ class HttpClient(object):
             self.add_result(msg)
         elif isinstance(msg, mplane.model.Exception):
             self._handle_exception(msg)
+        elif isinstance(msg, mplane.model.Envelope):
+            for imsg in msg.messages():
+                self.handle_message(imsg)
         else:
-            # FIXME do something diagnostic here
-            pass
+            raise ValueError("Internal error: unknown message "+repr(msg))
 
     def capabilities(self):
         """Iterate over capabilities"""
@@ -154,10 +159,16 @@ class HttpClient(object):
         """Retrieve a capability at a given index"""
         return self._capabilities[index]
 
+    def capability_by_label(self, label):
+        """Retrieve a capability with a given label"""
+        return self._caplabels[label]
+
     def add_capability(self, cap):
         """Add a capability to the capability cache"""
         print("adding "+repr(cap))
         self._capabilities.append(cap)
+        if cap.get_label():
+            self._caplabels[cap.get_label()] = cap
 
     def clear_capabilities(self):
         """Clear the capability cache"""
@@ -177,11 +188,18 @@ class HttpClient(object):
         print("getting capabilities from "+self._capurl)
         res = self.pool.request('GET', self._capurl)
         if res.status == 200:
-            parser = CrawlParser(strict=False)
-            parser.feed(res.data.decode("utf-8"))
-            parser.close()
-            for capurl in parser.urls:
-                self.handle_message(self.get_mplane_reply(url=capurl))
+            ctype = res.getheader("content-type")
+            if ctype == "application/x-mplane+json":
+                # Probably an envelope. Process the message.
+                self.handle_message(
+                    mplane.model.parse_json(res.data.decode("utf-8")))
+            elif ctype == "text/html":
+                # Treat as a list of links to capability messages.
+                parser = CrawlParser(strict=False)
+                parser.feed(res.data.decode("utf-8"))
+                parser.close()
+                for capurl in parser.urls:
+                    self.handle_message(self.get_mplane_reply(url=capurl))
         else:
             print(listurl+": "+str(res.status))
        
@@ -195,7 +213,9 @@ class HttpClient(object):
             self._receipts.append(msg)
 
     def redeem_receipt(self, msg):
-        self.handle_message(self.get_mplane_reply(postmsg=mplane.model.Redemption(receipt=msg)))
+        self.handle_message(
+            self.get_mplane_reply(
+                postmsg=mplane.model.Redemption(receipt=msg)))
 
     def redeem_receipts(self):
         """
@@ -214,7 +234,7 @@ class HttpClient(object):
         yield from self._results
 
     def add_result(self, msg):
-        """Add a receipt. Check for duplicates."""
+        """Add a result. Check for duplicates."""
         if msg.get_token() not in [result.get_token() for result in self.results()]:
             self._results.append(msg)
             self._delete_receipt_for(msg.get_token())
@@ -235,16 +255,10 @@ class HttpClient(object):
     def _handle_exception(self, exc):
         print(repr(exc))
 
-
-class SshClient(object):
-    """ Skeleton for SSH Client"""
-    
-    def __init__(self, security, posturl, capurl=None):
-        pass
-
 class ClientShell(cmd.Cmd):
 
-    intro = 'Welcome to the mplane client shell.   Type help or ? to list commands.\n'
+    intro = 'mPlane client shell (rev 25.11.2014). \n'\
+            'Type help or ? to list commands. ^D to exit.\n'
     prompt = '|mplane| '
 
     def preloop(self):
@@ -271,16 +285,14 @@ class ClientShell(cmd.Cmd):
 
         proto = args[0].split('://')[0]
         if proto == 'http':
-            self._client = HttpClient(False, args[0], capurl)
+            self._client = HttpClient(args[0], capurl)
         elif proto == 'https':
             if self._certfile is not None:
-                self._client = HttpClient(True, args[0], capurl, self._certfile)
+                self._client = HttpClient(args[0], capurl, self._certfile)
             else:
                 raise SyntaxError("For HTTPS, need to specify the --certfile parameter when launching the client")
-        elif proto == 'ssh':
-            self._client = SshClient(True, args[0], capurl)
         else:
-            raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https(, ssh)")
+            raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https")
 
         self._client.retrieve_capabilities()
 

@@ -2,7 +2,7 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
 # mPlane Protocol Reference Implementation
-# HTML Rendering Code
+# mPlane message renderers (to text and html)
 #
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell <brian@trammell.ch>
@@ -24,14 +24,38 @@
 import mplane.model
 import tornado.template
 
+def render_text(msg):
+    if msg.isinstance(mplane.model.Capability):
+        return render_text_cap(msg.to_dict())
+    elif msg.isinstance(mplane.model.Specification):
+        return render_text_spec(msg.to_dict())
+    elif msg.isinstance(mplane.model.Receipt):
+        return render_text_rec(msg.to_dict())
+    elif msg.isinstance(mplane.model.Result):
+        return render_text_res(msg.to_dict())
+    else:
+        raise ValueError("Unrenderable message type")
+
+# Capability "label" (token)
+#   N parameters:
+#     key: constraint
+#   N metadata
+#     key: constraint
+#   N results:
+#     key
+#   export: url
+
 def render_html(msg, cssid):
     if msg.isinstance(mplane.model.Capability):
         return render_html_cap(msg.to_dict(), cssid)
-    if msg.isinstance(mplane.model.Specification):
+    elif msg.isinstance(mplane.model.Specification):
         return render_html_spec(msg.to_dict(), cssid)
-    if msg.isinstance(mplane.model.Receipt):
+    elif msg.isinstance(mplane.model.Receipt):
         return render_html_rec(msg.to_dict(), cssid)
-    if msg.isinstance(mplane.model.Result):
-        return render_html_res(msg.to_dict())
+    elif msg.isinstance(mplane.model.Result):
+        return render_html_res(msg.to_dict(), cssid)
+    elif msg.isinstance(mplane.model.Exception):
+        return render_html_exc(msg.to_dict(), cssid)
     else:
         raise ValueError("Unrenderable message type")
+
