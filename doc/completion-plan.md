@@ -45,12 +45,49 @@ Component-initiated components will additionally consist of:
 
 `mplane\client.py` should become a programmatic mPlane client (roughly the state-management parts of the current HttpClient class), allowing applications to "use" an mPlane client endpoint. The base client should support HTTP client-initiated workflows, along with component-initiated workflows with an Tornado HTTP server in a separate thread.
 
-## Generic Client
-
-Adding HTML renderers (with the Tornado templating framework) would allow us to build a generic client with a Web interface. Here, the main view would be a tree of capabilities, rooted at a source of capabilities. The generic client would support only client-initiated
+The Client API looks something like the following:
 
 ```
-+ source
+class Client:
+
+    def __init__(default_url=None, tls_state=None):
+    """
+    initialize a client with a given 
+    default URL an a given TLS state
+    """
+    pass
+
+    def send_message(destination_url=None):
+    """
+    send a message, store any result in client state
+    follows the link in the message, if present; 
+    otherwise uses dst_url, otherwise default_url
+    """
+    pass
+
+    def result_for(token_or_label):
+    """
+    return a result for the token if available;
+    attempt to redeem the receipt for the token otherwise.
+    """
+    pass
+
+    def forget(token_or_label):
+    """
+    forget all results for the given token or label
+    """
+
+    def retrieve_capabilities(url):
+    """
+    connect to the given URL, retrieve and process the capabilities/withdrawals found there
+    """
+```
+
+## Generic Client
+
+Adding HTML renderers (with the Tornado templating framework) to this programmatic client would allow us to build a generic client with a Web interface. Here, the main view would be a tree of capabilities. The generic client would support only client-initiated
+
+```
 +- capability
  +- (new specification)
  +- receipt
