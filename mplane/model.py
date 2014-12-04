@@ -893,7 +893,9 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-        if s.period() is not None and (self._period is None or self._period < s.period()):
+        if not self._repeated and s.period() is not None and (self.period() is None or self.period() < s.period()):
+            return False
+        if self._repeated and s.period() is not None and (self._inner_period is None or self._inner_period < s.period()):
             return False
         if s.in_scope(self._a, tzero):
             return True
