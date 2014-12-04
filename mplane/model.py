@@ -2685,16 +2685,19 @@ class Envelope(object):
 
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
         super().__init__()
+
+        self._messages = []
+        self._content_type = content_type
         if dictval is not None:
             self._from_dict(dictval)
-        else:
-          self._content_type = content_type
-          self._messages = []
 
     def __repr__(self):
         return "<Envelope "+self._content_type+\
                 " ("+str(len(self._messages))+"): "+\
                 " ".join(map(repr, self._messages))+">"
+
+    def __len__(self):
+        return len(self._messages)
 
     def append_message(self, msg):
         self._messages.append(msg)
@@ -2719,8 +2722,8 @@ class Envelope(object):
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
 
-        for md in self[KEY_CONTENTS]:
-          self.append_message(message_from_dict(md))
+        for md in d[KEY_CONTENTS]:
+            self.append_message(message_from_dict(md))
 
 #######################################################################
 # Utility methods
