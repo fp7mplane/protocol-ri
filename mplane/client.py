@@ -37,7 +37,6 @@ from datetime import datetime, timedelta
 
 CAPABILITY_PATH_ELEM = "capability"
 
-
 class Client(object):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
@@ -61,20 +60,53 @@ class Client(object):
         self._results = {}
         self._result_labels = {}
 
-    def send_message(self, dst_url=None):
+    def send_message(self, msg, dst_url=None):
         """
         send a message, store any result in client state
         follows the link in the message, if present; 
         otherwise uses dst_url, otherwise default_url.
         
         """
-        pass
+
+        # figure out where to send the message
+        if msg.get_link():
+            dst_url = 
+        if not posturl:
+            posturl = dst_url
+        if not posturl:
+            posturl = self._default_url
+
+        pool = self.tls_state.pool_for(dst_url)
+        res = pool.urlopen('POST', dst_url, 
+                           body=mplane.model.unparse_json(msg).encode("utf-8"),
+                           headers={"content-type": "application/x-mplane+json"})
+        if (res.status == 200 and 
+            res.getheader("content-type") == "application/x-mplane+json"):
+            self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
+        else:
+            # Didn't get an mPlane reply. What now?
+            pass
 
     def handle_message(self, msg):
         """
         Handle a message. Used internally to process 
-        mPlane messages received from 
+        mPlane messages received from a component. Can also be used 
+        to inject messages into a client's state.
 
+        """
+        if isinstance(msg, mplane.model.Capability):
+            self.add_capability(msg)
+        elif isinstance(msg, mplane.model.Receipt):
+            self.add_receipt(msg)
+        elif isinstance(msg, mplane.model.Result):
+            self.add_result(msg)
+        elif isinstance(msg, mplane.model.Exception):
+            self._handle_exception(msg)
+        elif isinstance(msg, mplane.model.Envelope):
+            for imsg in msg.messages():
+                self.handle_message(imsg)
+        else:
+            raise ValueError("Internal error: unknown message "+repr(msg))
 
     def result_for(self, token_or_label):
         """

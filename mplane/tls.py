@@ -32,3 +32,7 @@
 # the use of TLS will be selected based on the URL used.
 
 # - SSB will pull this out of existing utils.py and stepenta/RI code.
+
+class TlsState:
+	def pool_for(self, url):
+		pass
