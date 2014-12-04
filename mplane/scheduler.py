@@ -73,6 +73,7 @@ class Service(object):
     def __repr__(self):
         return "<Service for "+repr(self._capability)+">"
 
+
 class Job(object):
     """
     A Job binds some running code to an mPlane.model.Specification 
@@ -178,6 +179,139 @@ class Job(object):
         else:
             return self.receipt
 
+
+class MultiJob(object):
+    """
+    A MultiJob spawns multiple jobs determined by its schedule.
+
+    Each MultiJob will result in multiple result rows, one for each sub-job.
+    """
+
+    jobs = []
+    results = mplane.model.Envelope()
+    exceptions= mplane.model.Envelope()
+    service = None
+    session = None
+    specification = None
+    receipt = None
+    _replied_at = None
+    _scheduling_finished = False
+    _subspec_iterator = None
+
+    def __init__(self, service, specification, session=None):
+        super(MultiJob, self).__init__()
+        self.service = service
+        self.session = session
+        self.specification = specification
+        self.receipt = mplane.model.Receipt(specification=specification)
+        self._subspec_iterator = specification.subspec_iterator()
+
+    def __repr__(self):
+        return "<MultiJob for "+repr(self.specification)+">"
+
+    def _schedule_job(self):
+        """
+        Schedule a job.
+        """
+        new_job = Job(service=self.service,
+                      specification=self._subspec,
+                      session=self.session)
+
+        self.jobs.append(new_job)
+        new_job.schedule()
+
+        self._next_job()
+
+    def _next_job(self):
+        """
+        Gets the next job and schedules it.
+        """
+        try:
+            self._subspec = next(self._subspec_iterator)
+        except StopIteration:
+            self._scheduling_finished = True
+            return
+
+        (start_delay, end_delay) = self._subspec.when().timer_delays()
+
+        # if no start_delay for the next run was found we should stop this MultiJob
+        if start_delay is None:
+            self._scheduling_finished = True
+            return
+
+        # start start timer
+        if start_delay > 0:
+            print("Scheduling "+repr(self._subspec)+" from "+repr(self)+" after "+str(start_delay)+" sec")
+            threading.Timer(start_delay, self._schedule_job).start()
+        else:
+            print("Scheduling "+repr(self._subspec)+" from "+repr(self)+" immediately")
+            self._schedule_job()
+
+    def schedule(self):
+        """
+        Scheduling start function
+        """
+        if self.specification.is_query():
+            (start_delay, end_delay) = (0, None)
+        else:
+            (start_delay, end_delay) = self.specification.when().timer_delays()
+
+        # if no start_delay for the next run was found we should stop this MultiJob
+        if start_delay is None:
+            self._scheduling_finished = True
+            return
+
+        # start interrupt timer
+        if end_delay is not None:
+            threading.Timer(end_delay, self.interrupt).start()
+            print("Will interrupt "+repr(self)+" after "+str(end_delay)+" sec")
+
+        # begin scheduling of all jobs
+        self._next_job()
+
+    def interrupt(self):
+        """Interrupt all jobs."""
+        for job in self.jobs:
+            job.interrupt()
+
+    def failed(self):
+        for job in self.jobs[:]:
+            if job.failed():
+                self.exceptions.append_message(job.get_reply())
+                self.jobs.remove(job)
+
+        return len(self.exceptions)
+
+    def finished(self):
+        """Return True if all jobs are complete."""
+        if not self._scheduling_finished:
+            return False
+
+        for job in self.jobs[:]:
+            if job.finished() and not job.failed():
+                self.results.append_message(job.get_reply())
+                self.jobs.remove(job)
+            else:
+                return False
+
+        return True
+
+    def get_reply(self):
+        """
+        If a result is available for this Job (i.e., if the job is
+        done running), return it. Otherwise, create a receipt from
+        the Specification and return that.
+
+        """
+        self._replied_at = datetime.utcnow()
+        if self.failed():
+            return self.exceptions
+        elif self.finished():
+            return self.results
+        else:
+            return self.receipt
+
+
 class Scheduler(object):
     """
     Scheduler implements the common runtime of a Component within the
@@ -248,8 +382,7 @@ class Scheduler(object):
                 if self.ac.check_azn(service.capability()._label, user):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
-                    if (specification.has_schedule()):
-                    if (specification.when().is_repeated()):
+                    if specification.when().is_repeated():
                         new_job = MultiJob(service=service,
                                            specification=specification,
                                            session=session)
