@@ -35,4 +35,9 @@
 
 class TlsState:
 	def pool_for(self, url):
+		"""
+		Given a URL (from which a scheme and host can be extracted),
+		return a connection pool (potentially with TLS state) 
+		which can be used to connect to the URL.
+		"""
 		pass

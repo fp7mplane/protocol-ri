@@ -37,6 +37,23 @@ from datetime import datetime, timedelta
 
 CAPABILITY_PATH_ELEM = "capability"
 
+class CrawlParser(html.parser.HTMLParser):
+    """
+    HTML parser class to extract all URLS in a href attributes in
+    an HTML page. Used to extract links to Capabilities exposed
+    as link collections.
+
+    """
+    def __init__(self, **kwargs):
+        super(CrawlParser, self).__init__(**kwargs)
+        self.urls = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = {k: v for (k,v) in attrs}
+        if tag == "a" and "href" in attrs:
+            self.urls.append(attrs["href"])
+
+
 class Client(object):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
@@ -54,7 +71,7 @@ class Client(object):
         self._default_url = default_url
         self._tls_state = tls_state
         self._capabilities = {}
-        self._capability_label = {}
+        self._capability_labels = {}
         self._receipts = {}
         self._receipt_labels = {}
         self._results = {}
@@ -87,6 +104,33 @@ class Client(object):
             # Didn't get an mPlane reply. What now?
             pass
 
+    def add_capability(self, msg):
+        self._capabilities[msg.get_token()] = msg
+        if msg.get_label():
+            self._capability_labels[msg.get_label()] = msg
+
+    def add_receipt(self, msg):
+        self._receipts[msg.get_token()] = msg
+        if msg.get_label():
+            self._receipt_labels[msg.get_label()] = msg
+
+    def add_result(self, msg):
+        try:
+            del self._receipts[msg.get_token()]
+        except KeyError:
+            pass
+        self._results[msg.get_token()] = msg
+
+        if msg.get_label():
+            try:
+                del self._receipt_labels[msg.get_label()]
+            except KeyError:
+                pass
+            self._result_labels[msg.get_label()] = msg
+
+    def _handle_exception(self, msg):
+        pass
+
     def handle_message(self, msg):
         """
         Handle a message. Used internally to process 
@@ -113,48 +157,108 @@ class Client(object):
         return a result for the token if available;
         attempt to redeem the receipt for the token otherwise.
         """
-        pass
+        # first look in state
+        if token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
+        elif token_or_label in self._receipt_labels:
+            receipt = self._receipt_labels[token_or_label]
+        elif token_or_label in self._receipts:
+            receipt = self._receipts[token_or_label]
+        else:
+            raise KeyError("no such token or label "+token_or_label)
 
-    def retrieve_capabilities(self, url):
+        # if we're here, we have a receipt. try to redeem it.
+        self.send_message(mplane.model.Redemption(receipt=receipt))
+
+        # see if we got a result
+        if token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
+        else:
+            # Nope. Return the receipt.
+            return receipt
+
+    def retrieve_capabilities(self, url, urlchain=[]):
         """
         connect to the given URL, retrieve and process the capabilities/withdrawals found there
         """
+        # loop detection
+        if url in urlchain:
+            return
+
+        pool = self.tls_state.pool_for(dst_url)
+        res = pool.request('get', dst_url)
+
+        if res.status == 200:
+            ctype = res.getheader("content-type")
+            if ctype == "application/x-mplane+json":
+                # Probably an envelope. Process the message.
+                self.handle_message(
+                    mplane.model.parse_json(res.data.decode("utf-8")))
+            elif ctype == "text/html":
+                # Treat as a list of links to capability messages.
+                parser = CrawlParser(strict=False)
+                parser.feed(res.data.decode("utf-8"))
+                parser.close()
+                for capurl in parser.urls:
+                    self.handle_message(self.retrieve_capabilities(url=capurl), 
+                                        urlchain = urlchain + [url])
 
     def forget(self, token_or_label):
         """
         forget all capabilities, receipts and results for the given token or label
         """
+        if token_or_label in self._result_labels:
+            del self._result_labels[token_or_label]
+        if token_or_label in self._results:
+            del self._results[token_or_label]
+        if token_or_label in self._receipt_labels:
+            del self._receipt_labels[token_or_label]
+        if token_or_label in self._receipts:
+            del self._receipts[token_or_label]
+        if token_or_label in self._capability_labels:
+            del self._capability_labels[token_or_label]
+        if token_or_label in self._capabilities:
+            del self._capabilities[token_or_label]
 
     def receipt_tokens(self):
         """
         list all tokens for outstanding receipts
         """
+        return tuple(self._receipts.keys())
 
     def receipt_labels(self):
         """
         list all labels for outstanding receipts
         """
+        return tuple(self._receipt_labels.keys())
 
     def result_tokens(self):
         """
         list all tokens for stored results
         """
+        return tuple(self._results.keys())
 
     def result_labels(self):
         """
         list all labels for stored results
         """
+        return tuple(self._result_labels.keys())
 
     def capability_tokens(self):
         """
         list all tokens for stored capabilities
         """
+        return tuple(self._capabilities.keys())
 
     def capability_labels(self):
         """
         list all labels for stored capabilities
         """
-
+        return tuple(self._capability_labels.keys())
 
 class ListenerClient(object):
     """
@@ -165,21 +269,6 @@ class ListenerClient(object):
     """
     pass
 
-class CrawlParser(html.parser.HTMLParser):
-    """
-    HTML parser class to extract all URLS in a href attributes in
-    an HTML page. Used to extract links to Capabilities exposed
-    as link collections.
-
-    """
-    def __init__(self, **kwargs):
-        super(CrawlParser, self).__init__(**kwargs)
-        self.urls = []
-
-    def handle_starttag(self, tag, attrs):
-        attrs = {k: v for (k,v) in attrs}
-        if tag == "a" and "href" in attrs:
-            self.urls.append(attrs["href"])
 
 class HttpClient(object):
     """
@@ -378,6 +467,3 @@ class HttpClient(object):
 
     def _handle_exception(self, exc):
         print(repr(exc))
-
-
- 
