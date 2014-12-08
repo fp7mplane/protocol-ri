@@ -283,6 +283,7 @@ class ClientShell(cmd.Cmd):
             capurl = None
         else:
             print("Cannot connect without a url")
+            return
 
         proto = args[0].split('://')[0]
         if proto == 'http':
@@ -375,8 +376,7 @@ class ClientShell(cmd.Cmd):
 
         # Set temporal scope or prompt for new one
         while self._when is None or \
-              not self._when.follows(cap.when()) or \
-              (self._when.period is None and cap.when().period() is not None):
+              not self._when.follows(cap.when()):
             sys.stdout.write("|when| = ")
             self._when = mplane.model.When(input())
 

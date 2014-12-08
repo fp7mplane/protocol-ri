@@ -284,6 +284,8 @@ DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
 ANCHOR_SEP = "#"
+INNER_WHEN_SEP_START = " { "
+INNER_WHEN_SEP_END = " } "
 
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
@@ -291,6 +293,9 @@ VALUE_NONE = "*"
 TIME_PAST = "past"
 TIME_NOW = "now"
 TIME_FUTURE = "future"
+
+WHEN_REPEAT = "repeat "
+WHEN_CRON = " cron "
 
 VERB_MEASURE = "measure"
 VERB_QUERY = "query"
@@ -307,6 +312,9 @@ KEY_LINK = "link"
 KEY_EXPORT = "export"
 KEY_VERSION = "version"
 KEY_WHEN = "when"
+KEY_WHEN_REPEAT = "repeated-when"
+KEY_WHEN_OTHER = "outer-when"
+KEY_WHEN_INNER = "inner-when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
@@ -377,6 +385,10 @@ _dur_seclabel = ( (86400, 'd'),
                   ( 3600, 'h'),
                   (   60, 'm'),
                   (    1, 's') )
+
+_innerwhen_pat = '\{ (.*?) \}'
+_innerwhen_re = re.compile(_innerwhen_pat)
+
 
 def parse_time(valstr):
     if valstr is None:
@@ -508,40 +520,150 @@ def _parse_wdayset(valstr):
 def _unparse_wdayset(valset):
     return SET_SEP.join(map(lambda x: _dow_label[x], sorted(list(valset))))
 
+
+class _Crontab(object):
+    def __init__(self):
+        super().__init__()
+        self._months = set()
+        self._days = set()
+        self._weekdays = set()
+        self._hours = set()
+        self._minutes = set()
+        self._seconds = set()
+
+    def _parse_value(self, val):
+        # Check if this is a range
+        rangesplit = val.split('-')
+        if len(rangesplit) > 1:
+            return set(range(int(rangesplit[0]),int(rangesplit[1])+1))
+
+        # Parse numset
+        return _parse_numset(val)
+
+    def _parse(self, valstr):
+        valsplit = valstr.split()
+
+        if len(valsplit) != 6:
+            raise ValueError(repr(valstr)+" does not appear to be a mPlane crontab")
+
+        self._seconds = set(range(0,60)) if (valsplit[0] == '*') else self._parse_value(valsplit[0])
+        self._minutes = set(range(0,60)) if (valsplit[1] == '*') else self._parse_value(valsplit[1])
+        self._hours = set(range(0,60)) if (valsplit[2] == '*') else self._parse_value(valsplit[2])
+        self._days = set(range(1,32)) if (valsplit[3] == '*') else self._parse_value(valsplit[3])
+        self._weekdays = set(range(0,7)) if (valsplit[4] == '*') else self._parse_value(valsplit[4])
+        self._months = set(range(1,13)) if (valsplit[5] == '*') else self._parse_value(valsplit[5])
+
+    def __str__(self):
+        return" ".join([_unparse_numset(self._seconds),
+                        _unparse_numset(self._minutes),
+                        _unparse_numset(self._hours),
+                        _unparse_numset(self._days),
+                        _unparse_numset(self._weekdays),
+                        _unparse_numset(self._months)])
+
+    def __repr__(self):
+        return "cron "+str(self)
+
 class When(object):
     """
     Defines the temporal scopes for capabilities, results, or 
     single measurement specifications.
 
     """
-    def __init__(self, valstr=None, a=None, b=None, d=None, p=None):
+    def __init__(self, valstr=None, a=None, b=None, duration=None, period=None,
+                 repeated=False, inner_duration=None, inner_period=None, crontab=None):
         super().__init__()
         self._a = a
         self._b = b
-        self._d = d
-        self._p = p
+        self._duration = duration
+        self._period = period
+        self._repeated = repeated
+        self._inner_duration = inner_duration
+        self._inner_period = inner_period
+        self._crontab = crontab
 
         if valstr is not None:
             self._parse(valstr)
 
     def _parse(self, valstr):
-        # First separate the period from the value and parse it
+        # First check if this is a repeated measurement
+        valsplit = valstr.split(WHEN_REPEAT)
+        if len(valsplit) > 1:
+            self._repeated = True
+
+            # Remove 'repeat '
+            valstr = valsplit[1]
+
+            # Check for inner when
+            innervalstr = _innerwhen_re.search(valstr)
+            if innervalstr:
+                innervalstr = innervalstr.group(1)
+                # check if inner-when begins with 'now'
+                if not innervalstr.startswith(TIME_NOW):
+                    raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (inner when has to be relative to now)")
+
+                # Separate the period from the value and parse it
+                valsplit = innervalstr.split(PERIOD_SEP)
+                if len(valsplit) > 1:
+                    (innervalstr, perstr) = valsplit
+                    self._inner_period = parse_dur(perstr)
+                else:
+                    self._period = None
+
+                # then try to split duration
+                valsplit = innervalstr.split(DURATION_SEP)
+                if len(valsplit) > 1:
+                    (innervalstr, durstr) = valsplit
+                    self._inner_duration = parse_dur(durstr)
+                    valsplit = [innervalstr]
+                else:
+                    self._inner_duration = None
+
+            # Remove inner when
+            valsplit = valstr.split(INNER_WHEN_SEP_START)[0]
+
+            # Finally check for a crontab
+            valsplit = valsplit.split(WHEN_CRON)
+            if len(valsplit) > 1:
+                # remove inner when and parse the crontab
+                self._crontab = _Crontab()
+                self._crontab._parse(valsplit[1])
+            else:
+                self._crontab = None
+
+            # Remove crontab
+            valstr = valsplit[0]
+        else:
+            self._inner_duration = None
+            self._inner_period = None
+            self._crontab = None
+
+        # Outer-when or simple-when
+        # separate the period from the value and parse it
         valsplit = valstr.split(PERIOD_SEP)
         if len(valsplit) > 1:
             (valstr, perstr) = valsplit
-            self._p = parse_dur(perstr)
+            self._period = parse_dur(perstr)
         else:
-            self._p = None
+            self._period = None
 
         # then try to split duration or range
         valsplit = valstr.split(DURATION_SEP)
         if len(valsplit) > 1:
             (valstr, durstr) = valsplit
-            self._d = parse_dur(durstr)
+            self._duration = parse_dur(durstr)
             valsplit = [valstr]
         else:
-            self._d = None
+            self._duration = None
             valsplit = valstr.split(RANGE_SEP)
+
+        # if this is a repeated-when without a cron, period has to be set
+        if self._repeated and self._crontab is None and self._period is None:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (no duration or cron set)")
+
+        # if this is a repeated-when with cron, period must not be set
+        if self._repeated and self._crontab and self._period:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (duration and cron set at the same time)")
         
         self._a = parse_time(valsplit[0])
         if len(valsplit) > 1:
@@ -550,15 +672,30 @@ class When(object):
             self._b = None
 
     def __str__(self):
-        valstr = unparse_time(self._a)
+        if self._repeated:
+            valstr = "".join((WHEN_REPEAT, unparse_time(self._a)))
+        else:
+            valstr = "".join((unparse_time(self._a)))
 
         if self._b is not None:
             valstr = "".join((valstr, RANGE_SEP, unparse_time(self._b)))
-        elif self._d is not None:
-            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._d)))
+        elif self._duration is not None:
+            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._duration)))
 
-        if (self._p) is not None:
-            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._p)))
+        if self._period is not None:
+            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._period)))
+
+        if self._crontab is not None:
+            valstr = "".join((valstr, WHEN_CRON, str(self._crontab)))
+
+        if self._inner_duration is not None:
+            valstr = "".join((valstr, INNER_WHEN_SEP_START, TIME_NOW, DURATION_SEP, unparse_dur(self._inner_duration)))
+
+            if self._inner_period is not None:
+                valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._inner_period)))
+
+            valstr = "".join((valstr, INNER_WHEN_SEP_END))
+
         return valstr
 
     def __repr__(self):
@@ -607,7 +744,14 @@ class When(object):
         or Results.
 
         """
-        return self._a is not None and self._b is None and self._d is None
+        return self._a is not None and self._b is None and self.duration() is None
+
+    def is_repeated(self):
+        """
+        Return True if this temporal scope referes to a
+        repeated when.
+        """
+        return self._repeated
 
     def datetimes(self, tzero=None):
         """
@@ -630,8 +774,8 @@ class When(object):
         elif self._b is time_future:
             end = None
         elif self._b is None:
-            if self._d is not None:
-                end = start + self._d
+            if self.duration() is not None:
+                end = start + self.duration()
             else:
                 end = start
         else:
@@ -644,8 +788,8 @@ class When(object):
         Return the duration of this temporal scope as a timedelta.
 
         """
-        if self._d is not None:
-            return self._d
+        if self._duration is not None:
+            return self._duration
         elif self._b is None:
             return timedelta()
         elif self._b is time_future:
@@ -655,7 +799,7 @@ class When(object):
             return end - start
 
     def period(self):
-        return self._p
+        return self._period
 
     def timer_delays(self, tzero=None):
         """
@@ -693,8 +837,8 @@ class When(object):
         # determine end delay
         if self._b is not None and self._b is not time_future:
             ed = (end - tzero).total_seconds()
-        elif self._d is not None:
-            ed = sd + self._d.total_seconds();
+        elif self.duration() is not None:
+            ed = sd + self.duration().total_seconds()
         else:
             ed = None
 
@@ -744,7 +888,9 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-        if s.period() is not None and (self._p is None or self._p < s.period()):
+        if not self._repeated and s.period() is not None and (self.period() is None or self.period() < s.period()):
+            return False
+        if self._repeated and s.period() is not None and (self._inner_period is None or self._inner_period < s.period()):
             return False
         if s.in_scope(self._a, tzero):
             return True
@@ -752,6 +898,60 @@ class When(object):
             return True
         else:
             return False
+
+    def iterator(self, t=None):
+        """
+        Returns an iterator over When statements generated by a repeated when.
+
+        """
+        if not self._repeated:
+            raise Exception("Can't get iterator for non-repeated when")
+
+        # default to now, zero microseconds, initialize minus one second
+        if t is None:
+            t = datetime.utcnow().replace(microsecond=0)
+
+        # get base period (default 1s) and
+        period = self.period()
+        if period is None:
+            period = timedelta(seconds=1)
+
+        # fast forward if necessary
+        lag = self.sort_scope(t)
+        if lag < 0:
+            t += timedelta(seconds=-lag)
+
+        tzero = t
+
+        # loop through time by period and check for match
+        t -= period
+        # repeat with cron
+        if self._crontab:
+            while True:
+                t += period
+                if self.sort_scope(t, tzero) > 0:
+                    break
+                if len(self._crontab._seconds) and (t.second not in self._crontab._seconds):
+                    continue
+                if len(self._crontab._minutes) and (t.minute not in self._crontab._minutes):
+                    continue
+                if len(self._crontab._hours) and (t.hour not in self._crontab._hours):
+                    continue
+                if len(self._crontab._days) and (t.day not in self._crontab._days):
+                    continue
+                if len(self._crontab._weekdays) and ((t.weekday() + 1) % 7 not in self._crontab._weekdays):
+                    continue
+                if len(self._crontab._months) and (t.month not in self._crontab._months):
+                    continue
+                yield When(a=t, period=self._inner_period, duration=self._inner_duration)
+        # repeat without cron
+        else:
+            while True:
+                t += period
+                if self.sort_scope(t, tzero) > 0:
+                    break
+
+                yield When(a=t, period=self._inner_period, duration=self._inner_duration)
 
 when_infinite = When(a=time_past, b=time_future)
 
@@ -2246,7 +2446,15 @@ class Specification(Statement):
         specification has an absolute temporal scope derived from this specification's
         relative temporal scope and schedule.
         """
-        yield self #FIXME write this
+        if self._when.is_repeated():
+            subspec = deepcopy(self)
+
+            iter = self._when.iterator()
+            while 1:
+                subspec._when = next(iter)
+                yield subspec
+        else:
+            yield self
 
 
 class Result(Statement):
@@ -2479,16 +2687,19 @@ class Envelope(object):
 
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
         super().__init__()
+
+        self._messages = []
+        self._content_type = content_type
         if dictval is not None:
             self._from_dict(dictval)
-        else:
-          self._content_type = content_type
-          self._messages = []
 
     def __repr__(self):
         return "<Envelope "+self._content_type+\
                 " ("+str(len(self._messages))+"): "+\
                 " ".join(map(repr, self._messages))+">"
+
+    def __len__(self):
+        return len(self._messages)
 
     def append_message(self, msg):
         self._messages.append(msg)
@@ -2513,8 +2724,8 @@ class Envelope(object):
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
 
-        for md in self[KEY_CONTENTS]:
-          self.append_message(message_from_dict(md))
+        for md in d[KEY_CONTENTS]:
+            self.append_message(message_from_dict(md))
 
 #######################################################################
 # Utility methods
