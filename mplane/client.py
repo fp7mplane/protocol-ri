@@ -77,21 +77,19 @@ class Client(object):
         self._results = {}
         self._result_labels = {}
 
+        # specification serial number
+        # used to create labels programmatically
+        self._ssn = 0
+
     def send_message(self, msg, dst_url=None):
         """
-        send a message, store any result in client state
-        follows the link in the message, if present; 
-        otherwise uses dst_url, otherwise default_url.
+        send a message, store any result in client state.
         
         """
 
         # figure out where to send the message
-        if msg.get_link():
-            dst_url = 
-        if not posturl:
-            posturl = dst_url
-        if not posturl:
-            posturl = self._default_url
+        if not dst_url:
+            dst_url = self._default_url
 
         pool = self.tls_state.pool_for(dst_url)
         res = pool.urlopen('POST', dst_url, 
@@ -104,17 +102,29 @@ class Client(object):
             # Didn't get an mPlane reply. What now?
             pass
 
-    def add_capability(self, msg):
+    def _add_capability(self, msg):
+        """
+        Add a capability to internal state. The capability will be recallable 
+        by token, and, if present, by label.
+
+        Internal use only; use handle_message instead.
+
+        """
+
         self._capabilities[msg.get_token()] = msg
         if msg.get_label():
             self._capability_labels[msg.get_label()] = msg
 
-    def add_receipt(self, msg):
+    def _withdraw_capability(self, msg):
+        # FIXME write this
+        pass
+
+    def _add_receipt(self, msg):
         self._receipts[msg.get_token()] = msg
         if msg.get_label():
             self._receipt_labels[msg.get_label()] = msg
 
-    def add_result(self, msg):
+    def _add_result(self, msg):
         try:
             del self._receipts[msg.get_token()]
         except KeyError:
@@ -129,6 +139,7 @@ class Client(object):
             self._result_labels[msg.get_label()] = msg
 
     def _handle_exception(self, msg):
+        # FIXME what do we do with these?
         pass
 
     def handle_message(self, msg):
@@ -139,11 +150,13 @@ class Client(object):
 
         """
         if isinstance(msg, mplane.model.Capability):
-            self.add_capability(msg)
+            self._add_capability(msg)
+        elif isinstance(msg, mplane.model.Withdrawal):
+            self._withdraw_capability(msg)
         elif isinstance(msg, mplane.model.Receipt):
-            self.add_receipt(msg)
+            self._add_receipt(msg)
         elif isinstance(msg, mplane.model.Result):
-            self.add_result(msg)
+            self._add_result(msg)
         elif isinstance(msg, mplane.model.Exception):
             self._handle_exception(msg)
         elif isinstance(msg, mplane.model.Envelope):
@@ -155,7 +168,8 @@ class Client(object):
     def result_for(self, token_or_label):
         """
         return a result for the token if available;
-        attempt to redeem the receipt for the token otherwise.
+        attempt to redeem the receipt for the token otherwise;
+        if not yet redeemable, return the receipt instead.
         """
         # first look in state
         if token_or_label in self._result_labels:
@@ -181,11 +195,59 @@ class Client(object):
             # Nope. Return the receipt.
             return receipt
 
+    def capability_for(self, token_or_label):
+        """
+        Retrieve a capability given a token or label.
+
+        """
+        if token_or_label in self._capability_labels:
+            return self._capability_labels[token_or_label]
+        elif token_or_label in self._capabilities:
+            return self._capabilities[token_or_label]
+        else:
+            raise KeyError("no capability for token or label "+token_or_label)
+
+    def invoke_capability(self, cap_tol, when, params, relabel=None):
+        """
+        Given a capability token or label, a temporal scope, a dictionary 
+        of parameters, and an optional new label, derive a specification
+        and send it to the appropriate destination.
+
+        """
+        cap = self.capability_for(cap_tol)
+        spec = mplane.model.Specification(capability=cap)
+
+        # set temporal scope
+        spec.set_when(when)
+
+        # fill in parameters
+        spec.set_single_values()
+        for pname in spec.parameter_names():
+            if spec.get_parameter_value(pname) is None:
+                if pname in params:
+                    spec.set_parameter_value(pname, params[pname])
+                else:
+                    raise KeyError("missing parameter "+pname)
+
+        # regenerate token based on parameters and temporal scope
+        spec.retoken()
+
+        # generate label
+        if relabel:
+            spec.set_label(relabel)
+        else:
+            spec.set_label(cap.get_label() + "-" + str(self._ssn))
+        self._ssn += 1
+
+        # fire off a message
+        self.send_message(spec, dst_url=cap.get_link())
+
     def retrieve_capabilities(self, url, urlchain=[]):
         """
-        connect to the given URL, retrieve and process the capabilities/withdrawals found there
+        connect to the given URL, retrieve and process the 
+        capabilities/withdrawals found there
         """
-        # loop detection
+        # detect loops in capability links
         if url in urlchain:
             return
 
@@ -204,25 +266,34 @@ class Client(object):
                 parser.feed(res.data.decode("utf-8"))
                 parser.close()
                 for capurl in parser.urls:
-                    self.handle_message(self.retrieve_capabilities(url=capurl), 
-                                        urlchain = urlchain + [url])
+                    self.retrieve_capabilities(url=capurl, 
+                                               urlchain=urlchain + [url])
 
     def forget(self, token_or_label):
         """
-        forget all capabilities, receipts and results for the given token or label
+        forget all receipts and results for the given token or label
         """
         if token_or_label in self._result_labels:
+            result = self._result_labels[token_or_label]
             del self._result_labels[token_or_label]
+            del self._results[result.get_token()]
+
         if token_or_label in self._results:
+            result = self._results[token_or_label]
             del self._results[token_or_label]
+            if result.get_label():
+                del self._result_labels[result.get_label()]
+
         if token_or_label in self._receipt_labels:
+            receipt = self._receipt_labels[token_or_label]
             del self._receipt_labels[token_or_label]
+            del self._receipts[receipt.get_token()]
+
         if token_or_label in self._receipts:
+            receipt = self._receipts[token_or_label]
             del self._receipts[token_or_label]
-        if token_or_label in self._capability_labels:
-            del self._capability_labels[token_or_label]
-        if token_or_label in self._capabilities:
-            del self._capabilities[token_or_label]
+            if receipt.get_label():
+                del self._receipt_labels[receipt.get_label()]
 
     def receipt_tokens(self):
         """
