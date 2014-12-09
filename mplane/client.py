@@ -37,70 +37,22 @@ from datetime import datetime, timedelta
 
 CAPABILITY_PATH_ELEM = "capability"
 
-class CrawlParser(html.parser.HTMLParser):
+class BaseClient(object):
     """
-    HTML parser class to extract all URLS in a href attributes in
-    an HTML page. Used to extract links to Capabilities exposed
-    as link collections.
-
-    """
-    def __init__(self, **kwargs):
-        super(CrawlParser, self).__init__(**kwargs)
-        self.urls = []
-
-    def handle_starttag(self, tag, attrs):
-        attrs = {k: v for (k,v) in attrs}
-        if tag == "a" and "href" in attrs:
-            self.urls.append(attrs["href"])
-
-
-class Client(object):
-    """
-    Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports client-initiated workflows. Intended for building 
-    client UIs and bots.
+    Core implementation of a generic programmatic client.
+    Used for common client state management between 
+    Client and ClientListener; use one of these instead.
 
     """
 
-    def __init__(self, default_url=None, tls_state=None):
-        """
-        initialize a client with a given 
-        default URL an a given TLS state
-        """
-        
-        self._default_url = default_url
+    def __init__(self, tls_state=None):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
         self._receipts = {}
         self._receipt_labels = {}
         self._results = {}
-        self._result_labels = {}
-
-        # specification serial number
-        # used to create labels programmatically
-        self._ssn = 0
-
-    def send_message(self, msg, dst_url=None):
-        """
-        send a message, store any result in client state.
-        
-        """
-
-        # figure out where to send the message
-        if not dst_url:
-            dst_url = self._default_url
-
-        pool = self.tls_state.pool_for(dst_url)
-        res = pool.urlopen('POST', dst_url, 
-                           body=mplane.model.unparse_json(msg).encode("utf-8"),
-                           headers={"content-type": "application/x-mplane+json"})
-        if (res.status == 200 and 
-            res.getheader("content-type") == "application/x-mplane+json"):
-            self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
-        else:
-            # Didn't get an mPlane reply. What now?
-            pass
+        self._result_labels = {}       
 
     def _add_capability(self, msg):
         """
@@ -115,28 +67,89 @@ class Client(object):
         if msg.get_label():
             self._capability_labels[msg.get_label()] = msg
 
+    def _remove_capability(self, msg):
+        token = msg.get_token()
+        if token in self._capabilities:
+            label = self._capabilities[token].get_label()
+            del self._capabilities[token]
+            if label and label in self._capability_labels:
+                del self._capability_labels[label]
+
     def _withdraw_capability(self, msg):
-        # FIXME write this
-        pass
+        """
+        Process a withdrawal. Match the withdrawal to the capability, 
+        first by token, then by schema.
+
+        Internal use only; use handle_message instead.
+
+        """
+        token = msg.get_token()
+
+        if token in self._capabilities:
+            self._remove_capability(self._capabilities[token])
+        else:
+            # Search all capabilities by schema
+            # FIXME need to add calls to model to make this happen
+            pass
+
+    def capability_for(self, token_or_label):
+        """
+        Retrieve a capability given a token or label.
+
+        """
+        if token_or_label in self._capability_labels:
+            return self._capability_labels[token_or_label]
+        elif token_or_label in self._capabilities:
+            return self._capabilities[token_or_label]
+        else:
+            raise KeyError("no capability for token or label "+token_or_label)
 
     def _add_receipt(self, msg):
+        """
+        Add a receipt to internal state. The receipt will be recallable 
+        by token, and, if present, by label.
+
+        Internal use only; use handle_message instead.
+
+        """
         self._receipts[msg.get_token()] = msg
         if msg.get_label():
             self._receipt_labels[msg.get_label()] = msg
 
+    def _remove_receipt(self, msg):
+        token = msg.get_token()
+        if token in self._receipts:
+            label = self._receipts[token].get_label()
+            del self._receipts[token]
+            if label and label in self._receipt_labels:
+                del self._receipt_labels[label]
+
     def _add_result(self, msg):
+        """
+        Add a result to internal state. The result will supercede any receipt
+        stored for the same token, and will be recallable by token, and, 
+        if present, by label.
+
+        Internal use only; use handle_message instead.
+
+        """        
         try:
-            del self._receipts[msg.get_token()]
+            receipt = self._receipts[msg.get_token()]
+            self._remove_receipt(receipt)
         except KeyError:
             pass
         self._results[msg.get_token()] = msg
 
         if msg.get_label():
-            try:
-                del self._receipt_labels[msg.get_label()]
-            except KeyError:
-                pass
             self._result_labels[msg.get_label()] = msg
+
+    def _remove_result(self, msg):
+        token = msg.get_token()
+        if token in self._results:
+            label = self._results[token].get_label()
+            del self._results[token]
+            if label and label in self._result_labels:
+                del self._result_labels[label]
 
     def _handle_exception(self, msg):
         # FIXME what do we do with these?
@@ -164,110 +177,6 @@ class Client(object):
                 self.handle_message(imsg)
         else:
             raise ValueError("Internal error: unknown message "+repr(msg))
-
-    def result_for(self, token_or_label):
-        """
-        return a result for the token if available;
-        attempt to redeem the receipt for the token otherwise;
-        if not yet redeemable, return the receipt instead.
-        """
-        # first look in state
-        if token_or_label in self._result_labels:
-            return self._result_labels[token_or_label]
-        elif token_or_label in self._results:
-            return self._results[token_or_label]
-        elif token_or_label in self._receipt_labels:
-            receipt = self._receipt_labels[token_or_label]
-        elif token_or_label in self._receipts:
-            receipt = self._receipts[token_or_label]
-        else:
-            raise KeyError("no such token or label "+token_or_label)
-
-        # if we're here, we have a receipt. try to redeem it.
-        self.send_message(mplane.model.Redemption(receipt=receipt))
-
-        # see if we got a result
-        if token_or_label in self._result_labels:
-            return self._result_labels[token_or_label]
-        elif token_or_label in self._results:
-            return self._results[token_or_label]
-        else:
-            # Nope. Return the receipt.
-            return receipt
-
-    def capability_for(self, token_or_label):
-        """
-        Retrieve a capability given a token or label.
-
-        """
-        if token_or_label in self._capability_labels:
-            return self._capability_labels[token_or_label]
-        elif token_or_label in self._capabilities:
-            return self._capabilities[token_or_label]
-        else:
-            raise KeyError("no capability for token or label "+token_or_label)
-
-    def invoke_capability(self, cap_tol, when, params, relabel=None):
-        """
-        Given a capability token or label, a temporal scope, a dictionary 
-        of parameters, and an optional new label, derive a specification
-        and send it to the appropriate destination.
-
-        """
-        cap = self.capability_for(cap_tol)
-        spec = mplane.model.Specification(capability=cap)
-
-        # set temporal scope
-        spec.set_when(when)
-
-        # fill in parameters
-        spec.set_single_values()
-        for pname in spec.parameter_names():
-            if spec.get_parameter_value(pname) is None:
-                if pname in params:
-                    spec.set_parameter_value(pname, params[pname])
-                else:
-                    raise KeyError("missing parameter "+pname)
-
-        # regenerate token based on parameters and temporal scope
-        spec.retoken()
-
-        # generate label
-        if relabel:
-            spec.set_label(relabel)
-        else:
-            spec.set_label(cap.get_label() + "-" + str(self._ssn))
-        self._ssn += 1
-
-        # fire off a message
-        self.send_message(spec, dst_url=cap.get_link())
-
-    def retrieve_capabilities(self, url, urlchain=[]):
-        """
-        connect to the given URL, retrieve and process the 
-        capabilities/withdrawals found there
-        """
-        # detect loops in capability links
-        if url in urlchain:
-            return
-
-        pool = self.tls_state.pool_for(dst_url)
-        res = pool.request('get', dst_url)
-
-        if res.status == 200:
-            ctype = res.getheader("content-type")
-            if ctype == "application/x-mplane+json":
-                # Probably an envelope. Process the message.
-                self.handle_message(
-                    mplane.model.parse_json(res.data.decode("utf-8")))
-            elif ctype == "text/html":
-                # Treat as a list of links to capability messages.
-                parser = CrawlParser(strict=False)
-                parser.feed(res.data.decode("utf-8"))
-                parser.close()
-                for capurl in parser.urls:
-                    self.retrieve_capabilities(url=capurl, 
-                                               urlchain=urlchain + [url])
 
     def forget(self, token_or_label):
         """
@@ -331,146 +240,141 @@ class Client(object):
         """
         return tuple(self._capability_labels.keys())
 
-class ListenerClient(object):
+class CrawlParser(html.parser.HTMLParser):
+    """
+    HTML parser class to extract all URLS in a href attributes in
+    an HTML page. Used to extract links to Capabilities exposed
+    as link collections.
+
+    """
+    def __init__(self, **kwargs):
+        super(CrawlParser, self).__init__(**kwargs)
+        self.urls = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = {k: v for (k,v) in attrs}
+        if tag == "a" and "href" in attrs:
+            self.urls.append(attrs["href"])
+
+class Client(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports component-initiated workflows. Intended for building 
-    supervisors.
+    Supports client-initiated workflows. Intended for building 
+    client UIs and bots.
 
     """
-    pass
 
-
-class HttpClient(object):
-    """
-    Implements an mPlane HTTP client endpoint for client-initiated workflows. 
-    This client endpoint can retrieve capabilities from a given URL, then post 
-    Specifications to the component and retrieve Results or Receipts; it can
-    also present Redeptions to retrieve Results.
-
-    Caches retrieved Capabilities, Receipts, and Results.
-
-    """
-    def __init__(self, posturl, capurl=None, tlsconfig=None):
-        # store urls
-        self._posturl = posturl
-        if capurl is not None:
-            if capurl[0] != "/": 
-                self._capurl = "/" + capurl 
-            else: 
-                self._capurl = capurl 
-        else: 
-            self._capurl = "/" + CAPABILITY_PATH_ELEM 
-        url = urllib3.util.parse_url(posturl) 
-
-        if tlsconfig: 
-            cert = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "cert"))
-            key = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "key"))
-            ca = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "ca-chain"))
-            mplane.utils.check_file(cert)
-            mplane.utils.check_file(key)
-            mplane.utils.check_file(ca)
-            self.pool = urllib3.HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
-        else: 
-            self.pool = urllib3.HTTPConnectionPool(url.host, url.port) 
-
-        print("new client: "+self._posturl+" "+self._capurl)
-
-        # empty capability and measurement lists
-        self._capabilities = []
-        self._receipts = []
-        self._results = []
-
-        # empty capability label index
-        self._caplabels = {}
-
-    def get_mplane_reply(self, url=None, postmsg=None):
+    def __init__(self, tls_state=None, default_url=None, ):
         """
-        Given a URL, parses the object at the URL as an mPlane 
-        message and processes it.
-
-        Given a message to POST, sends the message to the given 
-        URL and processes the reply as an mPlane message.
-
+        initialize a client with a given 
+        default URL an a given TLS state
         """
-        if postmsg is not None:
-            print(postmsg)
-            if url is None:
-                url = "/"
-            res = self.pool.urlopen('POST', url, 
-                    body=mplane.model.unparse_json(postmsg).encode("utf-8"), 
-                    headers={"content-type": "application/x-mplane+json"})
+        super().__init__(tls_state)
+        
+        self._default_url = default
+
+        # specification serial number
+        # used to create labels programmatically
+        self._ssn = 0
+
+    def send_message(self, msg, dst_url=None):
+        """
+        send a message, store any result in client state.
+        
+        """
+
+        # figure out where to send the message
+        if not dst_url:
+            dst_url = self._default_url
+
+        pool = self.tls_state.pool_for(dst_url)
+        res = pool.urlopen('POST', dst_url, 
+                           body=mplane.model.unparse_json(msg).encode("utf-8"),
+                           headers={"content-type": "application/x-mplane+json"})
+        if (res.status == 200 and 
+            res.getheader("content-type") == "application/x-mplane+json"):
+            self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
         else:
-            res = self.pool.request('GET', url)
-        print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("content-type"))
-        if res.status == 200 and \
-           res.getheader("content-type") == "application/x-mplane+json":
-            print("parsing json")
-            return mplane.model.parse_json(res.data.decode("utf-8"))
+            # Didn't get an mPlane reply. What now?
+            pass
+
+    def result_for(self, token_or_label):
+        """
+        return a result for the token if available;
+        attempt to redeem the receipt for the token otherwise;
+        if not yet redeemable, return the receipt instead.
+        """
+        # first look in state
+        if token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
+        elif token_or_label in self._receipt_labels:
+            receipt = self._receipt_labels[token_or_label]
+        elif token_or_label in self._receipts:
+            receipt = self._receipts[token_or_label]
         else:
-            print("giving up")
-            return None
+            raise KeyError("no such token or label "+token_or_label)
 
-    def handle_message(self, msg):
-        """
-        Processes a message. Caches capabilities, receipts, 
-        and results, opens Envelopes, and handles Exceptions.
+        # if we're here, we have a receipt. try to redeem it.
+        self.send_message(mplane.model.Redemption(receipt=receipt))
 
-        """
-        print("got message:")
-        print(mplane.model.unparse_yaml(msg))
-
-        if isinstance(msg, mplane.model.Capability):
-            self.add_capability(msg)
-        elif isinstance(msg, mplane.model.Receipt):
-            self.add_receipt(msg)
-        elif isinstance(msg, mplane.model.Result):
-            self.add_result(msg)
-        elif isinstance(msg, mplane.model.Exception):
-            self._handle_exception(msg)
-        elif isinstance(msg, mplane.model.Envelope):
-            for imsg in msg.messages():
-                self.handle_message(imsg)
+        # see if we got a result
+        if token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
         else:
-            raise ValueError("Internal error: unknown message "+repr(msg))
+            # Nope. Return the receipt.
+            return receipt
 
-    def capabilities(self):
-        """Iterate over capabilities"""
-        yield from self._capabilities
-
-    def capability_at(self, index):
-        """Retrieve a capability at a given index"""
-        return self._capabilities[index]
-
-    def capability_by_label(self, label):
-        """Retrieve a capability with a given label"""
-        return self._caplabels[label]
-
-    def add_capability(self, cap):
-        """Add a capability to the capability cache"""
-        print("adding "+repr(cap))
-        self._capabilities.append(cap)
-        if cap.get_label():
-            self._caplabels[cap.get_label()] = cap
-
-    def clear_capabilities(self):
-        """Clear the capability cache"""
-        self._capabilities.clear()
-        self._caplabels.clear()
-
-    def retrieve_capabilities(self, listurl=None):
+    def invoke_capability(self, cap_tol, when, params, relabel=None):
         """
-        Given a URL, retrieves an object, parses it as an HTML page, 
-        extracts links to capabilities, and retrieves and processes them
-        into the capability cache.
+        Given a capability token or label, a temporal scope, a dictionary 
+        of parameters, and an optional new label, derive a specification
+        and send it to the appropriate destination.
 
         """
-        if listurl is None:
-            listurl = self._capurl
-            self.clear_capabilities()
+        cap = self.capability_for(cap_tol)
+        spec = mplane.model.Specification(capability=cap)
 
-        print("getting capabilities from "+self._capurl)
-        res = self.pool.request('GET', self._capurl)
+        # set temporal scope
+        spec.set_when(when)
+
+        # fill in parameters
+        spec.set_single_values()
+        for pname in spec.parameter_names():
+            if spec.get_parameter_value(pname) is None:
+                if pname in params:
+                    spec.set_parameter_value(pname, params[pname])
+                else:
+                    raise KeyError("missing parameter "+pname)
+
+        # regenerate token based on parameters and temporal scope
+        spec.retoken()
+
+        # generate label
+        if relabel:
+            spec.set_label(relabel)
+        else:
+            spec.set_label(cap.get_label() + "-" + str(self._ssn))
+        self._ssn += 1
+
+        # fire off a message, will lead to a receipt or result
+        self.send_message(spec, dst_url=cap.get_link())
+
+    def retrieve_capabilities(self, url, urlchain=[]):
+        """
+        connect to the given URL, retrieve and process the 
+        capabilities/withdrawals found there
+        """
+        # detect loops in capability links
+        if url in urlchain:
+            return
+
+        pool = self.tls_state.pool_for(dst_url)
+        res = pool.request('get', dst_url)
+
         if res.status == 200:
             ctype = res.getheader("content-type")
             if ctype == "application/x-mplane+json":
@@ -483,58 +387,224 @@ class HttpClient(object):
                 parser.feed(res.data.decode("utf-8"))
                 parser.close()
                 for capurl in parser.urls:
-                    self.handle_message(self.get_mplane_reply(url=capurl))
-        else:
-            print(listurl+": "+str(res.status))
+                    self.retrieve_capabilities(url=capurl, 
+                                               urlchain=urlchain + [url])
+
+class ListenerClient(BaseClient):
+    """
+    Core implementation of an mPlane JSON-over-HTTP(S) client.
+    Supports component-initiated workflows. Intended for building 
+    supervisors.
+
+    """
+    def __init__(self, tls_state=None, listen_addr=None, path=None):
+        super().__init__(tls_state)
+
+        self.component_queues = {}
+
+    # Need to define an API for what this looks like.
+    # Do we want callbacks for when state changes happen?
+    # Every component needs either (1) its own URL, 
+    # or (2) we need to differentiate components by some other key.
+
+#
+# Old HttpClient here
+#
+
+# class HttpClient(object):
+#     """
+#     Implements an mPlane HTTP client endpoint for client-initiated workflows. 
+#     This client endpoint can retrieve capabilities from a given URL, then post 
+#     Specifications to the component and retrieve Results or Receipts; it can
+#     also present Redeptions to retrieve Results.
+
+#     Caches retrieved Capabilities, Receipts, and Results.
+
+#     """
+#     def __init__(self, posturl, capurl=None, tlsconfig=None):
+#         # store urls
+#         self._posturl = posturl
+#         if capurl is not None:
+#             if capurl[0] != "/": 
+#                 self._capurl = "/" + capurl 
+#             else: 
+#                 self._capurl = capurl 
+#         else: 
+#             self._capurl = "/" + CAPABILITY_PATH_ELEM 
+#         url = urllib3.util.parse_url(posturl) 
+
+#         if tlsconfig: 
+#             cert = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "cert"))
+#             key = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "key"))
+#             ca = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "ca-chain"))
+#             mplane.utils.check_file(cert)
+#             mplane.utils.check_file(key)
+#             mplane.utils.check_file(ca)
+#             self.pool = urllib3.HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
+#         else: 
+#             self.pool = urllib3.HTTPConnectionPool(url.host, url.port) 
+
+#         print("new client: "+self._posturl+" "+self._capurl)
+
+#         # empty capability and measurement lists
+#         self._capabilities = []
+#         self._receipts = []
+#         self._results = []
+
+#         # empty capability label index
+#         self._caplabels = {}
+
+#     def get_mplane_reply(self, url=None, postmsg=None):
+#         """
+#         Given a URL, parses the object at the URL as an mPlane 
+#         message and processes it.
+
+#         Given a message to POST, sends the message to the given 
+#         URL and processes the reply as an mPlane message.
+
+#         """
+#         if postmsg is not None:
+#             print(postmsg)
+#             if url is None:
+#                 url = "/"
+#             res = self.pool.urlopen('POST', url, 
+#                     body=mplane.model.unparse_json(postmsg).encode("utf-8"), 
+#                     headers={"content-type": "application/x-mplane+json"})
+#         else:
+#             res = self.pool.request('GET', url)
+#         print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("content-type"))
+#         if res.status == 200 and \
+#            res.getheader("content-type") == "application/x-mplane+json":
+#             print("parsing json")
+#             return mplane.model.parse_json(res.data.decode("utf-8"))
+#         else:
+#             print("giving up")
+#             return None
+
+#     def handle_message(self, msg):
+#         """
+#         Processes a message. Caches capabilities, receipts, 
+#         and results, opens Envelopes, and handles Exceptions.
+
+#         """
+#         print("got message:")
+#         print(mplane.model.unparse_yaml(msg))
+
+#         if isinstance(msg, mplane.model.Capability):
+#             self.add_capability(msg)
+#         elif isinstance(msg, mplane.model.Receipt):
+#             self.add_receipt(msg)
+#         elif isinstance(msg, mplane.model.Result):
+#             self.add_result(msg)
+#         elif isinstance(msg, mplane.model.Exception):
+#             self._handle_exception(msg)
+#         elif isinstance(msg, mplane.model.Envelope):
+#             for imsg in msg.messages():
+#                 self.handle_message(imsg)
+#         else:
+#             raise ValueError("Internal error: unknown message "+repr(msg))
+
+#     def capabilities(self):
+#         """Iterate over capabilities"""
+#         yield from self._capabilities
+
+#     def capability_at(self, index):
+#         """Retrieve a capability at a given index"""
+#         return self._capabilities[index]
+
+#     def capability_by_label(self, label):
+#         """Retrieve a capability with a given label"""
+#         return self._caplabels[label]
+
+#     def add_capability(self, cap):
+#         """Add a capability to the capability cache"""
+#         print("adding "+repr(cap))
+#         self._capabilities.append(cap)
+#         if cap.get_label():
+#             self._caplabels[cap.get_label()] = cap
+
+#     def clear_capabilities(self):
+#         """Clear the capability cache"""
+#         self._capabilities.clear()
+#         self._caplabels.clear()
+
+#     def retrieve_capabilities(self, listurl=None):
+#         """
+#         Given a URL, retrieves an object, parses it as an HTML page, 
+#         extracts links to capabilities, and retrieves and processes them
+#         into the capability cache.
+
+#         """
+#         if listurl is None:
+#             listurl = self._capurl
+#             self.clear_capabilities()
+
+#         print("getting capabilities from "+self._capurl)
+#         res = self.pool.request('GET', self._capurl)
+#         if res.status == 200:
+#             ctype = res.getheader("content-type")
+#             if ctype == "application/x-mplane+json":
+#                 # Probably an envelope. Process the message.
+#                 self.handle_message(
+#                     mplane.model.parse_json(res.data.decode("utf-8")))
+#             elif ctype == "text/html":
+#                 # Treat as a list of links to capability messages.
+#                 parser = CrawlParser(strict=False)
+#                 parser.feed(res.data.decode("utf-8"))
+#                 parser.close()
+#                 for capurl in parser.urls:
+#                     self.handle_message(self.get_mplane_reply(url=capurl))
+#         else:
+#             print(listurl+": "+str(res.status))
        
-    def receipts(self):
-        """Iterate over receipts (pending measurements)"""
-        yield from self._receipts
+#     def receipts(self):
+#         """Iterate over receipts (pending measurements)"""
+#         yield from self._receipts
 
-    def add_receipt(self, msg):
-        """Add a receipt. Check for duplicates."""
-        if msg.get_token() not in [receipt.get_token() for receipt in self.receipts()]:
-            self._receipts.append(msg)
+#     def add_receipt(self, msg):
+#         """Add a receipt. Check for duplicates."""
+#         if msg.get_token() not in [receipt.get_token() for receipt in self.receipts()]:
+#             self._receipts.append(msg)
 
-    def redeem_receipt(self, msg):
-        self.handle_message(
-            self.get_mplane_reply(
-                postmsg=mplane.model.Redemption(receipt=msg)))
+#     def redeem_receipt(self, msg):
+#         self.handle_message(
+#             self.get_mplane_reply(
+#                 postmsg=mplane.model.Redemption(receipt=msg)))
 
-    def redeem_receipts(self):
-        """
-        Send all pending receipts to the Component,
-        attempting to retrieve results.
+#     def redeem_receipts(self):
+#         """
+#         Send all pending receipts to the Component,
+#         attempting to retrieve results.
 
-        """
-        for receipt in self.receipts():
-            self.redeem_receipt(receipt)
+#         """
+#         for receipt in self.receipts():
+#             self.redeem_receipt(receipt)
 
-    def _delete_receipt_for(self, token):
-        self._receipts = list(filter(lambda msg: msg.get_token() != token, self._receipts))
+#     def _delete_receipt_for(self, token):
+#         self._receipts = list(filter(lambda msg: msg.get_token() != token, self._receipts))
 
-    def results(self):
-        """Iterate over receipts (pending measurements)"""
-        yield from self._results
+#     def results(self):
+#         """Iterate over receipts (pending measurements)"""
+#         yield from self._results
 
-    def add_result(self, msg):
-        """Add a result. Check for duplicates."""
-        if msg.get_token() not in [result.get_token() for result in self.results()]:
-            self._results.append(msg)
-            self._delete_receipt_for(msg.get_token())
+#     def add_result(self, msg):
+#         """Add a result. Check for duplicates."""
+#         if msg.get_token() not in [result.get_token() for result in self.results()]:
+#             self._results.append(msg)
+#             self._delete_receipt_for(msg.get_token())
 
-    def measurements(self):
-        """Iterate over all measurements (receipts and results)"""
-        yield from self._results
-        yield from self._receipts
+#     def measurements(self):
+#         """Iterate over all measurements (receipts and results)"""
+#         yield from self._results
+#         yield from self._receipts
 
-    def measurement_at(index):
-        """Retrieve a measurement at a given index"""
-        if index >= len(self._results):
-            index -= len(self._results)
-            return self._receipts[index]
-        else:
-            return self._results[index]
+#     def measurement_at(index):
+#         """Retrieve a measurement at a given index"""
+#         if index >= len(self._results):
+#             index -= len(self._results)
+#             return self._receipts[index]
+#         else:
+#             return self._results[index]
 
-    def _handle_exception(self, exc):
-        print(repr(exc))
+#     def _handle_exception(self, exc):
+#         print(repr(exc))

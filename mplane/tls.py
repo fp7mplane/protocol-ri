@@ -33,11 +33,21 @@
 
 # - SSB will pull this out of existing utils.py and stepenta/RI code.
 
+import urllib3
+
 class TlsState:
+	def __init__(self, config_file):
+		pass
+
 	def pool_for(self, url):
 		"""
 		Given a URL (from which a scheme and host can be extracted),
 		return a connection pool (potentially with TLS state) 
 		which can be used to connect to the URL.
 		"""
-		pass
+
+		if url.instanceof(str):
+			url = urllib3.util.parse_url(url)
+		
+		# FIXME for now just hand out a HTTP connection pool
+		return urllib3.HTTPConnectionPool(url.host, url.port) 
