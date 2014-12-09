@@ -320,12 +320,12 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self, security):
+    def __init__(self, security, probe_certfile=None):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
-        self.ac = mplane.sec.Authorization(security)
+        self.ac = mplane.sec.Authorization(security, probe_certfile)
 
     def receive_message(self, user, msg, session=None):
         """
@@ -340,6 +340,7 @@ class Scheduler(object):
             job_key = msg.get_token()
             if job_key in self.jobs:
                 reply = self.jobs[job_key].get_reply()
+                self.jobs.pop(job_key, None)
             else: reply = mplane.model.Exception(token=job_key, 
                 errmsg="Unknown job")
         else:
