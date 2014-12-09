@@ -552,6 +552,462 @@
       "name": "location.civil",
       "prim": "string",
       "desc": "A free-form identifier of the civil location (postal address, city name, building name, etc) of the component"
+    },
+    {
+      "name": "packets.forward",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.syn",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.fin",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.rst",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.ack",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.pure_ack",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.with_payload",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.rxmit",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.forward.outseq",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.forward",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.forward.unique",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.forward.rxmit",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.syn",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.fin",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.rst",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.ack",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.pure_ack",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.with_payload",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.rxmit",
+      "prim": "natural"
+    },
+    {
+      "name": "packets.backward.outseq",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.backward",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.backward.unique",
+      "prim": "natural"
+    },
+    {
+      "name": "bytes.backward.rxmit",
+      "prim": "natural"
+    },
+    {
+      "name": "duration.ms",
+      "prim": "time"
+    },
+    {
+      "name": "responder.ip4",
+      "prim": "address"
+    },
+    {
+      "name": "responder.port",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.TTFP.ms",
+      "prim": "time"
+    },
+    {
+      "name": "responder.TTLP.ms",
+      "prim": "time"
+    },
+    {
+      "name": "responder.TTFA.ms",
+      "prim": "time"
+    },
+    {
+      "name": "responder.ip4.isinternal",
+      "prim": "boolean"
+    },
+    {
+      "name": "initiator.ip4",
+      "prim": "address"
+    },
+    {
+      "name": "initiator.port",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.TTFP.ms",
+      "prim": "time"
+    },
+    {
+      "name": "initiator.TTLP.ms",
+      "prim": "time"
+    },
+    {
+      "name": "initiator.TTFA.ms",
+      "prim": "time"
+    },
+    {
+      "name": "initiator.ip4.isinternal",
+      "prim": "boolean"
+    },
+    {
+      "name": "tstat.flow.class.conn",
+      "prim": "string"
+    },
+    {
+      "name": "tstat.flow.class.p2p",
+      "prim": "string"
+    },
+    {
+      "name": "tstat.flow.class.http",
+      "prim": "string"
+    },
+    {
+      "name": "rtt.average.ms",
+      "prim": "time"
+    },
+    {
+      "name": "rtt.min.ms",
+      "prim": "time"
+    },
+    {
+      "name": "rtt.max.ms",
+      "prim": "time"
+    },
+    {
+      "name": "rtt.stddev",
+      "prim": "real"
+    },
+    {
+      "name": "rtt.samples",
+      "prim": "natural"
+    },
+    {
+      "name": "ttl.min",
+      "prim": "natural"
+    },
+    {
+      "name": "ttl.max",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.RFC1323.ws",
+      "prim": "boolean"
+    },
+    {
+      "name": "initiator.RFC1323.ts",
+      "prim": "boolean"
+    },
+    {
+      "name": "initiator.win_scale",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.SACK_set",
+      "prim": "boolean"
+    },
+    {
+      "name": "initiator.SACK",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.MSS.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.segment.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.segment.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.window.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.window.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.window.zero",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.cwin.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.cwin.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.cwin.first.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.rxmit.RTO",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.rxmit.RTO.unnecessary",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.rxmit.FR",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.rxmit.FR.unnecessary",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.reordering",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.net_dup",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.unknown",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.flow_control",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.SYN.equal_seqno",
+      "prim": "boolean"
+    },
+    {
+      "name": "responder.RFC1323.ws",
+      "prim": "boolean"
+    },
+    {
+      "name": "responder.RFC1323.ts",
+      "prim": "boolean"
+    },
+    {
+      "name": "responder.win_scale",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.SACK_set",
+      "prim": "boolean"
+    },
+    {
+      "name": "responder.SACK",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.MSS.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.segment.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.segment.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.window.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.window.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.window.zero",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.cwin.max.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.cwin.min.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.cwin.first.bytes",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.rxmit.RTO",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.rxmit.RTO.unnecessary",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.rxmit.FR",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.rxmit.FR.unnecessary",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.reordering",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.net_dup",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.unknown",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.flow_control",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.SYN.equal_seqno",
+      "prim": "boolean"
+    },
+    {
+      "name": "p2p.subtype",
+      "prim": "string"
+    },
+    {
+      "name": "ed2k.data",
+      "prim": "natural"
+    },
+    {
+      "name": "ed2k.signaling",
+      "prim": "natural"
+    },
+    {
+      "name": "ed2k.i2r",
+      "prim": "natural"
+    },
+    {
+      "name": "ed2k.r2i",
+      "prim": "natural"
+    },
+    {
+      "name": "ed2k.chat",
+      "prim": "natural"
+    },
+    {
+      "name": "initiator.psh_separated",
+      "prim": "natural"
+    },
+    {
+      "name": "responder.psh_separated",
+      "prim": "natural"
+    },
+    {
+      "name": "ssl.hello.client",
+      "prim": "string"
+    },
+    {
+      "name": "ssl.hello.server",
+      "prim": "string"
+    },
+    {
+      "name": "subnet.ip4",
+      "prim": "address"
+    },
+    {
+      "name": "subnet.netmask",
+      "prim": "natural"
+    },
+    {
+      "name": "aggregate.ip4",
+      "prim": "string"
+    },
+    {
+      "name": "destination.ip",
+      "prim": "address"
+    },
+    {
+      "name": "delay.twoway",
+      "prim": "natural"
+    },
+    {
+      "name": "delay.twoway.min",
+      "prim": "natural"
+    },
+    {
+      "name": "delay.twoway.max",
+      "prim": "natural"
+    },
+    {
+      "name": "delay.twoway.mean",
+      "prim": "natural"
+    },
+    {
+      "name": "System_type",
+      "prim": "string"
+    },
+    {
+      "name": "System_ID",
+      "prim": "string"
+    },
+    {
+      "name": "System_version",
+      "prim": "string"
     }
   ]
 }
