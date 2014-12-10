@@ -46,6 +46,23 @@ class MPlaneHandler(tornado.web.RequestHandler):
         self.write(mplane.model.unparse_json(msg))
         self.finish()
 
+def get_dn(security, cert):
+    """
+    Extracts the DN from the request object. 
+    If SSL is disabled, returns a dummy DN
+    
+    """
+    if security == True:
+        dn = ""
+        for elem in cert.get('subject'):
+            if dn == "":
+                dn = dn + str(elem[0][1])
+            else: 
+                dn = dn + "." + str(elem[0][1])
+    else:
+        dn = "Dummy.Distinguished.Name"
+    return dn
+
 class DiscoveryHandler(MPlaneHandler):
     """
     Exposes the capabilities registered with a given scheduler. 
@@ -55,12 +72,7 @@ class DiscoveryHandler(MPlaneHandler):
     """
 
     def initialize(self, scheduler):
-        if scheduler.ac.security == True:
-            for elem in self.request.get_ssl_certificate().get('subject'):
-                if elem[0][0] == 'commonName':
-                   self.user = elem[0][1]
-        else:
-            self.user = None
+        self.user = get_dn(scheduler.ac.security, self.request.get_ssl_certificate())
         self.scheduler = scheduler
 
     def get(self):
@@ -97,12 +109,7 @@ class MessagePostHandler(MPlaneHandler):
 
     """
     def initialize(self, scheduler, immediate_ms = 5000):
-        if scheduler.ac.security == True:
-            for elem in self.request.get_ssl_certificate().get('subject'):
-                if elem[0][0] == 'commonName':
-                   self.user = elem[0][1]
-        else:
-            self.user = None
+        self.user = get_dn(scheduler.ac.security, self.request.get_ssl_certificate())
         self.scheduler = scheduler
         self.immediate_ms = immediate_ms
 

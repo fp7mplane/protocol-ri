@@ -52,7 +52,7 @@ def get_dn(supervisor, request):
             else: 
                 dn = dn + "." + str(elem[0][1])
     else:
-        dn = "org.mplane.Test PKI.Test Clients.mPlane-Client"
+        dn = "Dummy.Distinguished.Name"
     return dn
     
 class MPlaneHandler(tornado.web.RequestHandler):
