@@ -1,57 +1,57 @@
-# protocol-ri Introduction
+## Supervisor Implementation and Component-Initiated workflow
 
-This module contains the mPlane protocol reference implementation.
+### Description
 
-The core classes in the `mplane.model` and `mplane.scheduler` packages are documented using Sphinx; reasonably current Sphinx documentation can be read online [here](https://fp7mplane.github.io/protocol-ri).
+This branch has been forked on 9 Dec 2014 from `develop`, in order to merge back [this implementation](https://github.com/stepenta/RI) into the RI.
+The two main changes from the original RI are the implementation of the Component-Initiated workflow (capabilty push, specification pull), and the addition of the Supervisor (for CI workflows).
 
-The draft protocol specification is available in [doc/protocol-spec.md](https://github.com/fp7mplane/protocol-ri/blob/develop/doc); current work is in the `develop` branch.
+The components using the CI workflow are:
+- the tstat probe (`tstat_proxy`,`tstat_caps`) - HTTP client;
+- the supervisor (`supervisor`,`sv_handlers`) - HTTP server;
+- the client (`client`)- HTTP client.
+The interactions between these components follow [these guidelines](https://github.com/finvernizzi/mplane_http_transport), that are based on the protocol specification defined in the WP1 deliverables.
 
-The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which __Capabilities__ are published by __Components__, which can accept __Specifications__ for measurements based on these Capabilities, and provide __Results__, either inline or via an indirect export mechanism negotiated using the protocol. 
+The workflow implemented in the original RI, let's call it Supervisor-Initiated (capability pull, specification push), has been mantained in:
+- the ping probe (`ping`, `httpsrv`) - HTTP server;
+- the client (`client-RI`) - HTTP client;
+- the supervisor reference code for this setup is still missing, hence the client connects directly to the probe.
 
-Measurement statements are fundamentally based on schemas divided into Parameters, representing information required to run a measurement or query; and Result Columns, the information produced by the measurement or query. Measurement interoperability is provided at the element level; that is, measurements containing the same Parameters and Result Columns are considered to be of the same type and therefore comparable.
+The internals (`model`, `scheduler`) have undergone just little changes regarding the Access Control logic, that now is based on the Distinguished Name (instead of the Common Name) and can also handle multiple probes with the same capabilities without confusion.
+The registry (`registry.json`) has been extended to cover the capabilities from tStat and DATI (TI probe).
+The PKI has been extended, and since we are still in develop and test phases, all the PKI keys are publicly available.
+The scripts in the PKI folder allow you to generate your own certificates, both for CI and SI workflows (they differ because HTTP client and server are reversed in the two workflows, and the certificates change accordingly). It is strongly recommended to use the provided root-ca, and only generate your own client, component and supervisor certificates, so that we avoid several self-signed certificates that cannot cooperate.
+You will need the root-ca passphrase to generate certificates: send me a mail at stefano.pentassuglia@ssbprogetti.it and I'll tell you that.
 
-# Using the Reference Implementation
+### HOWTO
 
-## Prerequisites
+To run the CI components (with SSL), from the protocol-ri directory, run:
 
-The mPlane Reference Implementation requires Python 3.3 and the following additional packages:
+```export MPLANE_CONF_DIR=./conf
+python3 -m mplane.supervisor -c ./conf/supervisor-certs.conf```
 
-- pyyaml
+This will launch the supervisor. Then:
 
-*[**Editor's Note**: complete this list]*
+```python3 -m mplane.tstat_proxy -T ./conf/runtime.conf -c ./conf/CI-component-certs.conf```
 
-## Core Classes
+At this point, the tstat proxy will automatically register its capabilities to the Supervisor. Now launch the client:
 
-The core classes are documented using Sphinx. Sphinx documentation can be read [here](https://fp7mplane.github.io/protocol-ri).
+```python3 -m mplane.client -c ./conf/CI-client-certs.conf```
 
-## Designing a Component
+From now on, the commands are the same from the original RI, so from the client:
 
-The first step in determining how to build an mPlane component for a given measurement is determining its schema. The best way to do this is to look at the _output_ the component produces, together with the configuration parameters necessary to make it work.
+1. ```connect``` the client Connects to the Supervisor and receives the capabilities of the probes registered to it
+2. ```listcap``` will show capablities available
+3. ```runcap <number>``` runs a capability by number in the ```listcap``` list. Any parameters not yet filled in by ```set``` will be prompted for.
+4. ```redeem``` sends all pending receipts back to the component for results, if available.
 
-## mPlane Client Shell
+While executing these operations, the supervisor and the probe will print some status udate messages, related to the comminucations going on.
+(the Supervisor provides the same shell of the client, from which it is possible to launch capabilities and see results. This should be out of the mPlane scope, and is only for debug purposes)
 
-The mPlane Client Shell is a quick and dirty command line interface around a generic mPlane HTTP client. ```help``` provides low quality help. To use it:
 
-1. ```connect <url>``` Connect to a component at the given URL; currently supported schema is ```http```. Tries to load capabilities from a list of links at the ```/capabilities``` path relative to this URL. 
-2. ```listcap``` will show capablities available at the connected component, prefaced by capability indexes.
-3. ```when <temporal-scope>``` sets a temporal scope for subsequent invocations; ```when``` on its own shows the current one
-4. ```set <parameter> <value>``` sets a default value for parameters for subsequent invocations; ```show``` shows all current defaults with values
-5. ```runcap <number>``` runs a capability by number in the ```listcap``` list. Any parameters not yet filled in by ```set``` will be prompted for. This will return either a result or receipt, depending on what the component decides to return.
-6. ```redeem``` sends all pending receipts back to the component for results, if available.
+The commands to run the SI workflow setup are:
 
-Note that this is all very prerelease and nearly guaranteed to change.
+```export MPLANE_CONF_DIR=./conf
+python3 -m mplane.ping --ip4addr 127.0.0.1 --ssl 0 --certfile ./conf/SI-component-certs.conf
+python3 -m mplane.client-RI --tlsconfig ./conf/SI-client-certs.conf```
 
-## Building HTTP Server Components
-
-_this will probably change when moving to a CLI-based httpsrv.py, so write this then_ 
-
-# Differences between the Reference Implementation and the Protocol Specification
-
-The following classes and features are *not yet implemented* in the reference implementation:
-
-- Indirection messages
-- Withdrawal messages
-- mplane.model support for repeating measurements (assigned to FHA)
-- mplane.model support for prefix constraints
-- mplane.model support for the registry section (esp. default)
-- Callback control as specified in the protocol spec
+and then the same shell commands as above.
