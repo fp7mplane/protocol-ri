@@ -29,9 +29,9 @@ You will need the root-ca passphrase to generate certificates: send me a mail at
 
 To run the CI components (with SSL), from the protocol-ri directory, run:
 
-```export MPLANE_CONF_DIR=./conf
+```export MPLANE_CONF_DIR=./conf```
 
-python3 -m mplane.supervisor -c ./conf/supervisor-certs.conf```
+```python3 -m mplane.supervisor -c ./conf/supervisor-certs.conf```
 
 This will launch the supervisor. Then:
 
@@ -53,10 +53,10 @@ While executing these operations, the supervisor and the probe will print some s
 
 The commands to run (always with SSL) the SI workflow setup are:
 
-```export MPLANE_CONF_DIR=./conf
+```export MPLANE_CONF_DIR=./conf```
 
-python3 -m mplane.ping --ip4addr 127.0.0.1 --ssl 0 --certfile ./conf/SI-component-certs.conf
+```python3 -m mplane.ping --ip4addr 127.0.0.1 --ssl 0 --certfile ./conf/SI-component-certs.conf```
 
-python3 -m mplane.client-RI --tlsconfig ./conf/SI-client-certs.conf```
+```python3 -m mplane.client-RI --tlsconfig ./conf/SI-client-certs.conf```
 
 and then the same shell commands as above.
