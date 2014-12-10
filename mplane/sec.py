@@ -94,6 +94,7 @@ class Authorization(object):
             if ((cap_dn in self.cr) and (user_name in self.ur)): # Deny unless explicitly allowed in .conf files
                 intersection = self.cr[cap_dn] & self.ur[user_name]
                 if len(intersection) > 0:
+                    print("allowed")
                     return True
             return False
         else:
