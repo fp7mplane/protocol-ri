@@ -80,17 +80,18 @@ class Authorization(object):
     
     def check_azn(self, cap, user_name):
         """ Checks if the user is allowed to use a given capability """
-        
-        # If a supervisor uses this function, it needs to pass
-        # the 'cap' parameter in the form "label, component_DN".
-        # Otherwise, if is a component, it needs to pass only
-        # the capability label in 'cap'
-        if cap.find(', ') == -1:
-            cap_dn = cap + ", " + self.probe_dn
-        else:
-            cap_dn = cap
-        
+
         if self.security == True:
+            
+            # If a supervisor uses this function, it needs to pass
+            # the 'cap' parameter in the form "label, component_DN".
+            # Otherwise, if is a component, it needs to pass only
+            # the capability label in 'cap'
+            if cap.find(', ') == -1:
+                cap_dn = cap + ", " + self.probe_dn
+            else:
+                cap_dn = cap
+                
             if ((cap_dn in self.cr) and (user_name in self.ur)): # Deny unless explicitly allowed in .conf files
                 intersection = self.cr[cap_dn] & self.ur[user_name]
                 if len(intersection) > 0:

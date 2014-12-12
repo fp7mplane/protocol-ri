@@ -32,6 +32,8 @@ S_CAPABILITY_PATH = "show/capability"
 S_SPECIFICATION_PATH = "register/specification"
 S_RESULT_PATH = "show/result"
 
+DUMMY_DN = "Dummy.Distinguished.Name"
+
 """
 Set of HTTP handlers used by the supervisor to communicate 
 with the components or with the client
@@ -52,7 +54,7 @@ def get_dn(supervisor, request):
             else: 
                 dn = dn + "." + str(elem[0][1])
     else:
-        dn = "Dummy.Distinguished.Name"
+        dn = DUMMY_DN
     return dn
     
 class MPlaneHandler(tornado.web.RequestHandler):
@@ -110,7 +112,7 @@ class RegistrationHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by components
-        if self.dn.find("Components") == -1:
+        if (self.dn.find("Components") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Components can use this function")
             return
         
@@ -159,7 +161,7 @@ class SpecificationHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by components
-        if self.dn.find("Components") == -1:
+        if (self.dn.find("Components") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Components can use this function")
             return
         
@@ -194,7 +196,7 @@ class ResultHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by components
-        if self.dn.find("Components") == -1:
+        if (self.dn.find("Components") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Components can use this function")
             return
         
@@ -246,7 +248,7 @@ class S_CapabilityHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by clients
-        if self.dn.find("Clients") == -1:
+        if (self.dn.find("Clients") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Clients can use this function")
             return
         
@@ -288,7 +290,7 @@ class S_SpecificationHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by clients
-        if self.dn.find("Clients") == -1:
+        if (self.dn.find("Clients") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Clients can use this function")
             return
             
@@ -338,7 +340,7 @@ class S_ResultHandler(MPlaneHandler):
         
         # check the class of the certificate (Client, Component, Supervisor).
         # this function can only be used by clients
-        if self.dn.find("Clients") == -1:
+        if (self.dn.find("Clients") == -1 and self.dn != DUMMY_DN):
             self._respond_plain_text(401, "Not Authorized. Only Clients can use this function")
             return
             

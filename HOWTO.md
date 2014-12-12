@@ -2,9 +2,6 @@
 
 ### Description
 
-This branch has been forked on 9 Dec 2014 from `develop`, in order to merge back [this implementation](https://github.com/stepenta/RI) into the RI.
-The two main changes from the original RI are the implementation of the Component-Initiated workflow (capabilty push, specification pull), and the addition of the Supervisor (for CI workflows).
-
 The components using the CI workflow are:
 
 - the tstat probe (`tstat_proxy.py`,`tstat_caps.py`) - HTTP client;
@@ -13,7 +10,7 @@ The components using the CI workflow are:
 
 The interactions between these components follow [these guidelines](https://github.com/finvernizzi/mplane_http_transport), that are based on the protocol specification defined in the WP1 deliverables.
 
-The workflow implemented in the original RI, let's call it Supervisor-Initiated (capability pull, specification push), has been mantained in:
+The original workflow, let's call it Supervisor-Initiated (capability pull, specification push), has been mantained in:
 
 - the ping probe (`ping.py`, `httpsrv.py`) - HTTP server;
 - the client (`client-RI.py`) - HTTP client;

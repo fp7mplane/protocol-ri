@@ -299,12 +299,13 @@ if __name__ == "__main__":
                 security = True
                 mplane.utils.check_file(args.certfile)
                 certfile = args.certfile
+                cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.certfile, "cert"))
+                mplane.utils.check_file(cert)
         else:
             security = False
             certfile = None
+            cert = None
             
-    cert = mplane.utils.normalize_path(mplane.utils.read_setting(certfile, "cert"))
-    mplane.utils.check_file(cert)
     scheduler = mplane.scheduler.Scheduler(security, cert)
     
     if ip4addr is not None:

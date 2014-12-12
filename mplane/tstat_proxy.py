@@ -41,6 +41,8 @@ REGISTRATION_PATH = "register/capability"
 SPECIFICATION_PATH = "show/specification"
 RESULT_PATH = "register/result"
 
+DUMMY_DN = "Dummy.Distinguished.Name"
+
 
 """
 Implements tStat proxy for integration into 
@@ -278,6 +280,7 @@ class HttpProbe():
             self.pool = HTTPSConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT, key_file=self.key, cert_file=self.cert, ca_certs=self.ca)
         else: 
             self.pool = HTTPConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT)
+            self.cert = None
         
         # get server DN, for Access Control purposes
         self.dn = self.get_dn()
@@ -314,7 +317,7 @@ class HttpProbe():
                 else: 
                     dn = dn + "." + str(elem[0][1])
         else:
-            dn = "org.mplane.Test PKI.Test Clients.mPlane-Client"
+            dn = DUMMY_DN
         return dn
      
     def register_to_supervisor(self):

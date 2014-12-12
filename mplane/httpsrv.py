@@ -34,6 +34,8 @@ import time
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 
+DUMMY_DN = "Dummy.Distinguished.Name"
+
 class MPlaneHandler(tornado.web.RequestHandler):
     """
     Abstract tornado RequestHandler that allows a 
@@ -72,7 +74,10 @@ class DiscoveryHandler(MPlaneHandler):
     """
 
     def initialize(self, scheduler):
-        self.user = get_dn(scheduler.ac.security, self.request.get_ssl_certificate())
+        if scheduler.ac.security == False:
+            self.user = DUMMY_DN
+        else:
+            self.user = get_dn(scheduler.ac.security, self.request.get_ssl_certificate())
         self.scheduler = scheduler
 
     def get(self):

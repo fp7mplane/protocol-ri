@@ -113,9 +113,9 @@ class HttpSupervisor(object):
             ])
             
         # check if security is enabled, if so read certificate files
-        self._sec = not args.DISABLE_SSL   
+        self._sec = not args.DISABLE_SSL
+        self.ac = mplane.sec.Authorization(self._sec)
         if self._sec == True:
-            self.ac = mplane.sec.Authorization(self._sec)
             self.base_url = "https://" + args.LISTEN_IP4 + ":" + str(args.LISTEN_PORT) + "/"
             cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "cert"))
             key = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "key"))
