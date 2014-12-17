@@ -1858,7 +1858,7 @@ class Metavalue(Element):
                " value "+repr(self._val)+" >"
 
     def set_value(self, val):
-        if instanceof(val, str):
+        if isinstance(val, str):
             val = self._prim.parse(val)
         self._val = val
 
