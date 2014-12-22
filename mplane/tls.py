@@ -51,3 +51,10 @@ class TlsState:
 		
 		# FIXME for now just hand out a HTTP connection pool
 		return urllib3.HTTPConnectionPool(url.host, url.port) 
+
+	def get_ssl_options(self):
+		"""
+		Get an ssl_options dictionary for this TLS context suitable
+		for passing to tornado.httpserver.HTTPServer().
+		"""
+		pass

@@ -104,6 +104,42 @@ class BaseClient(object):
         else:
             raise KeyError("no capability for token or label "+token_or_label)
 
+   def _spec_for(self, cap_tol, when, params, relabel=None):
+        """
+        Given a capability token or label, a temporal scope, a dictionary 
+        of parameters, and an optional new label, derive a specification
+        ready for invocation, and return the capability and specification.
+
+        Used internally by derived classes; use invoke_capability instead.
+
+        """
+        cap = self.capability_for(cap_tol)
+        spec = mplane.model.Specification(capability=cap)
+
+        # set temporal scope
+        spec.set_when(when)
+
+        # fill in parameters
+        spec.set_single_values()
+        for pname in spec.parameter_names():
+            if spec.get_parameter_value(pname) is None:
+                if pname in params:
+                    spec.set_parameter_value(pname, params[pname])
+                else:
+                    raise KeyError("missing parameter "+pname)
+
+        # regenerate token based on parameters and temporal scope
+        spec.retoken()
+
+        # generate label
+        if relabel:
+            spec.set_label(relabel)
+        else:
+            spec.set_label(cap.get_label() + "-" + str(self._ssn))
+        self._ssn += 1
+
+        return (cap, spec)
+
     def _add_receipt(self, msg):
         """
         Add a receipt to internal state. The receipt will be recallable 
@@ -150,6 +186,24 @@ class BaseClient(object):
             del self._results[token]
             if label and label in self._result_labels:
                 del self._result_labels[label]
+
+    def result_for(self, token_or_label):
+        """
+        return a result for the token if available;
+        return the receipt for the token otherwise.
+        """
+        # first look in state
+        if token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
+        elif token_or_label in self._receipt_labels:
+            receipt = self._receipt_labels[token_or_label]
+        elif token_or_label in self._receipts:
+            receipt = self._receipts[token_or_label]
+        else:
+            raise KeyError("no such token or label "+token_or_label)
+       
 
     def _handle_exception(self, msg):
         # FIXME what do we do with these?
@@ -304,20 +358,13 @@ class Client(BaseClient):
         attempt to redeem the receipt for the token otherwise;
         if not yet redeemable, return the receipt instead.
         """
-        # first look in state
-        if token_or_label in self._result_labels:
-            return self._result_labels[token_or_label]
-        elif token_or_label in self._results:
-            return self._results[token_or_label]
-        elif token_or_label in self._receipt_labels:
-            receipt = self._receipt_labels[token_or_label]
-        elif token_or_label in self._receipts:
-            receipt = self._receipts[token_or_label]
-        else:
-            raise KeyError("no such token or label "+token_or_label)
+        # go get a raw receipt or result
+        rr = super().result_for(token_or_label)
+        if isinstance(rr, mplane.model.Result):
+            return rr
 
         # if we're here, we have a receipt. try to redeem it.
-        self.send_message(mplane.model.Redemption(receipt=receipt))
+        self.send_message(mplane.model.Redemption(receipt=rr))
 
         # see if we got a result
         if token_or_label in self._result_labels:
@@ -326,7 +373,8 @@ class Client(BaseClient):
             return self._results[token_or_label]
         else:
             # Nope. Return the receipt.
-            return receipt
+            return rr
+
 
     def invoke_capability(self, cap_tol, when, params, relabel=None):
         """
@@ -335,32 +383,7 @@ class Client(BaseClient):
         and send it to the appropriate destination.
 
         """
-        cap = self.capability_for(cap_tol)
-        spec = mplane.model.Specification(capability=cap)
-
-        # set temporal scope
-        spec.set_when(when)
-
-        # fill in parameters
-        spec.set_single_values()
-        for pname in spec.parameter_names():
-            if spec.get_parameter_value(pname) is None:
-                if pname in params:
-                    spec.set_parameter_value(pname, params[pname])
-                else:
-                    raise KeyError("missing parameter "+pname)
-
-        # regenerate token based on parameters and temporal scope
-        spec.retoken()
-
-        # generate label
-        if relabel:
-            spec.set_label(relabel)
-        else:
-            spec.set_label(cap.get_label() + "-" + str(self._ssn))
-        self._ssn += 1
-
-        # fire off a message, will lead to a receipt or result
+        (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         self.send_message(spec, dst_url=cap.get_link())
 
     def retrieve_capabilities(self, url, urlchain=[]):
@@ -400,7 +423,14 @@ class ListenerClient(BaseClient):
     def __init__(self, tls_state=None, listen_addr=None, path=None):
         super().__init__(tls_state)
 
+        # Outgoing messages per component identifier
         self.component_queues = {}
+
+    def listen_on(self, address, port):
+        """
+        start a thread to start listening on a given address and port
+        """
+        pass
 
     # Need to define an API for what this looks like.
     # Do we want callbacks for when state changes happen?
