@@ -49,12 +49,13 @@ class BaseClient(object):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
+        self._capability_identities = {}
         self._receipts = {}
         self._receipt_labels = {}
         self._results = {}
         self._result_labels = {}       
 
-    def _add_capability(self, msg):
+    def _add_capability(self, msg, identity):
         """
         Add a capability to internal state. The capability will be recallable 
         by token, and, if present, by label.
@@ -63,9 +64,16 @@ class BaseClient(object):
 
         """
 
-        self._capabilities[msg.get_token()] = msg
+        # FIXME retoken on token collision with another identity
+        token = msg.get_token()
+
+        self._capabilities[token] = msg
+
         if msg.get_label():
             self._capability_labels[msg.get_label()] = msg
+
+        if identity:
+            self._capability_identities[token] = identity
 
     def _remove_capability(self, msg):
         token = msg.get_token()
@@ -75,7 +83,7 @@ class BaseClient(object):
             if label and label in self._capability_labels:
                 del self._capability_labels[label]
 
-    def _withdraw_capability(self, msg):
+    def _withdraw_capability(self, msg, identity):
         """
         Process a withdrawal. Match the withdrawal to the capability, 
         first by token, then by schema.
@@ -84,6 +92,8 @@ class BaseClient(object):
 
         """
         token = msg.get_token()
+
+        # FIXME check identity, exception on mismatch
 
         if token in self._capabilities:
             self._remove_capability(self._capabilities[token])
@@ -104,7 +114,30 @@ class BaseClient(object):
         else:
             raise KeyError("no capability for token or label "+token_or_label)
 
-   def _spec_for(self, cap_tol, when, params, relabel=None):
+    def identity_for(self, token_or_label):
+        """
+        Retrieve an identity given a capability token or label.
+
+        """
+        # FIXME write this
+        pass
+
+    def capabilities_matching_schema(self, schema_capability):
+        """
+        Given a capability, return *all* known capabilities matching the 
+        given schema capability. A capability matches a schema capability 
+        if and only if: (1) the capability schemas match and (2) all
+        constraints in the capability are contained by all constraints
+        in the schema capability.
+
+        Used to programmatically select capabilities matching an
+        aggregation or other collection operation (e.g. at a supervisor).
+
+        """
+        # FIXME write this, maybe refactor part back into model.
+        pass
+
+    def _spec_for(self, cap_tol, when, params, relabel=None):
         """
         Given a capability token or label, a temporal scope, a dictionary 
         of parameters, and an optional new label, derive a specification
@@ -140,6 +173,9 @@ class BaseClient(object):
 
         return (cap, spec)
 
+    def _handle_receipt(self, msg, identity):
+        self._add_receipt(msg)
+
     def _add_receipt(self, msg):
         """
         Add a receipt to internal state. The receipt will be recallable 
@@ -159,6 +195,11 @@ class BaseClient(object):
             del self._receipts[token]
             if label and label in self._receipt_labels:
                 del self._receipt_labels[label]
+
+    def _handle_result(self, msg, identity):
+        # FIXME check the result identity 
+        # against where we sent the specification to
+        self._add_result(msg)
 
     def _add_result(self, msg):
         """
@@ -204,31 +245,31 @@ class BaseClient(object):
         else:
             raise KeyError("no such token or label "+token_or_label)
        
-
     def _handle_exception(self, msg):
         # FIXME what do we do with these?
         pass
 
-    def handle_message(self, msg):
+    def handle_message(self, msg, identity=None):
         """
         Handle a message. Used internally to process 
         mPlane messages received from a component. Can also be used 
         to inject messages into a client's state.
 
         """
+
         if isinstance(msg, mplane.model.Capability):
-            self._add_capability(msg)
+            self._add_capability(msg, identity)
         elif isinstance(msg, mplane.model.Withdrawal):
-            self._withdraw_capability(msg)
+            self._withdraw_capability(msg, identity)
         elif isinstance(msg, mplane.model.Receipt):
-            self._add_receipt(msg)
+            self._handle_receipt(msg, identity)
         elif isinstance(msg, mplane.model.Result):
-            self._add_result(msg)
+            self._handle_result(msg, identity)
         elif isinstance(msg, mplane.model.Exception):
-            self._handle_exception(msg)
+            self._handle_exception(msg, identity)
         elif isinstance(msg, mplane.model.Envelope):
             for imsg in msg.messages():
-                self.handle_message(imsg)
+                self.handle_message(imsg, identity)
         else:
             raise ValueError("Internal error: unknown message "+repr(msg))
 
@@ -375,7 +416,6 @@ class Client(BaseClient):
             # Nope. Return the receipt.
             return rr
 
-
     def invoke_capability(self, cap_tol, when, params, relabel=None):
         """
         Given a capability token or label, a temporal scope, a dictionary 
@@ -424,18 +464,53 @@ class ListenerClient(BaseClient):
         super().__init__(tls_state)
 
         # Outgoing messages per component identifier
-        self.component_queues = {}
+        self._outgoing = {}
+        self._callback_capability = {}
 
-    def listen_on(self, address, port):
+        # Information as to whether a given identity has sent us a callback control 
+
+    def listen_on(self, url):
         """
-        start a thread to start listening on a given address and port
+        start a thread to listen on a given url
         """
         pass
 
-    # Need to define an API for what this looks like.
-    # Do we want callbacks for when state changes happen?
-    # Every component needs either (1) its own URL, 
-    # or (2) we need to differentiate components by some other key.
+    def invoke_capability(self, cap_tol, when, params, relabel=None, callback_when=None):
+        """
+        Given a capability token or label, a temporal scope, a dictionary 
+        of parameters, and an optional new label, derive a specification
+        and queue it for retrieval by the appropriate identity (i.e., the
+        one associated with the capability).
+
+        If the identity has indicated it supports callback control,
+        the optional callback_when parameter queues a 
+        """
+        # grab cap, spec, and identity
+        (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
+        identity = self._capability_identities[cap.get_token()]
+
+        # prepare a callback spec if we need to
+        callback_cap = self._callback_capability[identity] 
+        if callback_cap and callback_when:
+            callback_spec = mplane.model.Specification(capability=callback_cap)
+            callback_spec.set_when(callback_when)
+            envelope = mplane.model.Envelope()
+            envelope.append_message(callback_spec)
+            envelope.append_message(spec)
+            self._push_outgoing(identity, envelope)
+        else:
+            self._push_outgoing(identity, spec)
+
+    def _add_capability(self, msg, identity):
+        """
+        Override Client's add_capability, check for callback control
+        """
+        if msg.get_verb() == mplane.model.VERB_CALLBACK:
+            # FIXME this is kind of dodgy; we should do better checks to
+            # make sure this is a real callback capability
+            self._callback_capability[identity] = msg
+        else:
+            super().add_capability(msg, identity)
 
 #
 # Old HttpClient here

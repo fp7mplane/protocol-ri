@@ -301,6 +301,7 @@ VERB_MEASURE = "measure"
 VERB_QUERY = "query"
 VERB_COLLECT = "collect"
 VERB_STORE = "store"
+VERB_CALLBACK = "callback"
 
 KEY_PARAMETERS = "parameters"
 KEY_METADATA = "metadata"
