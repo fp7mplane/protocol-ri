@@ -329,12 +329,18 @@ class HttpProbe():
         
         # generate the capability list
         caps_list = ""
+        no_caps_exposed = True
         for key in self.scheduler.capability_keys():
             cap = self.scheduler.capability_for_key(key)
             if (self.scheduler.ac.check_azn(cap._label, self.dn)):
                 caps_list = caps_list + mplane.model.unparse_json(cap) + ","
+                no_caps_exposed = False
         caps_list = "[" + caps_list[:-1].replace("\n","") + "]"
         connected = False
+        
+        if no_caps_exposed is True:
+           print("\nNo Capabilities are being exposed to the Supervisor, check permission files. Exiting")
+           exit(0)
         
         # send the list to the supervisor, if reachable
         while not connected:
