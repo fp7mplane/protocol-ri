@@ -1804,6 +1804,13 @@ class Parameter(Element):
         """Return True if this component has a value."""
         return self._val is not None
 
+    def is_single_value(self):
+        """
+        Return True if this parameter's Constraint only allows a single value
+
+        """
+        return self._constraint.single_value() is not None
+
     def set_single_value(self):
         """
         If this Parameter's Constraint allows only a single value, and this
@@ -1813,6 +1820,20 @@ class Parameter(Element):
         """
         if not self.has_value():
             self._val = self._constraint.single_value()
+
+    def can_set_value(self, val):
+        """
+        Return True if the parameter can take the specified value, 
+        False otherwise.
+        Either takes a value of the correct type for the associated 
+        Primitive, or a string, which will be parsed to a value of 
+        the correct type.
+
+        """
+        if isinstance(val, str):
+            val = self._prim.parse(val)
+
+        return self._constraint.met_by(val):
 
     def set_value(self, val):
         """

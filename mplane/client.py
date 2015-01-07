@@ -33,9 +33,16 @@ import os.path
 import argparse
 import sys
 
+import tornado.web
+import tornado.httpserver
+import tornado.ioloop
+
 from datetime import datetime, timedelta
 
 CAPABILITY_PATH_ELEM = "capability"
+
+FORGED_DN_HEADER = "Forged-MPlane-Identity"
+DEFAULT_IDENTITY = "default"
 
 class BaseClient(object):
     """
@@ -86,7 +93,8 @@ class BaseClient(object):
     def _withdraw_capability(self, msg, identity):
         """
         Process a withdrawal. Match the withdrawal to the capability, 
-        first by token, then by schema.
+        first by token, then by schema. Withdrawals that do not match
+        any known capabilities are dropped silently.
 
         Internal use only; use handle_message instead.
 
@@ -99,8 +107,8 @@ class BaseClient(object):
             self._remove_capability(self._capabilities[token])
         else:
             # Search all capabilities by schema
-            # FIXME need to add calls to model to make this happen
-            pass
+            for cap in self.capabilities_matching_schema(msg):
+                self._remove_capability(cap.get_token())
 
     def capability_for(self, token_or_label):
         """
@@ -119,8 +127,12 @@ class BaseClient(object):
         Retrieve an identity given a capability token or label.
 
         """
-        # FIXME write this
-        pass
+        if token_or_label in self._capability_identities:
+            return self._capability_identities[token_or_label]
+        elif token_or_label in self._capability_labels:
+            return self._capability_identities[self._capability_labels[token_or_label].get_token()]
+        else:
+            raise KeyError("no identity for capability token or label "+token_or_label)
 
     def capabilities_matching_schema(self, schema_capability):
         """
@@ -351,7 +363,7 @@ class CrawlParser(html.parser.HTMLParser):
         if tag == "a" and "href" in attrs:
             self.urls.append(attrs["href"])
 
-class Client(BaseClient):
+class HttpClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
     Supports client-initiated workflows. Intended for building 
@@ -359,7 +371,7 @@ class Client(BaseClient):
 
     """
 
-    def __init__(self, tls_state=None, default_url=None, ):
+    def __init__(self, tls_state=None, default_url=None):
         """
         initialize a client with a given 
         default URL an a given TLS state
@@ -371,6 +383,9 @@ class Client(BaseClient):
         # specification serial number
         # used to create labels programmatically
         self._ssn = 0
+
+    def set_default_url(self, url):
+        self._default_url = url
 
     def send_message(self, msg, dst_url=None):
         """
@@ -424,6 +439,7 @@ class Client(BaseClient):
 
         """
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
+        spec.validate()
         self.send_message(spec, dst_url=cap.get_link())
 
     def retrieve_capabilities(self, url, urlchain=[]):
@@ -453,7 +469,7 @@ class Client(BaseClient):
                     self.retrieve_capabilities(url=capurl, 
                                                urlchain=urlchain + [url])
 
-class ListenerClient(BaseClient):
+class HttpListenerClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
     Supports component-initiated workflows. Intended for building 
@@ -465,15 +481,28 @@ class ListenerClient(BaseClient):
 
         # Outgoing messages per component identifier
         self._outgoing = {}
+
+        # Capability 
         self._callback_capability = {}
 
-        # Information as to whether a given identity has sent us a callback control 
+        # Create a request handler pointing at this client
+        self._tornado_application = tornado.web.Application([
+            (r"/", ListenerClientHandler, {'listenerclient': self})])
 
-    def listen_on(self, url):
+    def listen_on(self, host, port):
         """
-        start a thread to listen on a given url
+        start a thread to listen on a given host and port. 
+        This will asynchronously serve components accessing the client.
         """
-        pass
+        # FIXME this is straight from the example code, 
+        # having more control over this might be nice.
+        tornado.httpserver.HTTPServer(self._tornado_application)
+        tornado.ioloop.IOLoop.instance().start()
+
+    def _push_outgoing(self, identity, msg):
+        if identity not in self._outgoing:
+            self._outgoing[identity] = []
+        self._outgoing[identity].append(msg)
 
     def invoke_capability(self, cap_tol, when, params, relabel=None, callback_when=None):
         """
@@ -483,11 +512,12 @@ class ListenerClient(BaseClient):
         one associated with the capability).
 
         If the identity has indicated it supports callback control,
-        the optional callback_when parameter queues a 
+        the optional callback_when parameter queues a callback spec to
+        schedule the next callback.
         """
         # grab cap, spec, and identity
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
-        identity = self._capability_identities[cap.get_token()]
+        identity = self.identity_for(cap.get_token())
 
         # prepare a callback spec if we need to
         callback_cap = self._callback_capability[identity] 
@@ -510,206 +540,30 @@ class ListenerClient(BaseClient):
             # make sure this is a real callback capability
             self._callback_capability[identity] = msg
         else:
+            # not a callback control cap, just add the capability
             super().add_capability(msg, identity)
 
-#
-# Old HttpClient here
-#
+class ListenerClientHandler(tornado.web.RequestHandler):
+    def initialize(self, listenerclient):
+        self._client = client
 
-# class HttpClient(object):
-#     """
-#     Implements an mPlane HTTP client endpoint for client-initiated workflows. 
-#     This client endpoint can retrieve capabilities from a given URL, then post 
-#     Specifications to the component and retrieve Results or Receipts; it can
-#     also present Redeptions to retrieve Results.
+    def post(self):
+        # unwrap json message from body
+        if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
+            msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
+        else:
+            # FIXME how do we tell tornado we don't want to handle this?
+            raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
-#     Caches retrieved Capabilities, Receipts, and Results.
+        # figure out who is posting this
+        if False:
+            # FIXME get the identity from the DN here
+            pass
+        elif FORGED_DN_HEADER in self.request.headers:
+            identity = self.request.headers[FORGED_DN_HEADER]
+        else:
+            identity = DEFAULT_IDENTITY
 
-#     """
-#     def __init__(self, posturl, capurl=None, tlsconfig=None):
-#         # store urls
-#         self._posturl = posturl
-#         if capurl is not None:
-#             if capurl[0] != "/": 
-#                 self._capurl = "/" + capurl 
-#             else: 
-#                 self._capurl = capurl 
-#         else: 
-#             self._capurl = "/" + CAPABILITY_PATH_ELEM 
-#         url = urllib3.util.parse_url(posturl) 
+        # now handle the message
+        self._client.handle_message(msg, identity)
 
-#         if tlsconfig: 
-#             cert = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "cert"))
-#             key = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "key"))
-#             ca = mplane.utils.normalize_path(mplane.utils.read_setting(tlsconfig, "ca-chain"))
-#             mplane.utils.check_file(cert)
-#             mplane.utils.check_file(key)
-#             mplane.utils.check_file(ca)
-#             self.pool = urllib3.HTTPSConnectionPool(url.host, url.port, key_file=key, cert_file=cert, ca_certs=ca) 
-#         else: 
-#             self.pool = urllib3.HTTPConnectionPool(url.host, url.port) 
-
-#         print("new client: "+self._posturl+" "+self._capurl)
-
-#         # empty capability and measurement lists
-#         self._capabilities = []
-#         self._receipts = []
-#         self._results = []
-
-#         # empty capability label index
-#         self._caplabels = {}
-
-#     def get_mplane_reply(self, url=None, postmsg=None):
-#         """
-#         Given a URL, parses the object at the URL as an mPlane 
-#         message and processes it.
-
-#         Given a message to POST, sends the message to the given 
-#         URL and processes the reply as an mPlane message.
-
-#         """
-#         if postmsg is not None:
-#             print(postmsg)
-#             if url is None:
-#                 url = "/"
-#             res = self.pool.urlopen('POST', url, 
-#                     body=mplane.model.unparse_json(postmsg).encode("utf-8"), 
-#                     headers={"content-type": "application/x-mplane+json"})
-#         else:
-#             res = self.pool.request('GET', url)
-#         print("get_mplane_reply "+url+" "+str(res.status)+" Content-Type "+res.getheader("content-type"))
-#         if res.status == 200 and \
-#            res.getheader("content-type") == "application/x-mplane+json":
-#             print("parsing json")
-#             return mplane.model.parse_json(res.data.decode("utf-8"))
-#         else:
-#             print("giving up")
-#             return None
-
-#     def handle_message(self, msg):
-#         """
-#         Processes a message. Caches capabilities, receipts, 
-#         and results, opens Envelopes, and handles Exceptions.
-
-#         """
-#         print("got message:")
-#         print(mplane.model.unparse_yaml(msg))
-
-#         if isinstance(msg, mplane.model.Capability):
-#             self.add_capability(msg)
-#         elif isinstance(msg, mplane.model.Receipt):
-#             self.add_receipt(msg)
-#         elif isinstance(msg, mplane.model.Result):
-#             self.add_result(msg)
-#         elif isinstance(msg, mplane.model.Exception):
-#             self._handle_exception(msg)
-#         elif isinstance(msg, mplane.model.Envelope):
-#             for imsg in msg.messages():
-#                 self.handle_message(imsg)
-#         else:
-#             raise ValueError("Internal error: unknown message "+repr(msg))
-
-#     def capabilities(self):
-#         """Iterate over capabilities"""
-#         yield from self._capabilities
-
-#     def capability_at(self, index):
-#         """Retrieve a capability at a given index"""
-#         return self._capabilities[index]
-
-#     def capability_by_label(self, label):
-#         """Retrieve a capability with a given label"""
-#         return self._caplabels[label]
-
-#     def add_capability(self, cap):
-#         """Add a capability to the capability cache"""
-#         print("adding "+repr(cap))
-#         self._capabilities.append(cap)
-#         if cap.get_label():
-#             self._caplabels[cap.get_label()] = cap
-
-#     def clear_capabilities(self):
-#         """Clear the capability cache"""
-#         self._capabilities.clear()
-#         self._caplabels.clear()
-
-#     def retrieve_capabilities(self, listurl=None):
-#         """
-#         Given a URL, retrieves an object, parses it as an HTML page, 
-#         extracts links to capabilities, and retrieves and processes them
-#         into the capability cache.
-
-#         """
-#         if listurl is None:
-#             listurl = self._capurl
-#             self.clear_capabilities()
-
-#         print("getting capabilities from "+self._capurl)
-#         res = self.pool.request('GET', self._capurl)
-#         if res.status == 200:
-#             ctype = res.getheader("content-type")
-#             if ctype == "application/x-mplane+json":
-#                 # Probably an envelope. Process the message.
-#                 self.handle_message(
-#                     mplane.model.parse_json(res.data.decode("utf-8")))
-#             elif ctype == "text/html":
-#                 # Treat as a list of links to capability messages.
-#                 parser = CrawlParser(strict=False)
-#                 parser.feed(res.data.decode("utf-8"))
-#                 parser.close()
-#                 for capurl in parser.urls:
-#                     self.handle_message(self.get_mplane_reply(url=capurl))
-#         else:
-#             print(listurl+": "+str(res.status))
-       
-#     def receipts(self):
-#         """Iterate over receipts (pending measurements)"""
-#         yield from self._receipts
-
-#     def add_receipt(self, msg):
-#         """Add a receipt. Check for duplicates."""
-#         if msg.get_token() not in [receipt.get_token() for receipt in self.receipts()]:
-#             self._receipts.append(msg)
-
-#     def redeem_receipt(self, msg):
-#         self.handle_message(
-#             self.get_mplane_reply(
-#                 postmsg=mplane.model.Redemption(receipt=msg)))
-
-#     def redeem_receipts(self):
-#         """
-#         Send all pending receipts to the Component,
-#         attempting to retrieve results.
-
-#         """
-#         for receipt in self.receipts():
-#             self.redeem_receipt(receipt)
-
-#     def _delete_receipt_for(self, token):
-#         self._receipts = list(filter(lambda msg: msg.get_token() != token, self._receipts))
-
-#     def results(self):
-#         """Iterate over receipts (pending measurements)"""
-#         yield from self._results
-
-#     def add_result(self, msg):
-#         """Add a result. Check for duplicates."""
-#         if msg.get_token() not in [result.get_token() for result in self.results()]:
-#             self._results.append(msg)
-#             self._delete_receipt_for(msg.get_token())
-
-#     def measurements(self):
-#         """Iterate over all measurements (receipts and results)"""
-#         yield from self._results
-#         yield from self._receipts
-
-#     def measurement_at(index):
-#         """Retrieve a measurement at a given index"""
-#         if index >= len(self._results):
-#             index -= len(self._results)
-#             return self._receipts[index]
-#         else:
-#             return self._results[index]
-
-#     def _handle_exception(self, exc):
-#         print(repr(exc))
