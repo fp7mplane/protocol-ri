@@ -1833,7 +1833,7 @@ class Parameter(Element):
         if isinstance(val, str):
             val = self._prim.parse(val)
 
-        return self._constraint.met_by(val):
+        return self._constraint.met_by(val)
 
     def set_value(self, val):
         """
@@ -2047,6 +2047,16 @@ class Statement(object):
         """Programatically set a value for a parameter on this Statement."""
         elem = self._params[elem_name]
         elem.set_value(value)
+
+    def can_set_parameter_value(self, elem_name, value):
+        """Determine whether a given parameter can take a value"""
+        elem = self._params[elem_name]
+        return elem.can_set_value(value)
+
+    def is_single_parameter_value(self, param_name):
+        """Determine whether a given parameter is single-valued"""
+        return self._params[elem_name].is_singl(value)
+
 
     def add_metadata(self, elem_name, val):
         """Programatically add a metadata element to this statement."""

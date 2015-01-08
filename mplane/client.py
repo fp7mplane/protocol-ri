@@ -24,14 +24,10 @@
 import mplane.model
 import mplane.utils
 import sys
-import cmd
-import traceback
-import readline
+
 import html.parser
 import urllib3
 import os.path
-import argparse
-import sys
 
 import tornado.web
 import tornado.httpserver
@@ -378,7 +374,7 @@ class HttpClient(BaseClient):
         """
         super().__init__(tls_state)
         
-        self._default_url = default
+        self._default_url = default_url
 
         # specification serial number
         # used to create labels programmatically

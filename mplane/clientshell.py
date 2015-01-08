@@ -21,9 +21,19 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import mplane.model
+import mplane.client
+import mplane.render
+import mplane.tls
+
+import cmd
+import traceback
+import readline
+import argparse
+
 class ClientShell(cmd.Cmd):
 
-    intro = 'mPlane client shell (rev 7.1.2015). \n'\
+    intro = 'mPlane client shell (rev 8.1.2015, new-client-api branch)\n'\
             'Type help or ? to list commands. ^D to exit.\n'
     prompt = '|mplane| '
 
@@ -32,6 +42,8 @@ class ClientShell(cmd.Cmd):
         self._client = mplane.client.HttpClient(tls_state = tls_state)
         self._defaults = {}
         self._when = None
+
+        self.exited = False
 
         # don't print tracebacks by default
         self._print_tracebacks = False
@@ -81,7 +93,7 @@ class ClientShell(cmd.Cmd):
             print("Capability %s (token %s)" %
                   (label, self._client.capability_for(label).get_token()))
 
-        for token in self._client_capability_tokens():
+        for token in self._client.capability_tokens():
             cap = self._client.capability_for(token)
             if cap.get_label() is None:
                 print("Capability (token %s)" % (token))
@@ -93,9 +105,13 @@ class ClientShell(cmd.Cmd):
         Usage: showcap [label-or-token] 
 
         """
-        print (mplane.render.render_text(self.client.capability_for(arg)))
+        print(mplane.render.render_text(self._client.capability_for(arg)))
 
-   def do_when(self, arg):
+    def complete_showcap(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens"""
+        pass
+
+    def do_when(self, arg):
         """
         Get or set a default temporal scope to use for capability 
         invocation.
@@ -130,6 +146,10 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't set default "+arg)
 
+    def complete_set(self, text, line, start_index, end_index):
+        """Tab-complete the set of names in the registry in first position"""
+        pass
+
     def do_unset(self, arg):
         """
         Unset values for previously set default parameters. 
@@ -151,6 +171,35 @@ class ClientShell(cmd.Cmd):
             self._defaults.clear()
 
         print("ok")
+
+    def complete_unset(self, text, line, start_index, end_index):
+        """Tab-complete the set of defaults in any position"""
+        pass
+
+    def do_show(self, arg):
+        """
+        Show values for parameter defaults, or all values 
+        if no parameter names given
+
+        Usage: show
+        Usage: show [parameter-name] ([parameter-name] ...)
+
+        """
+        if len(arg) > 0:
+            try:
+                for key in arg.split():
+                    val = self._defaults[key]
+                    print(key + " = " + val)
+            except:
+                print("No such default "+key)
+        else:
+            print("%4u defaults" % len(self._defaults))
+            for key, val in self._defaults.items():
+                print(key + " = " + val)
+
+    def complete_show(self, text, line, start_index, end_index):
+        """Tab-complete the set of defaults in any position"""
+        pass
 
     def do_runcap(self, arg):
         """
@@ -193,76 +242,61 @@ class ClientShell(cmd.Cmd):
             sys.stdout.write("|when| = ")
             self._when = mplane.model.When(input())
 
-        # Prompt for missing capabilities
-        # WORK POINTER
+        # Prompt for missing capabilities (saving these in defaults)
+        params = {}
+        for pname in cap.parameter_names():
+            while pname not in self._defaults or \
+                  not cap.can_set_parameter_value(pname, self._defaults[pname]):
+                self._defaults[pname] = input()
+            params[pname] = self._defaults[pname]
 
         # Now invoke it
         self._client.invoke_capability(cap.get_token(), when, params, relabel)
         print("ok")
 
-    def do_connect(self, arg):
-        """Connect to a probe or supervisor and retrieve capabilities"""
-        args = arg.split()
-        if len(args) >= 2:
-            capurl = args[1]     
-        elif len(args) >= 1:
-            capurl = None
-        else:
-            print("Cannot connect without a url")
-            return
-
-        proto = args[0].split('://')[0]
-        if proto == 'http':
-            self._client = HttpClient(args[0], capurl)
-        elif proto == 'https':
-            if self._tlsconfig is not None:
-                self._client = HttpClient(args[0], capurl, self._tlsconfig)
-            else:
-                raise SyntaxError("For HTTPS, need to specify the --tlsconfig parameter when launching the client")
-        else:
-            raise SyntaxError("Incorrect url format or protocol. Supported protocols: http, https")
-
-        self._client.retrieve_capabilities()
+    def complete_showcap(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+        pass
 
     def do_listmeas(self, arg):
-        """List running/completed measurements by index"""
-        for i, meas in enumerate(self._client.measurements()):
-            print ("%4u: %s" % (i, repr(meas)))
+        """
+        List running/completed measurements by label and/or token
+
+        Usage: listmeas 
+
+        """
+        for label in self._client.receipt_labels():
+            rec = self._client.receipt_for(label)
+            print("Receipt %s (token %s): %s" %
+                  (label, rec.get_token(), rec.when()))
+
+        for token in self._client.receipt_tokens():
+            rec = self._client.receipt_for(token)
+            if rec.get_label() is None:
+                print("Receipt (token %s): %s" % (token, rec.when())) 
+
+        for label in self._client.result_labels():
+            res = self._client.result_for(label)
+            print("Result  %s (token %s): %s" %
+                  (label, res.get_token(), res.when()))
+
+        for token in self._client.result_tokens():
+            res = self._client.result_for(token)
+            if res.get_label() is None:
+                print("Result  (token %s): %s" % (token, res.when()))
 
     def do_showmeas(self, arg):
-        """Show receipt/results for a measurement, given a measurement index"""
-        if len(arg) > 0:
-            try:
-                self._show_stmt(self._client.measurement_at(int(arg.split()[0])))
-            except:
-                print("No such measurement "+arg)
-        else:
-            for i, meas in enumerate(self._client.measurements()):
-                print ("meas %4u --------------------------------------" % i)
-                self._show_stmt(meas)
+        """
+        Show details of measurements by label and/or token
 
-    def _show_stmt(self, stmt):
-        print(mplane.model.unparse_yaml(stmt))
+        Usage: showmeas [label-or-token] 
 
+        """
+        print(mplane.render.render_text(self._client.result_for(arg)))
 
-    def do_redeem(self, arg):
-        """Attempt to redeem all outstanding receipts"""
-        self._client.redeem_receipts()
-        print("ok")
-
-    def do_show(self, arg):
-        """Show a default parameter value, or all values if no parameter name given"""
-        if len(arg) > 0:
-            try:
-                key = arg.split()[0]
-                val = self._defaults[key]
-                print(key + " = " + val)
-            except:
-                print("No such default "+key)
-        else:
-            print("%4u defaults" % len(self._defaults))
-            for key, val in self._defaults.items():
-                print(key + " = " + val)
+    def complete_showcap(self, text, line, start_index, end_index):
+        """Tab-complete known receipt and result labels and tokens in any position"""
+        pass
 
     def do_tbenable(self, arg):
         """Enable tracebacks on uncaught exceptions"""
@@ -280,8 +314,6 @@ class ClientShell(cmd.Cmd):
         if self._print_tracebacks:
             traceback.print_tb(sys.exc_info()[2])
         print("You can try to continue, but client state may be inconsistent.")
-        print("Use the connect command to start over.\n")
-
         
 def parse_args():
     parser = argparse.ArgumentParser(description="Run an mPlane client")
@@ -295,11 +327,9 @@ if __name__ == "__main__":
 
     # look for TLS configuration
     args = parse_args()
-    if args.tlsconfig is not None:
-        mplane.utils.check_file(args.tlsconfig)
 
     # create a shell
-    cs = ClientShell(tlsconfig=args.tlsconfig)
+    cs = ClientShell(tls_state=mplane.tls.TlsState(args.tlsconfig))
 
     while not cs.exited:
         try:
