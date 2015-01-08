@@ -107,9 +107,9 @@ class ClientShell(cmd.Cmd):
         """
         print(mplane.render.render_text(self._client.capability_for(arg)))
 
-    def complete_showcap(self, text, line, start_index, end_index):
-        """Tab-complete known capability labels and tokens"""
-        pass
+    # def complete_showcap(self, text, line, start_index, end_index):
+    #     """Tab-complete known capability labels and tokens"""
+    #     pass
 
     def do_when(self, arg):
         """
@@ -146,9 +146,9 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't set default "+arg)
 
-    def complete_set(self, text, line, start_index, end_index):
-        """Tab-complete the set of names in the registry in first position"""
-        pass
+    # def complete_set(self, text, line, start_index, end_index):
+    #     """Tab-complete the set of names in the registry in first position"""
+    #     pass
 
     def do_unset(self, arg):
         """
@@ -172,9 +172,9 @@ class ClientShell(cmd.Cmd):
 
         print("ok")
 
-    def complete_unset(self, text, line, start_index, end_index):
-        """Tab-complete the set of defaults in any position"""
-        pass
+    # def complete_unset(self, text, line, start_index, end_index):
+    #     """Tab-complete the set of defaults in any position"""
+    #     pass
 
     def do_show(self, arg):
         """
@@ -197,9 +197,9 @@ class ClientShell(cmd.Cmd):
             for key, val in self._defaults.items():
                 print(key + " = " + val)
 
-    def complete_show(self, text, line, start_index, end_index):
-        """Tab-complete the set of defaults in any position"""
-        pass
+    # def complete_show(self, text, line, start_index, end_index):
+    #     """Tab-complete the set of defaults in any position"""
+    #     pass
 
     def do_runcap(self, arg):
         """
@@ -254,9 +254,9 @@ class ClientShell(cmd.Cmd):
         self._client.invoke_capability(cap.get_token(), when, params, relabel)
         print("ok")
 
-    def complete_showcap(self, text, line, start_index, end_index):
-        """Tab-complete known capability labels and tokens in first position"""
-        pass
+    # def complete_showcap(self, text, line, start_index, end_index):
+    #     """Tab-complete known capability labels and tokens in first position"""
+    #     pass
 
     def do_listmeas(self, arg):
         """
@@ -294,9 +294,9 @@ class ClientShell(cmd.Cmd):
         """
         print(mplane.render.render_text(self._client.result_for(arg)))
 
-    def complete_showcap(self, text, line, start_index, end_index):
-        """Tab-complete known receipt and result labels and tokens in any position"""
-        pass
+    # def complete_showcap(self, text, line, start_index, end_index):
+    #     """Tab-complete known receipt and result labels and tokens in any position"""
+    #     pass
 
     def do_tbenable(self, arg):
         """Enable tracebacks on uncaught exceptions"""
