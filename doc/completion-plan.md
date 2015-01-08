@@ -75,7 +75,7 @@ To build the component framework:
 
 - SSB will merge its fork back into fp7mplane/protocol-ri
 - ETH will modify the merged fork (along with the split TLS configuration) to match this API
-- ??? will move existing proxy code in fp7mplane/protocol-ri branches to the new interface (primarily, this should only involve implementing the `capabilities` method and slight refactoring of existing code)
+- ULG will move existing proxy code in fp7mplane/protocol-ri branches to the new interface (primarily, this should only involve implementing the `capabilities` method and slight refactoring of existing code)
 
 ## Client API
 

@@ -225,8 +225,8 @@ def parse_args():
                         help="Ping from the given IPv4 address")
     parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
                         help="Ping from the given IPv6 address")
-    parser.add_argument('--sec', metavar="security-on-off",
-                        help="Toggle security on/off. Values: 0=on,1=off")
+    parser.add_argument('--ssl', metavar="ssl-on-off",
+                        help="Toggle ssl on/off. Values: 0=on,1=off")
     parser.add_argument('--certfile', metavar="cert-file-location",
                         help="Location of the configuration file for certificates")
     args = parser.parse_args()
@@ -289,21 +289,25 @@ if __name__ == "__main__":
     if ip4addr is None and ip6addr is None:
         raise ValueError("need at least one source address to run")
 
-    if args.sec is None:
-        raise ValueError("need --sec parameter (0=True,1=False)")
+    if args.ssl is None:
+        raise ValueError("need --ssl parameter (0=True,1=False)")
     else:
-        if args.sec == '0':
+        if args.ssl == '0':
             if args.certfile is None:
-                raise ValueError("if --sec=0, need to specify cert file")
+                raise ValueError("if --ssl=0, need to specify cert file")
             else:
                 security = True
                 mplane.utils.check_file(args.certfile)
                 certfile = args.certfile
+                cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.certfile, "cert"))
+                mplane.utils.check_file(cert)
         else:
             security = False
             certfile = None
-
-    scheduler = mplane.scheduler.Scheduler(security)
+            cert = None
+            
+    scheduler = mplane.scheduler.Scheduler(security, cert)
+    
     if ip4addr is not None:
         scheduler.add_service(PingService(ping4_aggregate_capability(ip4addr)))
         scheduler.add_service(PingService(ping4_singleton_capability(ip4addr)))
