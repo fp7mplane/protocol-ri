@@ -4,8 +4,10 @@
 # mPlane Protocol Reference Implementation
 # Authorization context for mPlane components
 #
-# (c) 2014 mPlane Consortium (http://www.ict-mplane.eu)
+# (c) 2014-2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
+#             Brian Trammell <brian@trammell.ch>
+#
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free

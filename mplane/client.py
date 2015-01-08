@@ -4,7 +4,7 @@
 # mPlane Protocol Reference Implementation
 # Client SDK API implementation
 #
-# (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
+# (c) 2013-2015 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell <brian@trammell.ch>
 #
 # This program is free software: you can redistribute it and/or modify it under
