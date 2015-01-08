@@ -294,15 +294,18 @@ class ClientShell(cmd.Cmd):
                     i = i + 1
 
     def do_showmeas(self, arg):
-        """Show receipt/results for a measurement, given a measurement index"""
+        """
+        Show specification/receipt/results for a measurement, given a measurement index.
+        """
+        meas = self._client.measurements()
         if len(arg) > 0:
-            try:
-                self._show_stmt(self._client.measurement_at(int(arg.split()[0])))
-            except:
-                print("No such measurement "+arg)
-        else:
             for i, meas in enumerate(self._client.measurements()):
-                print ("meas %4u --------------------------------------" % i)
+                if str(i) == arg:
+                    self._show_stmt(meas)
+                    return
+            print("No such measurement: " + arg)
+        else:
+            for meas in self._client.measurements():
                 self._show_stmt(meas)
 
     def _show_stmt(self, stmt):
@@ -434,13 +437,13 @@ def parse_args():
     parser.add_argument('-d', '--supervisor-ipaddr', metavar='ip', dest='SUPERVISOR_IP4', default=DEFAULT_SV_IP4, \
                         help = 'connect to the supervisor on the specified IP address [default=%s]' % DEFAULT_SV_IP4)
 
-    parser.add_argument('--disable-sec', action='store_true', default=False, dest='DISABLE_SEC',
+    parser.add_argument('--disable-ssl', action='store_true', default=False, dest='DISABLE_SSL',
                         help='Disable secure communication')
     parser.add_argument('-c', '--certfile', metavar="path", default=None, dest='CERTFILE',
                         help="Location of the configuration file for certificates")
     args = parser.parse_args()
 
-    if args.DISABLE_SEC == False and not args.CERTFILE:
+    if args.DISABLE_SSL == False and not args.CERTFILE:
         print('\nerror: missing -c|--certfile option\n')
         parser.print_help()
         sys.exit(1)
