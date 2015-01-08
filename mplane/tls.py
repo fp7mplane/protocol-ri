@@ -34,27 +34,99 @@
 # - SSB will pull this out of existing utils.py and stepenta/RI code.
 
 import urllib3
+import configparser
+
+def search_path(path):
+    #path normalization as in utils goes here...
+    pass
+
+def extract_local_identity(cert_file):
+    """
+    Extract an identity from the designated name in an X.509 certificate 
+    file with an ASCII preamble (as used in mPlane)
+    """
+    dn = ""
+    with open(cert_file) as f:
+        for line in f.readlines():
+            line = line.rstrip().replace(" ", "")
+            if line.startswith("Subject:"):
+                fields = line[len("Subject:"):].split(",")
+                for field in fields:
+                    if dn == "":
+                        dn = dn + field.split('=')[1]
+                    else: 
+                        dn = dn + "." + field.split('=')[1]
+    return dn
+
+def extract_peer_identity(peer_cert):
+    """
+    Extract an identity from Tornado's 
+    RequestHandler.get_ssl_certificate()
+    """
+    # FIXME take this from sv_handlers.py
+    subject = peer_cert.get("subject")
+    return None
 
 class TlsState:
-	def __init__(self, config_file):
-		pass
+    def __init__(self, config_file=None, forged_identity=None):
+        if config_file:
+            # Read the configuration file
+            config = configparser.ConfigParser()
+            config.read(config_file)
 
-	def pool_for(self, url):
-		"""
-		Given a URL (from which a scheme and host can be extracted),
-		return a connection pool (potentially with TLS state) 
-		which can be used to connect to the URL.
-		"""
+            # get paths to CA, cert, and key
+            self._cafile = search_path(config["TLS"]["ca-chain"])
+            self._certfile = search_path(config["TLS"]["cert"])
+            self._keyfile = search_path(config["TLS"]["key"])
 
-		if url.instanceof(str):
-			url = urllib3.util.parse_url(url)
-		
-		# FIXME for now just hand out a HTTP connection pool
-		return urllib3.HTTPConnectionPool(url.host, url.port) 
+            # load cert and get DN
+            self._identity = extract_local_identity(self._certfile)
+        else:
+            self._cafile = None
+            self._certfile = None
+            self._keyfile = None
+            self._identity = forged_identity 
 
-	def get_ssl_options(self):
-		"""
-		Get an ssl_options dictionary for this TLS context suitable
-		for passing to tornado.httpserver.HTTPServer().
-		"""
-		pass
+    def pool_for(self, url):
+        """
+        Given a URL (from which a scheme and host can be extracted),
+        return a connection pool (potentially with TLS state) 
+        which can be used to connect to the URL.
+        """
+
+        if url.instanceof(str):
+            url = urllib3.util.parse_url(url)
+        if url.schema == "http":
+            return urllib3.HTTPConnectionPool(url.host, url.port) 
+        elif url.schema == "https":
+            if self._keyfile:
+                return urllib3.HTTPSConnectionPool(url.host, url.port, 
+                                                    key_file=self._keyfile, 
+                                                    cert_file=self._certfile, 
+                                                    ca_certs=self._cafile) 
+            else:
+                return urllib3.HTTPSConnectionPool(url.host, url.port)
+        elif url.schema == "file":
+            # FIXME what to do here?
+            raise ValueError("Unsupported schema "+url.schema)            
+        else:
+            raise ValueError("Unsupported schema "+url.schema)
+
+    def forged_identity(self):
+        if not self._keyfile:
+            return self._identity
+        else:
+            return None
+
+    def get_ssl_options(self):
+        """
+        Get an ssl_options dictionary for this TLS context suitable
+        for passing to tornado.httpserver.HTTPServer().
+        """
+        if self._keyfile:
+            return dict(certfile=self._certfile,
+                         keyfile=self._keyfile,
+                        ca_certs=self._cafile, 
+                       cert_reqs=ssl.CERT_REQUIRED)
+        else:
+            return None

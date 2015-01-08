@@ -31,7 +31,7 @@ results within the mPlane reference component.
 from datetime import datetime, timedelta
 import threading
 import mplane.model
-import mplane.sec
+import mplane.azn
 
 class Service(object):
     """
@@ -320,12 +320,12 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self, security, probe_certfile=None):
+    def __init__(self, azn=mplane.azn.always_authorized):
         super(Scheduler, self).__init__()
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
-        self.ac = mplane.sec.Authorization(security, probe_certfile)
+        self._azn = azn
 
     def receive_message(self, user, msg, session=None):
         """
@@ -370,7 +370,7 @@ class Scheduler(object):
         """
         return self._capability_cache[key]
 
-    def submit_job(self, user, specification, session=None):
+    def submit_job(self, user, specification, session=None, identity=None):
         """
         Search the available Services for one which can 
         service the given Specification, then create and schedule 
@@ -380,7 +380,7 @@ class Scheduler(object):
         # linearly search the available services
         for service in self.services:
             if specification.fulfills(service.capability()):
-                if self.ac.check_azn(service.capability()._label, user):
+                if self._azn.check(service.capability(), identity):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
                     if specification.when().is_repeated():

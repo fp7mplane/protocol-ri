@@ -48,7 +48,7 @@ class BaseClient(object):
 
     """
 
-    def __init__(self, tls_state=None):
+    def __init__(self, tls_state):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
@@ -367,7 +367,7 @@ class HttpClient(BaseClient):
 
     """
 
-    def __init__(self, tls_state=None, default_url=None):
+    def __init__(self, tls_state, default_url=None):
         """
         initialize a client with a given 
         default URL an a given TLS state
@@ -393,12 +393,19 @@ class HttpClient(BaseClient):
         if not dst_url:
             dst_url = self._default_url
 
-        pool = self.tls_state.pool_for(dst_url)
+        pool = self._tls_state.pool_for(dst_url)
+
+        headers = {"content-type": "application/x-mplane+json"}
+        if self._tls_state.forged_identity():
+            headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
+        
         res = pool.urlopen('POST', dst_url, 
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
-                           headers={"content-type": "application/x-mplane+json"})
+                           headers=headers)
+        
         if (res.status == 200 and 
             res.getheader("content-type") == "application/x-mplane+json"):
+            # FIXME handle identity completely here, look at how SSB client does this
             self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
         else:
             # Didn't get an mPlane reply. What now?
