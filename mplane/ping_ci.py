@@ -20,7 +20,6 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 """
 Implements ICMP ping (delay.twoway.icmp) for integration into 
 the mPlane reference implementation.
@@ -29,10 +28,11 @@ the mPlane reference implementation.
 
 import argparse
 import collections
-import platform
 from datetime import datetime
 from ipaddress import ip_address
 import json
+import os
+import platform
 import re
 import subprocess
 import threading
@@ -53,13 +53,12 @@ _ping4cmd = "ping"
 _ping6cmd = "ping6"
 _pingopts = ["-n"]
 _pingopt_period = "-i"
-#_pingopt_count = "-c"
-_pingopt_count = "-n"
+_pingopt_count = "-c"
 _pingopt_source = "-S"
 
 LOOP4 = "127.0.0.1"
 LOOP6 = "::1"
-DEFAULT_SUPERVISOR_IP4 = '127.0.0.1'
+DEFAULT_SUPERVISOR_IP4 = 'localhost'
 DEFAULT_SUPERVISOR_PORT = 8888
 REGISTRATION_PATH = "register/capability"
 SPECIFICATION_PATH = "show/specification"
@@ -187,19 +186,20 @@ class PingService(mplane.scheduler.Service):
             ping_process = _ping6_process(sipaddr, dipaddr, period, count)
         else:
             raise ValueError("Missing destination")
-
+      
         # read output from ping
         pings = []
         for line in ping_process.stdout:
-
             if check_interrupt():
                 break
             s = line.decode()
+
             oneping = _parse_ping_line(s)
             if oneping is not None:
                 print("ping "+repr(oneping))
                 pings.append(oneping)
- 
+                
+                
         # shut down and reap
         try:
             ping_process.kill()
@@ -248,11 +248,13 @@ class PingProbe():
         initiates a Ping probe for component-initiated workflow based on command-line arguments  
         """
         self.parse_args()
-        
-        if self.certfile is None:
-            self.pool = HTTPConnectionPool(self.supervisorhost, self.supervisorport)
+        headers={"content-type": "application/x-mplane+json"}
+        if self.certfile is None:                        
+            if( self.forget_mplane_identity is not None ):
+                headers={"content-type": "application/x-mplane+json","Forget-MPlane-Identity": self.forget_mplane_identity}
+            self.pool = HTTPConnectionPool(self.supervisorhost, self.supervisorport, headers=headers)
         else:
-            self.pool = HTTPSConnectionPool(self.supervisorhost, self.supervisorport, key_file=self.key, cert_file=self.certfile, ca_certs=self.ca)
+            self.pool = HTTPSConnectionPool(self.supervisorhost, self.supervisorport, key_file=self.key, cert_file=self.certfile, ca_certs=self.ca, headers=headers)
 
         self.dn = mplane.httpsrv.get_dn( self.certfile, self.certfile );
         self.scheduler = mplane.scheduler.Scheduler(self.certfile, self.certfile)
@@ -265,6 +267,8 @@ class PingProbe():
             self.scheduler.add_service(PingService(ping6_singleton_capability(self.ip6addr)))
 
     def register_capabilities(self):
+        print( "Registering capabilities to supervisor at " + self.supervisorhost + ":" + str(self.supervisorport) )
+        
         caps_list = ""
         for key in self.scheduler.capability_keys():
             cap = self.scheduler.capability_for_key(key)
@@ -275,8 +279,7 @@ class PingProbe():
         while True:
             try:
                 res = self.pool.urlopen('POST', "/" + REGISTRATION_PATH, 
-                    body=caps_list.encode("utf-8"), 
-                    headers={"content-type": "application/x-mplane+json", "Forget-MPlane-Identity": self.forget_mplane_identity})
+                    body=caps_list.encode("utf-8"))
                 
                 if res.status == 200:
                     body = json.loads(res.data.decode("utf-8"))
@@ -304,7 +307,7 @@ class PingProbe():
         url = "/" + SPECIFICATION_PATH
         
         # send a request for specifications
-        res = self.pool.request('GET', url, headers={"Forget-MPlane-Identity": self.forget_mplane_identity})
+        res = self.pool.request('GET', url)
         if res.status == 200:
             
             # specs retrieved: split them if there is more than one
@@ -319,8 +322,7 @@ class PingProbe():
                     result_url = "/" + RESULT_PATH
                     # send result to the Supervisor
                     res = self.pool.urlopen('POST', result_url, 
-                            body=mplane.model.unparse_json(reply).encode("utf-8"), 
-                            headers={"content-type": "application/x-mplane+json", "Forget-MPlane-Identity": self.forget_mplane_identity})
+                            body=mplane.model.unparse_json(reply).encode("utf-8"))
                     return
                 
                 # enqueue job
@@ -355,8 +357,7 @@ class PingProbe():
         
         # send result to the Supervisor
         res = self.pool.urlopen('POST', url, 
-                body=mplane.model.unparse_json(reply).encode("utf-8"), 
-                headers={"content-type": "application/x-mplane+json", "Forget-MPlane-Identity": self.forget_mplane_identity})
+                body=mplane.model.unparse_json(reply).encode("utf-8") )
 
         # handle response
         if res.status == 200:
@@ -367,6 +368,7 @@ class PingProbe():
         pass
     
     def parse_args(self):
+        global args
         parser = argparse.ArgumentParser(description="Run an mPlane ping probe server")
         parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
                             help="Ping from the given IPv4 address")
@@ -406,10 +408,11 @@ class PingProbe():
             if args.certfile is None:
                 raise ValueError("without --disable-ssl, need to specify cert file")
             else:
+                print( "pwd: " + os.getcwd() + " - cert config file: " + args.certfile )
                 mplane.utils.check_file(args.certfile)
-                self.certfile = mplane.utils.normalize_path(mplane.utils.read_setting(self.certfile, "cert"))
-                self.key = mplane.utils.normalize_path(mplane.utils.read_setting(self.certfile, "key"))
-                self.ca = mplane.utils.normalize_path(mplane.utils.read_setting(self.certfile, "ca-chain"))
+                self.certfile = mplane.utils.normalize_path(mplane.utils.read_setting(args.certfile, "cert"))
+                self.key = mplane.utils.normalize_path(mplane.utils.read_setting(args.certfile, "key"))
+                self.ca = mplane.utils.normalize_path(mplane.utils.read_setting(args.certfile, "ca-chain"))
                 mplane.utils.check_file(self.certfile)
                 mplane.utils.check_file(self.key)
                 mplane.utils.check_file(self.ca)
@@ -459,8 +462,8 @@ def manually_test_ping():
 # For right now, start a Tornado-based ping server
 if __name__ == "__main__":
     if platform.system() != "Linux":
-        print("Linux is supported only.")
-        exit(2)
+        print("Linux is supported only. Output lines of ping command won't probably be parsed correctly.")
+#        exit(2)
     
     mplane.model.initialize_registry()
     
