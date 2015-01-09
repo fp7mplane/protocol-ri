@@ -54,7 +54,11 @@ def get_dn(supervisor, request):
             else: 
                 dn = dn + "." + str(elem[0][1])
     else:
-        dn = DUMMY_DN
+        if "Forget-Mplane-Identity" in request.headers.keys():
+            dn = request.headers["Forget-Mplane-Identity"]
+        else:
+            dn = DUMMY_DN
+
     return dn
     
 class MPlaneHandler(tornado.web.RequestHandler):
