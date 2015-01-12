@@ -1,0 +1,6 @@
+{
+	"users":{
+		"boky": { "userid": "boky", "password": "boky123", "fullname":"Attila Bokor" },
+		"admin": { "userid": "admin", "password": "admin123", "fullname":"Administrator" }
+	}
+}
