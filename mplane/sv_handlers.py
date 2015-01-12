@@ -21,9 +21,7 @@
 import tornado.web
 import mplane.model
 import mplane.utils
-import copy
 import json
-from collections import OrderedDict
 
 REGISTRATION_PATH = "register/capability"
 SPECIFICATION_PATH = "show/specification"

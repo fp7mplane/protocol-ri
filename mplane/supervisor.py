@@ -23,6 +23,7 @@ import mplane.model
 import mplane.utils
 import mplane.sec
 import mplane.sv_handlers
+import mplane.sv_gui_handlers
 import ssl
 import sys
 import cmd
@@ -32,6 +33,10 @@ from collections import OrderedDict
 import tornado.web
 import tornado.httpserver
 import argparse
+import base64
+import uuid
+
+from mplane import sv_gui_handlers
 
 DEFAULT_LISTEN_PORT = 8888
 DEFAULT_LISTEN_IP4 = '127.0.0.1'
@@ -97,7 +102,7 @@ class HttpSupervisor(object):
                 
         application = tornado.web.Application([
         
-                # Handlers of the HTTP Server
+                # Handlers of mPlane Supervisor functionality
                 (r"/" + REGISTRATION_PATH, mplane.sv_handlers.RegistrationHandler, {'supervisor': self}),
                 (r"/" + REGISTRATION_PATH + "/", mplane.sv_handlers.RegistrationHandler, {'supervisor': self}),
                 (r"/" + SPECIFICATION_PATH, mplane.sv_handlers.SpecificationHandler, {'supervisor': self}),
@@ -110,7 +115,18 @@ class HttpSupervisor(object):
                 (r"/" + S_SPECIFICATION_PATH + "/", mplane.sv_handlers.S_SpecificationHandler, {'supervisor': self}),
                 (r"/" + S_RESULT_PATH, mplane.sv_handlers.S_ResultHandler, {'supervisor': self}),
                 (r"/" + S_RESULT_PATH + "/", mplane.sv_handlers.S_ResultHandler, {'supervisor': self}),
-            ])
+
+                # Handlers of GUI
+                (r"/" + sv_gui_handlers.GUI_LOGIN_PATH, mplane.sv_gui_handlers.LoginHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_USERSETTINGS_PATH, mplane.sv_gui_handlers.UserSettingsHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_LISTCAPABILITIES_PATH, mplane.sv_gui_handlers.ListCapabilitiesHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_LISTSPECIFICATIONS_PATH, mplane.sv_gui_handlers.ListSpecificationsHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_LISTRECEIPT_PATH, mplane.sv_gui_handlers.ListReceiptsHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_LISTRESULTS_PATH, mplane.sv_gui_handlers.ListResultsHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_GETRESULT_PATH, mplane.sv_gui_handlers.GetResultHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_RUNCAPABILITY_PATH, mplane.sv_gui_handlers.RunCapabilityHandler, {'supervisor': self})
+
+            ], cookie_secret="123456789-TODO-REPLACE", static_path=r"www/", static_url_prefix=r"/" + sv_gui_handlers.GUI_STATIC_PATH + "/")
             
         # check if security is enabled, if so read certificate files
         self._sec = not args.DISABLE_SSL
