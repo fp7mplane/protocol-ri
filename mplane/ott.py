@@ -3,7 +3,7 @@
 #
 # mPlane Protocol Reference Implementation
 # OTT probe component code for component-initiated workflow
-# Implementation is based on the Ping probe written by <attila.bokor@netvisor.hu>
+# Implementation is based on the Ping probe written by <attila.bokor@netvisor.hu> (ping_ci.py)
 #
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Gabor Molnar <gabor.molnar@netvisor.hu>
@@ -25,7 +25,9 @@
 Implements OTT probe for integration into 
 the mPlane reference implementation.
 
-TODO currently one count is supported
+TODO:
+ * currently one count is supported
+ * 
 
 """
 
