@@ -35,11 +35,19 @@
 # - SSB will pull this out of existing utils.py and stepenta/RI code.
 
 import urllib3
+import ssl
+import os.path
 import configparser
 
 def search_path(path):
-    #path normalization as in utils goes here...
-    pass
+    """
+    Converts every path into absolute paths
+    
+    """
+    if path[0] != '/':
+        return os.path.abspath(path)
+    else:
+        return path
 
 def extract_local_identity(cert_file):
     """
@@ -64,9 +72,13 @@ def extract_peer_identity(peer_cert):
     Extract an identity from Tornado's 
     RequestHandler.get_ssl_certificate()
     """
-    # FIXME take this from sv_handlers.py
-    subject = peer_cert.get("subject")
-    return None
+    dn = ""
+    for elem in peer_cert.get('subject'):
+        if dn == "":
+            dn = dn + str(elem[0][1])
+        else: 
+            dn = dn + "." + str(elem[0][1])
+    return dn
 
 class TlsState:
     def __init__(self, config_file=None, forged_identity=None):
