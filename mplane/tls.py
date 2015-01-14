@@ -4,7 +4,7 @@
 # mPlane Protocol Reference Implementation
 # TLS context for mPlane clients and components
 #
-# (c) 2014 mPlane Consortium (http://www.ict-mplane.eu)
+# (c) 2014-2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
 #             Brian Trammell <brian@trammell.ch>
 #
