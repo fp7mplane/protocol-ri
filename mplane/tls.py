@@ -37,7 +37,11 @@
 import urllib3
 import ssl
 import os.path
+import tornado.httpserver
+from socket import socket
 import configparser
+
+DUMMY_DN = "Dummy.Distinguished.Name"
 
 def search_path(path):
     """
@@ -45,60 +49,36 @@ def search_path(path):
     
     """
     if path[0] != '/':
-        return os.path.abspath(path)
+        norm_path = os.path.abspath(path)
     else:
-        return path
-
-def extract_local_identity(cert_file):
-    """
-    Extract an identity from the designated name in an X.509 certificate 
-    file with an ASCII preamble (as used in mPlane)
-    """
-    dn = ""
-    with open(cert_file) as f:
-        for line in f.readlines():
-            line = line.rstrip().replace(" ", "")
-            if line.startswith("Subject:"):
-                fields = line[len("Subject:"):].split(",")
-                for field in fields:
-                    if dn == "":
-                        dn = dn + field.split('=')[1]
-                    else: 
-                        dn = dn + "." + field.split('=')[1]
-    return dn
-
-def extract_peer_identity(peer_cert):
-    """
-    Extract an identity from Tornado's 
-    RequestHandler.get_ssl_certificate()
-    """
-    dn = ""
-    for elem in peer_cert.get('subject'):
-        if dn == "":
-            dn = dn + str(elem[0][1])
-        else: 
-            dn = dn + "." + str(elem[0][1])
-    return dn
+        norm_path = path
+        
+    if not os.path.exists(norm_path):
+        raise ValueError("Error: File " + norm_path + " does not appear to exist.")
+        exit(1)
+        
+    return norm_path
 
 class TlsState:
     def __init__(self, config_file=None, forged_identity=None):
+        
         if config_file:
             # Read the configuration file
             config = configparser.ConfigParser()
-            config.read(config_file)
+            config.optionxform = str
+            config.read(search_path(config_file))
 
             # get paths to CA, cert, and key
             self._cafile = search_path(config["TLS"]["ca-chain"])
             self._certfile = search_path(config["TLS"]["cert"])
             self._keyfile = search_path(config["TLS"]["key"])
-
-            # load cert and get DN
-            self._identity = extract_local_identity(self._certfile)
         else:
             self._cafile = None
             self._certfile = None
             self._keyfile = None
-            self._identity = forged_identity 
+        
+        # load cert and get DN
+        self._identity = self.extract_local_identity(forged_identity)
 
     def pool_for(self, url):
         """
@@ -107,11 +87,11 @@ class TlsState:
         which can be used to connect to the URL.
         """
 
-        if url.instanceof(str):
+        if isinstance(url, str):
             url = urllib3.util.parse_url(url)
-        if url.schema == "http":
+        if url.scheme == "http":
             return urllib3.HTTPConnectionPool(url.host, url.port) 
-        elif url.schema == "https":
+        elif url.scheme == "https":
             if self._keyfile:
                 return urllib3.HTTPSConnectionPool(url.host, url.port, 
                                                     key_file=self._keyfile, 
@@ -143,3 +123,61 @@ class TlsState:
                        cert_reqs=ssl.CERT_REQUIRED)
         else:
             return None
+
+
+
+    def extract_local_identity(self, forged_identity = None):
+        """
+        Extract an identity from the designated name in an X.509 certificate 
+        file with an ASCII preamble (as used in mPlane)
+        """
+        if self._keyfile:
+            identity = ""
+            with open(self._certfile) as f:
+                for line in f.readlines():
+                    line = line.rstrip().replace(" ", "")
+                    if line.startswith("Subject:"):
+                        fields = line[len("Subject:"):].split(",")
+                        for field in fields:
+                            if id == "":
+                                identity = identity + field.split('=')[1]
+                            else: 
+                               identity = identity + "." + field.split('=')[1]
+        else:
+            if forged_identity is None:
+                identity = DUMMY_DN
+            else:
+                identity = forged_identity
+        return identity
+    
+    def extract_peer_identity(self, url_or_req):
+        """
+        Extract an identity from a Tornado's 
+        HTTPRequest, or from a Urllib3's Url
+        """
+        if self._keyfile:
+            if isinstance(url_or_req,  urllib3.util.url.Url):
+                # extract DN from the certificate retrieved from the url.
+                # Unfortunately, there seems to be no way to do this using urllib3,
+                # thus ssl library is being used
+                s = socket()
+                c = ssl.wrap_socket(s,cert_reqs=ssl.CERT_REQUIRED, 
+                                    keyfile=self._keyfile, 
+                                    certfile=self._certfile, 
+                                    ca_certs=self._cafile)
+                c.connect((url_or_req.host, url_or_req.port))
+                cert = c.getpeercert()
+            elif isinstance(url_or_req, tornado.httpserver.HTTPRequest):
+                cert = url_or_req.get_ssl_certificate()
+            else:
+                raise ValueError("Passed argument is not a urllib3.util.url.Url or tornado.httpserver.HTTPRequest")
+            
+            identity = ""
+            for elem in cert.get('subject'):
+                if identity == "":
+                    identity = identity + str(elem[0][1])
+                else: 
+                    identity = identity + "." + str(elem[0][1])
+        else:
+            identity = DUMMY_DN
+        return identity

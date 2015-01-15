@@ -26,16 +26,43 @@
 # FIXME grab most of this from sec.py, which then goes away.
 
 import mplane.model
+import configparser
 
-class AlwaysAuthorized(object):
-	def check(self, cap, identity):
-		return True
+# Factory function to create Authorization ON or OFF object
+def Authorization(config_file = None):
+    if config_file is None:
+        return AuthorizationOff()
+    else:
+        return AuthorizationOn(config_file)
+        
+class AuthorizationOff(object):
+        
+    def check(self, cap, identity):
+        return True
 
-always_authorized = AlwaysAuthorized()
+always_authorized = AuthorizationOff()
 
-class Authorization(object):
-	def __init__(self, config_file=None):
-		pass
+class AuthorizationOn(object):
+    
+    def __init__(self, config_file):
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(config_file)
+        self.id_role = self._load_roles(config["Roles"])
+        self.cap_role = self._load_roles(config["Authorizations"])
 
-	def check(self, cap, identity):
-		pass
+    def _load_roles(self, config_obj):
+        """ Loads user-role-capability associations and keeps them in cache """
+        r = {}
+        for elem in config_obj:
+            roles = set(config_obj[elem].split(','))
+            r[elem] = roles
+        return r
+            
+    def check(self, cap, identity): 
+        cap_label = cap._label
+        if ((cap_label in self.cap_role) and (identity in self.id_role)): # Deny unless explicitly allowed in .conf files
+            intersection = self.cap_role[cap_label] & self.id_role[identity]
+            if len(intersection) > 0:
+                return True
+        return False

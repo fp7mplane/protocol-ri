@@ -25,9 +25,11 @@ import mplane.model
 import mplane.scheduler
 import mplane.utils
 import mplane.tstat_caps
+import mplane.azn
+import mplane.tls
 from urllib3 import HTTPSConnectionPool
 from urllib3 import HTTPConnectionPool
-from socket import socket
+import urllib3
 import ssl
 import argparse
 import sys
@@ -40,8 +42,6 @@ DEFAULT_SUPERVISOR_PORT = 8888
 REGISTRATION_PATH = "register/capability"
 SPECIFICATION_PATH = "show/specification"
 RESULT_PATH = "register/result"
-
-DUMMY_DN = "Dummy.Distinguished.Name"
 
 
 """
@@ -201,10 +201,8 @@ def parse_args():
                         help='Supervisor IP address')
     parser.add_argument('-p', '--supervisor-port', metavar='supervisor-port', default=DEFAULT_SUPERVISOR_PORT, dest='SUPERVISOR_PORT',
                         help='Supervisor port number')
-    parser.add_argument('--disable-ssl', action='store_true', default=False, dest='DISABLE_SSL',
-                        help='Disable secure communication')
-    parser.add_argument('-c', '--certfile', metavar="path", dest='CERTFILE', default = None,
-                        help="Location of the configuration file for certificates")
+    parser.add_argument('-t', '--tlsfile', metavar="tls-conf-file", dest='TLSFILE', default = None,
+                        help="Location of the configuration file for tls")
     parser.add_argument('-T', '--tstat-runtimeconf', metavar = 'path', dest = 'TSTAT_RUNTIMECONF', required = True,
                         help = 'Tstat runtime.conf configuration file path')
     args = parser.parse_args()
@@ -245,16 +243,6 @@ def parse_args():
         print('\nERROR: missing -T|--tstat-runtimeconf\n')
         parser.print_help()
         sys.exit(1)
-
-    # check if the file containing the paths for the 
-    # certificates has been inserted in the command line
-    # (only if security is enabled)
-    if args.DISABLE_SSL == False and not args.CERTFILE:
-        print('\nERROR: missing -C|--certfile\n')
-        parser.print_help()
-        sys.exit(1)
-        
-
     
 class HttpProbe():
     """
@@ -265,60 +253,26 @@ class HttpProbe():
     
     def __init__(self, immediate_ms = 5000):
         parse_args()
-        self.dn = None
         
-        # check if security is enabled, if so read certificate files
-        self.security = not args.DISABLE_SSL
-        if self.security:
-            mplane.utils.check_file(args.CERTFILE)
-            self.cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "cert"))
-            self.key = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "key"))
-            self.ca = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "ca-chain"))
-            mplane.utils.check_file(self.cert)
-            mplane.utils.check_file(self.key)
-            mplane.utils.check_file(self.ca)
-            self.pool = HTTPSConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT, key_file=self.key, cert_file=self.cert, ca_certs=self.ca)
-        else: 
-            self.pool = HTTPConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT)
-            self.cert = None
+        if args.TLSFILE is None:
+            self._url = urllib3.util.parse_url("http://" + args.SUPERVISOR_IP4 + ":" + str(args.SUPERVISOR_PORT))
+        else:
+            self._url = urllib3.util.parse_url("https://" + args.SUPERVISOR_IP4 + ":" + str(args.SUPERVISOR_PORT))
         
-        # get server DN, for Access Control purposes
-        self.dn = self.get_dn()
+        
+        azn = mplane.azn.Authorization(args.TLSFILE)
+        self.tls = mplane.tls.TlsState(args.TLSFILE)
+        
+        self.scheduler = mplane.scheduler.Scheduler(azn)
+        self.pool = self.tls.pool_for(self._url)
         
         # generate a Service for each capability
         self.immediate_ms = immediate_ms
-        self.scheduler = mplane.scheduler.Scheduler(self.security, self.cert)
         self.scheduler.add_service(tStatService(mplane.tstat_caps.tcp_flows_capability(args.IP4_NET), args.TSTAT_RUNTIMECONF))
         self.scheduler.add_service(tStatService(mplane.tstat_caps.e2e_tcp_flows_capability(args.IP4_NET), args.TSTAT_RUNTIMECONF))
         self.scheduler.add_service(tStatService(mplane.tstat_caps.tcp_options_capability(args.IP4_NET), args.TSTAT_RUNTIMECONF))
         self.scheduler.add_service(tStatService(mplane.tstat_caps.tcp_p2p_stats_capability(args.IP4_NET), args.TSTAT_RUNTIMECONF))
         self.scheduler.add_service(tStatService(mplane.tstat_caps.tcp_layer7_capability(args.IP4_NET), args.TSTAT_RUNTIMECONF))
-        
-    def get_dn(self):
-        """
-        Extracts the DN from the server. 
-        If SSL is disabled, returns a dummy DN
-        
-        """
-        if self.security == True:
-            
-            # extract DN from server certificate.
-            # Unfortunately, there seems to be no way to do this using urllib3,
-            # thus ssl library is being used
-            s = socket()
-            c = ssl.wrap_socket(s,cert_reqs=ssl.CERT_REQUIRED, keyfile=self.key, certfile=self.cert, ca_certs=self.ca)
-            c.connect((args.SUPERVISOR_IP4, args.SUPERVISOR_PORT))
-            cert = c.getpeercert()
-            
-            dn = ""
-            for elem in cert.get('subject'):
-                if dn == "":
-                    dn = dn + str(elem[0][1])
-                else: 
-                    dn = dn + "." + str(elem[0][1])
-        else:
-            dn = DUMMY_DN
-        return dn
      
     def register_to_supervisor(self):
         """
@@ -329,13 +283,20 @@ class HttpProbe():
         
         # generate the capability list
         caps_list = ""
+        no_caps_exposed = True
+        sv_identity = self.tls.extract_peer_identity(self._url)
         for key in self.scheduler.capability_keys():
             cap = self.scheduler.capability_for_key(key)
-            if (self.scheduler.ac.check_azn(cap._label, self.dn)):
+            if self.scheduler._azn.check(cap, sv_identity):
                 caps_list = caps_list + mplane.model.unparse_json(cap) + ","
+                no_caps_exposed = False
         caps_list = "[" + caps_list[:-1].replace("\n","") + "]"
         connected = False
         
+        if no_caps_exposed is True:
+           print("\nNo Capabilities are being exposed to " + sv_identity + ", check permission files. Exiting")
+           exit(0)
+           
         # send the list to the supervisor, if reachable
         while not connected:
             try:
