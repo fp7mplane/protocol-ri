@@ -120,11 +120,12 @@ class HttpSupervisor(object):
                 (r"/" + sv_gui_handlers.GUI_LOGIN_PATH, mplane.sv_gui_handlers.LoginHandler, {'supervisor': self}),
                 (r"/" + sv_gui_handlers.GUI_USERSETTINGS_PATH, mplane.sv_gui_handlers.UserSettingsHandler, {'supervisor': self}),
                 (r"/" + sv_gui_handlers.GUI_LISTCAPABILITIES_PATH, mplane.sv_gui_handlers.ListCapabilitiesHandler, {'supervisor': self}),
-                (r"/" + sv_gui_handlers.GUI_LISTSPECIFICATIONS_PATH, mplane.sv_gui_handlers.ListSpecificationsHandler, {'supervisor': self}),
-                (r"/" + sv_gui_handlers.GUI_LISTRECEIPT_PATH, mplane.sv_gui_handlers.ListReceiptsHandler, {'supervisor': self}),
+                (r"/" + sv_gui_handlers.GUI_LISTPENDINGS_PATH, mplane.sv_gui_handlers.ListPendingsHandler, {'supervisor': self}),
                 (r"/" + sv_gui_handlers.GUI_LISTRESULTS_PATH, mplane.sv_gui_handlers.ListResultsHandler, {'supervisor': self}),
                 (r"/" + sv_gui_handlers.GUI_GETRESULT_PATH, mplane.sv_gui_handlers.GetResultHandler, {'supervisor': self}),
-                (r"/" + sv_gui_handlers.GUI_RUNCAPABILITY_PATH, mplane.sv_gui_handlers.RunCapabilityHandler, {'supervisor': self})
+                (r"/" + sv_gui_handlers.GUI_RUNCAPABILITY_PATH, mplane.sv_gui_handlers.RunCapabilityHandler, {'supervisor': self}),
+                (r"/", mplane.sv_gui_handlers.ForwardHandler, {'forwardUrl': '/gui/static/login.html'}),
+                (r"/gui", mplane.sv_gui_handlers.ForwardHandler, {'forwardUrl': '/gui/static/login.html'})
 
             ], cookie_secret="123456789-TODO-REPLACE", static_path=r"www/", static_url_prefix=r"/" + sv_gui_handlers.GUI_STATIC_PATH + "/")
             

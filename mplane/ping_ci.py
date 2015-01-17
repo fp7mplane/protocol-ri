@@ -99,22 +99,40 @@ def _ping6_process(sipaddr, dipaddr, period=None, count=None):
     return _ping_process(_ping6cmd, sipaddr, dipaddr, period, count)
 
 def pings_min_delay(pings):
-    return min(map(lambda x: x.usec, pings))
+    if len(pings) > 0:
+        return min(map(lambda x: x.usec, pings))
+    else:
+        return -1
 
 def pings_mean_delay(pings):
-    return int(sum(map(lambda x: x.usec, pings)) / len(pings))
+    if len(pings) > 0:
+        return int(sum(map(lambda x: x.usec, pings)) / len(pings))
+    else:
+        return -1   
 
 def pings_median_delay(pings):
-    return sorted(map(lambda x: x.usec, pings))[int(len(pings) / 2)]
+    if len(pings) > 0:
+        return sorted(map(lambda x: x.usec, pings))[int(len(pings) / 2)]
+    else:
+        return -1    
 
 def pings_max_delay(pings):
-    return max(map(lambda x: x.usec, pings))
+    if len(pings) > 0:
+        return max(map(lambda x: x.usec, pings))
+    else:
+        return -1
 
 def pings_start_time(pings):
-    return pings[0].time
+    if len(pings) > 0:
+        return pings[0].time
+    else:
+        return None
 
 def pings_end_time(pings):
-    return pings[-1].time
+    if len(pings) > 0:
+        return pings[-1].time
+    else:
+        return None
 
 def ping4_aggregate_capability(ipaddr):
     cap = mplane.model.Capability(label="ping-average-ip4", when = "now ... future / 1s")
@@ -187,6 +205,7 @@ class PingService(mplane.scheduler.Service):
         else:
             raise ValueError("Missing destination")
       
+        ping_start = datetime.utcnow()
         # read output from ping
         pings = []
         for line in ping_process.stdout:
@@ -199,6 +218,7 @@ class PingService(mplane.scheduler.Service):
                 print("ping "+repr(oneping))
                 pings.append(oneping)
                 
+        ping_end = datetime.utcnow()
                 
         # shut down and reap
         try:
@@ -211,7 +231,10 @@ class PingService(mplane.scheduler.Service):
         res = mplane.model.Result(specification=spec)
 
         # put actual start and end time into result
-        res.set_when(mplane.model.When(a = pings_start_time(pings), b = pings_end_time(pings)))
+        if len(pings) > 0:
+            res.set_when(mplane.model.When(a = pings_start_time(pings), b = pings_end_time(pings)))
+        else:
+            res.set_when(mplane.model.When(a = ping_start, b = ping_end))
 
         # are we returning aggregates or raw numbers?
         if res.has_result_column("delay.twoway.icmp.us"):
@@ -425,6 +448,7 @@ class PingProbe():
 def manually_test_ping():
     svc = PingService(ping4_aggregate_capability(LOOP4))
     spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_single_values()
     spec.set_parameter_value("destination.ip4", LOOP4)
     spec.set_when("now + 5s / 1s")
 
@@ -434,6 +458,7 @@ def manually_test_ping():
 
     svc = PingService(ping4_singleton_capability(LOOP4))
     spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_single_values()
     spec.set_parameter_value("destination.ip4", LOOP4)
     spec.set_when("now + 5s / 1s")
 
@@ -443,6 +468,7 @@ def manually_test_ping():
 
     svc = PingService(ping6_aggregate_capability(LOOP6))
     spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_single_values()
     spec.set_parameter_value("destination.ip6", LOOP6)
     spec.set_when("now + 5s / 1s")
 
@@ -452,6 +478,7 @@ def manually_test_ping():
 
     svc = PingService(ping6_singleton_capability(LOOP6))
     spec = mplane.model.Specification(capability=svc.capability())
+    spec.set_single_values()
     spec.set_parameter_value("destination.ip6", LOOP6)
     spec.set_when("now + 5s / 1s")
 
@@ -460,7 +487,7 @@ def manually_test_ping():
     print(mplane.model.unparse_yaml(res))
 
 # For right now, start a Tornado-based ping server
-if __name__ == "__main__":
+if __name__ == "__main__":    
     if platform.system() != "Linux":
         print("Linux is supported only. Output lines of ping command won't probably be parsed correctly.")
 #        exit(2)

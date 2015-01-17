@@ -21,15 +21,16 @@
 import json
 import tornado
 import os
+import mplane.model
+from _operator import contains
 
 CONFIGFILE = "guiconf.json"
 DIRECTORY_USERSETTINGS = "usersettings"
 
-GUI_LISTCAPABILITIES_PATH = "gui/list/capabilites"
+GUI_LISTCAPABILITIES_PATH = "gui/list/capabilities"
 GUI_RUNCAPABILITY_PATH = "gui/run/capability"
 
-GUI_LISTSPECIFICATIONS_PATH = "gui/list/specifications"
-GUI_LISTRECEIPT_PATH = "gui/list/receipts"
+GUI_LISTPENDINGS_PATH = "gui/list/pendings"
 
 GUI_LISTRESULTS_PATH = "gui/list/results"
 GUI_GETRESULT_PATH = "gui/get/result"
@@ -38,34 +39,42 @@ GUI_LOGIN_PATH = "gui/login"
 GUI_USERSETTINGS_PATH = "gui/settings"
 GUI_STATIC_PATH = "gui/static"
 
+class ForwardHandler(tornado.web.RequestHandler):
+    def initialize(self, forwardUrl):
+        self._forwardUrl = forwardUrl
+
+    def get(self):
+        self.redirect( self._forwardUrl )
+
+    def post(self):
+        self.redirect( self._forwardUrl )
+
 class LoginHandler(tornado.web.RequestHandler):
     def initialize(self, supervisor):
         self._supervisor = supervisor
 
-    def get(self, repeat):
-        self.write('<html><body>')
-        if repeat:
-            self.write('Login failed. Try again!<br /><br />')
-
-        self.write('<form action="/gui/login" method="post">'
-                   'User: <input type="text" name="userid"><br />'
-                   'Password: <input type="password" name="password"><br />'
-                   '<input type="submit" value="Sign in">'
-                   '</form></body></html>')
+    def get(self):
+        self.redirect("/gui/static/login.html")
 
     def post(self):
         configfile = open(CONFIGFILE, "r")
         guiconfig = json.load( configfile )
         configfile.close()
-        userTry = self.get_body_argument("userid", strip=True)
-        if userTry in guiconfig['users'].keys():
-            print("OK, userID found: " + userTry )
-            self.set_secure_cookie("user", userTry)
-            self.redirect( "/gui/static/index.html" )
-        else:
-            print("Auth error, user is not found: " + self.get_argument("userid"))
-            self.get(repeat=True) 
+        userTry = self.get_body_argument("username", strip=True)
+        pwdTry = self.get_body_argument("password", strip=True)
 
+        if userTry in guiconfig['users'].keys() and guiconfig['users'][userTry]['password'] == pwdTry:            
+            self.set_secure_cookie("user", userTry, 1)
+            self.set_status(200);
+            self.set_header("Content-Type", "text/json")
+            self.write("{}")
+        else:
+            self.clear_cookie("user")
+            self.set_status(200);
+            self.set_header("Content-Type", "text/json")
+            self.write("{ERROR:\"Authentication failed for user " + userTry + "\"}")
+
+        self.finish()
 
 class UserSettingsHandler(tornado.web.RequestHandler):
     """
@@ -74,27 +83,36 @@ class UserSettingsHandler(tornado.web.RequestHandler):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
+        user = self.get_secure_cookie("user")
         if user is None:
-            self.redirect("/gui/login")
+            self.redirect("/gui/static/login.html")
         else:
-            self.set_status(200)
-            self.set_header("Content-Type", "text/json")
-            f = open(DIRECTORY_USERSETTINGS + os.sep + user, "r")
-            self.write( f.read() )
-            f.close()
+            try:
+                self.set_status(200)
+                self.set_header("Content-Type", "text/json")
+                f = open(DIRECTORY_USERSETTINGS + os.sep + user.decode('utf-8'), "r")
+                self.write( f.read() )
+                f.close()
+            except Exception as e:
+                self.write( "{ERROR:\"" + str(e) + "\"}" )
+            self.finish()
 
     def post(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
+        user = self.get_secure_cookie("user")
         if user is None:
-            self.redirect("/gui/login")
-        else:            
-            f = open(DIRECTORY_USERSETTINGS + os.sep + user, "w")
-            f.write( self.request.body.decode("utf-8") )
-            self.set_status(200)
-            self.set_header("Content-Type", "text/json")
-            self.write("{}\n")
-            f.close()
+            self.redirect("/gui/static/login.html")
+        else:
+            try:
+                f = open(DIRECTORY_USERSETTINGS + os.sep + user.decode('utf-8'), "w")
+                f.write( self.request.body.decode("utf-8") )
+                self.set_status(200)
+                self.set_header("Content-Type", "text/json")
+                self.write("{}\n")
+                f.close()
+            except Exception as e:
+                self.write( "{ERROR:\"" + str(e) + "\"}" )
+            self.finish()
+            
 
 class ListCapabilitiesHandler(tornado.web.RequestHandler):
     """
@@ -103,14 +121,47 @@ class ListCapabilitiesHandler(tornado.web.RequestHandler):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
+        if self.get_secure_cookie("user") is None:
+            self.redirect("/gui/static/login.html")
             return
         
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
+        self.set_status(200);
         self.set_header("Content-Type", "text/json")
+        try:
+            msg = ""
+            for key in self._supervisor._capabilities:
+                found = False
+                for cap in self._supervisor._capabilities[key]:
+                    keep = True
+                    print( "checking " + cap.get_label() )
+                    for paramname in cap.parameter_names():
+                        print( "    param: " + paramname )
+                        print( "      constraint: " + str( cap._params[paramname]._constraint ) + " type: "+ str( type(cap._params[paramname]._constraint)))
+    
+                        paramfilter = self.get_argument(paramname, default=None)
+                        if paramfilter is not None:
+                            print( "      filter: " + paramfilter )
+                            constr = cap._params[paramname]._constraint                        
+                            if ( (isinstance(constr, mplane.model.SetConstraint) and str(constr).find(paramfilter) < 0)
+                                    or (not isinstance(constr, mplane.model.SetConstraint) and not constr.met_by(paramfilter)) ):
+                                keep = False
+                                print( "      SKIPPED" )
+    
+                    if keep:
+                        cap_id = cap.get_label() + ", " + key
+                        if found == False:
+                            msg = msg + "\"" + key + "\":["
+                            found = True
+                        msg = msg + mplane.model.unparse_json(cap) + ","
+                    
+                if found == True:
+                    msg = msg[:-1].replace("\n","") + "],"
+            
+            msg = "{" + msg[:-1].replace("\n","") + "}"
+            self.write(msg)
+            self.finish()
+        except Exception as e:
+            self.write( "{ERROR:\"" + str(e) + "\"}" )
 
     def post(self):
         self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
@@ -122,55 +173,93 @@ class ListResultsHandler(tornado.web.RequestHandler):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
+        if self.get_secure_cookie("user") is None:
+            self.redirect("/gui/static/login.html")
             return
-        
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
-        self.set_header("Content-Type", "text/json")
+
+        try:
+            self.set_status(200);
+            self.set_header("Content-Type", "text/json")
+    
+            msg = ""
+            for key in self._supervisor._results:
+                found = False
+                dnMsg = ""
+                for res in self._supervisor._results[key]:
+                    keep = True
+                    print( "checking " + res.get_label() )
+                    for paramname in res.parameter_names():
+                        print( "    param: " + paramname )
+                        print( "      constraint: " + str( res._params[paramname]._constraint ) + " type: "+ str( type(res._params[paramname]._constraint)))
+    
+                        paramfilter = self.get_argument(paramname, default=None)
+                        if paramfilter is not None:
+                            print( "      filter: " + paramfilter )
+                            # TODO implement filtering                        
+    
+                    if keep:
+    #                    res_id = res.get_label() + ", " + key
+                        if found == False:
+                            dnMsg = dnMsg + "\"" + key + "\":["
+                            found = True
+    
+                        paramStr = ""
+                        for paramname in res.parameter_names():
+                            paramStr = paramStr + "'" + paramname + "': '" + str(res.get_parameter_value(paramname)) + "',"
+    
+                        dnMsg = dnMsg + "{ result:'measure', label:'" + res.get_label() + "',  when:'" + str(res.when()) + "', token:'" + res.get_token() + "', parameters: {" + paramStr[:-1] + "} },"
+    
+                if found == True:
+                    msg = msg + dnMsg[:-1] + "],"
+            
+            msg = "{" + msg[:-1].replace("\n","") + "}"
+            
+            self.set_status(200);
+            self.set_header("Content-Type", "text/json")
+            self.write(msg)
+            self.finish()
+        except Exception as e:
+            self.write( "{ERROR:\"" + str(e) + "\"}" )
 
     def post(self):
         self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
 
-class ListSpecificationsHandler(tornado.web.RequestHandler):
+class ListPendingsHandler(tornado.web.RequestHandler):
     """
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
+        if self.get_secure_cookie("user") is None:
+            self.redirect("/gui/static/login.html")
             return
-        
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
-        self.set_header("Content-Type", "text/json")
+
+        self.set_status(200)
+        self.set_header("Content-Type", "application/x-mplane+json")
+        msg = ""
+
+        try:
+            for dn in dict( self._supervisor._specifications, **self._supervisor._receipts ).keys():
+                dnMsg = ""            
+                for spec in self._supervisor._specifications.get(dn, []):
+                    dnMsg = dnMsg + mplane.model.unparse_json(spec) + ","
+                for receipt in self._supervisor._receipts.get(dn, []):
+                    dnMsg = dnMsg + mplane.model.unparse_json(receipt) + ","
+                    
+                if len(dnMsg) > 0:
+                    msg = msg + '"' + dn + '": [' + dnMsg[:-1] + "],"
+                        
+            msg = "{" + msg[:-1].replace("\n","") + "}"
+            self.write(msg)
+        except Exception as e:
+            self.write( "{ERROR:\"" + str(e) + "\"}" )
+
+        self.finish()
 
     def post(self):
         self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
 
-class ListReceiptsHandler(tornado.web.RequestHandler):
-    """
-    """
-    def initialize(self, supervisor):
-        self._supervisor = supervisor
-
-    def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
-            return
-        
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
-        self.set_header("Content-Type", "text/json")
-
-    def post(self):
-        self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
 
 class GetResultHandler(tornado.web.RequestHandler):
     """
@@ -179,33 +268,60 @@ class GetResultHandler(tornado.web.RequestHandler):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
+        if self.get_secure_cookie("user") is None:
+            self.redirect("/gui/static/login.html")
             return
-        
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
-        self.set_header("Content-Type", "text/json")
+        try:
+            token = self.get_argument("token")
+            self.set_status(200);
+            self.set_header("Content-Type", "text/json")
+    
+            for dn in self._supervisor._results.keys():
+                for res in self._supervisor._results[dn]:
+                    if res.get_token() == token:
+                        self.write( mplane.model.unparse_json(res) )
+                        self.finish()
+                        return
+            
+            self.write("{ERROR: \"result for token " + token + " is not found\"}")
+        except Exception as e:
+            self.write( "{ERROR:\"" + str(e) + "\"}" )
+
+        self.finish()
 
     def post(self):
         self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
-        
+
 class RunCapabilityHandler(tornado.web.RequestHandler):
+    """    
+      URI should be gui/run/capability?DN - where DN is the distinguished name of probe to run capability 
+      Specification JSON should be posted.  
     """
-    """
+
     def initialize(self, supervisor):
         self._supervisor = supervisor
 
     def get(self):
-        user = self.get_secure_cookie("user").decode('utf-8')
-        if user is None:
-            self.redirect("/gui/login")
-            return
-        
-        print( "Request URI: " + self.request.uri );
-        self.set_status(204, "Not yet implemented");
-        self.set_header("Content-Type", "text/json")
+        self.set_status(405, GUI_LISTCAPABILITIES_PATH + " supports POST only")
+        self.finish();
 
     def post(self):
-        self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
+        try:
+            dn = self.get_query_argument("DN", strip=True)
+            posted = self.request.body.decode("utf-8")
+            
+            filledCapability = mplane.model.parse_json( posted )           
+            spec = mplane.model.Specification( capability=filledCapability )
+            
+            # Capability posted by GUI contains parameter values as constraints allowing single value only
+            for paramname in spec.parameter_names():
+                spec._params[paramname].set_single_value()
+            
+            if self._supervisor.add_spec( spec, dn ):
+                self.write( "{}" )
+            else:
+                self.write( "{ERROR: \"Specification can't be queued.\"}" )
+        except Exception as e:
+            self.write( "{ERROR:\"" + str(e) + "\"}" )
+        self.finish()
+
