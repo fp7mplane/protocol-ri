@@ -1,57 +1,36 @@
-# protocol-ri Introduction
+# Welcome to the Mplane Supervisor Demonstration WEB UI!
 
-This module contains the mPlane protocol reference implementation.
+This web interface (still under development) allows you to control an Mplane Supervisor and access measurement results from the attached Probes and Repositories.
 
-The core classes in the `mplane.model` and `mplane.scheduler` packages are documented using Sphinx; reasonably current Sphinx documentation can be read online [here](https://fp7mplane.github.io/protocol-ri).
+Please report problems and suggestions to the developer team, i.e. [tufa@netvisor.hu](mailto:
+tufa@netvisor.hu)
 
-The draft protocol specification is available in [doc/protocol-spec.md](https://github.com/fp7mplane/protocol-ri/blob/develop/doc); current work is in the `develop` branch.
+###Instructions for use.
 
-The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which __Capabilities__ are published by __Components__, which can accept __Specifications__ for measurements based on these Capabilities, and provide __Results__, either inline or via an indirect export mechanism negotiated using the protocol. 
+1. To start a measurement on a probe, go to the **Capabilities** tab, select one of the offered capabilities (check a cap., click **Create specification** and fill the non-fixed parameters required. (*Make sure to enter syntactically correct values, otherwise you may crash the supervisor*).
 
-Measurement statements are fundamentally based on schemas divided into Parameters, representing information required to run a measurement or query; and Result Columns, the information produced by the measurement or query. Measurement interoperability is provided at the element level; that is, measurements containing the same Parameters and Result Columns are considered to be of the same type and therefore comparable.
+2. The specification will be in a **Pending** state for a while, you can check it on the next tab.
 
-# Using the Reference Implementation
+3. If you do no longer see your spec pending, it may have finished, and available on the **Results** tab. If you click the magnifier lens line, you see a dialog box with the returned values, and if the result is a time series, you can also see your data on a chart.
 
-## Prerequisites
+4. It is also possible to display multiple results (time-based results only) on a single page, i.e. on the **On-Demand Chart View**. To add a chart on here, open the third tab within the results dialog and select one of the 8 fields, that represent the chart spaces on the on-demand view.
 
-The mPlane Reference Implementation requires Python 3.3 and the following additional packages:
+### Page tree
+- **Components**
+ - **Capabilities** - all the registered capablities are listed here. Specifications can be generated after selecting the right specification. In the pop-up window the parameter constraints are pre-filled, these must be modified.
+ - **Pending measurements** - the spicification having no results and receipts are displayed here
+ - **Results** - the collected results can be viewd and visualized via this tab. A user-dependent visualization is avaible by dropping the the parameter to the selected chart-box via the "Add to pn-demand" tab.
+ - **On-Demand Charts** - view the previously configured chart composition
+- Dashboard
+- Settings - user credentials can be managed here
 
-- pyyaml
+###Limitations
 
-*[**Editor's Note**: complete this list]*
+...maybe too many to fully enumerate....
 
-## Core Classes
+- The On-Demand Chart view will allow you to set the display period for your charts (currently does not).
+- It will also be possible, to see multiple instances of the same measurement (i.e. same probe, same parameters, except for time) "concatenated" into a single chart line.
+- Multi-line charts, and further chart customizations are also planned.
+- **Dashboard** and **Settings** tabs are just dummies for now.
+- If you reload the browser, your On-demand view (and other settings) are cleared.
 
-The core classes are documented using Sphinx. Sphinx documentation can be read [here](https://fp7mplane.github.io/protocol-ri).
-
-## Designing a Component
-
-The first step in determining how to build an mPlane component for a given measurement is determining its schema. The best way to do this is to look at the _output_ the component produces, together with the configuration parameters necessary to make it work.
-
-## mPlane Client Shell
-
-The mPlane Client Shell is a quick and dirty command line interface around a generic mPlane HTTP client. ```help``` provides low quality help. To use it:
-
-1. ```connect <url>``` Connect to a component at the given URL; currently supported schema is ```http```. Tries to load capabilities from a list of links at the ```/capabilities``` path relative to this URL. 
-2. ```listcap``` will show capablities available at the connected component, prefaced by capability indexes.
-3. ```when <temporal-scope>``` sets a temporal scope for subsequent invocations; ```when``` on its own shows the current one
-4. ```set <parameter> <value>``` sets a default value for parameters for subsequent invocations; ```show``` shows all current defaults with values
-5. ```runcap <number>``` runs a capability by number in the ```listcap``` list. Any parameters not yet filled in by ```set``` will be prompted for. This will return either a result or receipt, depending on what the component decides to return.
-6. ```redeem``` sends all pending receipts back to the component for results, if available.
-
-Note that this is all very prerelease and nearly guaranteed to change.
-
-## Building HTTP Server Components
-
-_this will probably change when moving to a CLI-based httpsrv.py, so write this then_ 
-
-# Differences between the Reference Implementation and the Protocol Specification
-
-The following classes and features are *not yet implemented* in the reference implementation:
-
-- Indirection messages
-- Withdrawal messages
-- mplane.model support for repeating measurements (assigned to FHA)
-- mplane.model support for prefix constraints
-- mplane.model support for the registry section (esp. default)
-- Callback control as specified in the protocol spec
