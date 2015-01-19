@@ -687,15 +687,48 @@ class ScamperService(mplane.scheduler.Service):
                 self.__service=serv
                 print(serv)
                 break
-        self.__input_funcs={"dealias":self.__input_dealias,"neighbourdisc":self.__input_neighbourdisc,
-                       "ping":self.__input_ping,"trace":self.__input_trace,"tracelb":self.__input_tracelb,
-                       "sniff":self.__input_sniff,"tracebox":self.__input_tracebox}
-        self.__parsing_funcs={"dealias":self.__input_dealias,"neighbourdisc":self.__input_neighbourdisc,
-                       "ping":self.__parse_ping,"trace":_parse_trace,"tracelb":self.__parse_tracelb,
-                       "sniff":self.__input_sniff,"tracebox":self.__parse_tracebox}
-        self.__output_funcs={"dealias":self.__input_dealias,"neighbourdisc":self.__input_neighbourdisc,
-                       "ping":self.__output_ping,"trace":self.__output_trace,"tracelb":self.__output_tracelb,
-                       "sniff":self.__input_sniff,"tracebox":self.__output_tracebox}
+        self.__input_funcs={"dealias":self.__input_dealias,
+                            "neighbourdisc":self.__input_neighbourdisc,
+                            "ping":self.__input_ping,
+                            "trace":self.__input_trace,
+                            "tracelb":self.__input_tracelb,
+                            "sniff":self.__input_sniff,
+                            "tracebox":self.__input_tracebox}
+        self.__parsing_funcs={"dealias":self.__input_dealias,
+                              "neighbourdisc":self.__input_neighbourdisc,
+                              "ping":self.__parse_ping,
+                              "trace":_parse_trace,
+                              "tracelb":self.__parse_tracelb,
+                              "sniff":self.__input_sniff,
+                              "tracebox":self.__parse_tracebox}
+        self.__output_funcs={"dealias":self.__input_dealias,
+                             "neighbourdisc":self.__input_neighbourdisc,
+                             "ping":self.__output_ping,
+                             "trace":self.__output_trace,
+                             "tracelb":self.__output_tracelb,
+                             "sniff":self.__input_sniff,
+                             "tracebox":self.__output_tracebox}
+        self.__capabilities_funcs=[tracebox4_standard_capability,
+                                   tracebox4_specific_capability,
+                                   tracebox4_specific_quotesize_capability,
+                                   ping4_aggregate_capability,
+                                   ping4_singleton_capability,
+                                   trace4_standard_capability,
+                                   tracelb4_standard_capability,
+                                   ping6_aggregate_capability,
+                                   ping6_singleton_capability,
+                                   tracebox6_standard_capability,
+                                   tracebox6_specific_capability,
+                                   tracebox6_specific_quotesize_capability,
+                                   trace6_standard_capability,
+                                   tracelb6_standard_capability]
+
+    def capabilities(self):
+        """
+        returns a list of mplane.model.Capability objects
+        representing the capabilities of this component
+        """
+        return [f() for f in self.__capabilities_funcs]
 
     ########################### INPUT #########################
     def __input_dealias(self):
