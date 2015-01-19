@@ -138,7 +138,7 @@ the component from which we got the capability:
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "10.0.37.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
@@ -165,7 +165,7 @@ by assigning values to parameters which changed and result columns
 measured:
 
 >>> res = mplane.model.Result(specification=comspec)
->>> res.set_when("2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000")
+>>> res.set_when("2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000")
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
@@ -180,7 +180,7 @@ The result can then be serialized and sent back to the client:
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
+  "when": "2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "10.0.37.2"},
   "results": ["delay.twoway.icmp.us.min", 
@@ -194,7 +194,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.parse_json(resjson)
 >>> clires
-<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
+<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -220,7 +220,7 @@ which can be used to quickly identify it in the future.
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "4e66a52f575499129f748a60eb0a26c7", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
