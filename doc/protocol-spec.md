@@ -627,9 +627,9 @@ offered by the associated components, according to its privileges.
 Therefore, any client will only has access to capabilities at the supervisor 
 that it is authorized to execute. The same controls are enforced on specifications.
 
-### Paths in mPlane URLS
+### Paths in mPlane URLs
 
-*[**Editor's Note**: ]
+*[**Editor's Note**: Add text here on how mPlane components and clients can encode additional information in URLs via the link section. Note ease of implementation for many web application frameworks of using different paths for different types of messages. There are some additional conventions used for mPlane over HTTPS. If a client or component has a URL it should use that for all interactions with its peer. However, if a client can only discover a component's address, it should `GET /capabilities` to get that component's capabilities. If a client posts a specification for a capability that does not contain a link to a component, and only has that component's address, it should `POST` the specification to `/specification`. If a component wants to return results to a client and only has the client's address, and the corresponding specification does not have a link, it should `POST` the result to `/result`.]*
 
 ## mPlane over SSH
 
