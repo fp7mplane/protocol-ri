@@ -24,12 +24,14 @@
 #
 
 import mplane.utils
+import mplane.model
 import importlib
 import configparser
 
 class Component(object):
     
     def __init__(self, config_file):
+        mplane.model.initialize_registry()
         self.config = config_file
     
     def services(self):
@@ -45,7 +47,8 @@ class Component(object):
                 for arg in config[section]:
                     if not arg.startswith("module"):
                         kwargs[arg] = config[section][arg]
-                services.append(module.services(**kwargs))
+                for service in module.services(**kwargs):
+                    services.append(service)
         return services
 
 if __name__ == "__main__":
