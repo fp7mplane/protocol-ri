@@ -77,7 +77,7 @@ total count of singleton measurements taken and packets lost:
 >>> cap.add_result_column("delay.twoway.icmp.us.min")
 >>> cap.add_result_column("delay.twoway.icmp.us.max")
 >>> cap.add_result_column("delay.twoway.icmp.us.mean")
->>> cap.add_result_column("delay.twoway.icmp.us.count")
+>>> cap.add_result_column("delay.twoway.icmp.count")
 >>> cap.add_result_column("packets.lost")
 
 Now we have a capability we could transform into JSON and make 
@@ -86,14 +86,16 @@ download or configuration:
 
 >>> capjson = mplane.model.unparse_json(cap)
 >>> capjson # doctest: +SKIP
-'{"capability": "measure", 
+'{"capability": "measure",
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core", 
   "when": "now ... future / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "*"},
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"]}'
 
 On the client side, we'd receive this capability as a JSON object and turn it
@@ -102,7 +104,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<specification: measure when now ... future / 1s token 48d7393c schema 21e2a15a p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token 4e66a52f schema 5ce99352 p(v)/m/r 2(0)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters, 
 no metadata, and five result columns.
@@ -133,6 +135,8 @@ the component from which we got the capability:
 >>> specjson = mplane.model.unparse_json(spec)
 >>> specjson # doctest: +SKIP
 '{"specification": "measure", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
   "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
@@ -140,7 +144,7 @@ the component from which we got the capability:
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"]}'
 
 On the component side, likewise, we'd receive this specification as a JSON
@@ -165,7 +169,7 @@ measured:
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
->>> res.set_result_value("delay.twoway.icmp.us.count", 58220)
+>>> res.set_result_value("delay.twoway.icmp.count", 58220)
 >>> res.set_result_value("packets.lost", 2)
 
 The result can then be serialized and sent back to the client:
@@ -173,6 +177,8 @@ The result can then be serialized and sent back to the client:
 >>> resjson = json.dumps(res.to_dict())
 >>> resjson # doctest: +SKIP
 '{"result": "measure", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
   "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
   "parameters": {"source.ip4": "10.0.27.2", 
@@ -180,7 +186,7 @@ The result can then be serialized and sent back to the client:
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"],  
   "resultvalues": [["33155", "192307", "55166", "58220", "2"]]}'
 
@@ -188,7 +194,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.message_from_dict(json.loads(resjson))
 >>> clires
-<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 48d7393c schema 21e2a15a p/m/r(r) 2/0/5(1)>
+<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -199,7 +205,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'48d7393c75aec14043c3a5af4f461013'
+'4e66a52f575499129f748a60eb0a26c7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -211,14 +217,16 @@ which can be used to quickly identify it in the future.
 >>> jsonrcpt = json.dumps(rcpt.to_dict())
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
-  "token": "48d7393c75aec14043c3a5af4f461013", 
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
+  "token": "4e66a52f575499129f748a60eb0a26c7", 
   "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
               "delay.twoway.icmp.us.max", 
               "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.us.count", 
+              "delay.twoway.icmp.count", 
               "packets.lost"],}'
 
 The component keeps the receipt, keyed by token, and returns it to the
@@ -227,24 +235,32 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
 >>> clircpt
-<receipt: 48d7393c75aec14043c3a5af4f461013>
+<receipt: 4e66a52f575499129f748a60eb0a26c7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<redemption: 48d7393c75aec14043c3a5af4f461013>
+<redemption: 4e66a52f575499129f748a60eb0a26c7>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
 results:
 
->>> json.dumps(rdpt.to_dict(token_only=True))
-'{"redemption": "measure", "version": 0, "token": "48d7393c75aec14043c3a5af4f461013"}'
+>>> json.dumps(rdpt.to_dict(token_only=True)) # doctest: +SKIP
+'{"redemption": "measure", 
+  "version": 1, 
+  "registry": "http://ict-mplane.eu/registry/core", 
+  "token": "4e66a52f575499129f748a60eb0a26c7"
+}'
 
 .. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
  
 
 """
 
-from ipaddress import ip_address
+try:
+    from ipaddress import ip_address
+except ImportError:
+    from ipaddr import IPAddress as ip_address
+
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
 import urllib.request
@@ -268,6 +284,8 @@ DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
 ANCHOR_SEP = "#"
+INNER_WHEN_SEP_START = " { "
+INNER_WHEN_SEP_END = " } "
 
 CONSTRAINT_ALL = "*"
 VALUE_NONE = "*"
@@ -275,6 +293,9 @@ VALUE_NONE = "*"
 TIME_PAST = "past"
 TIME_NOW = "now"
 TIME_FUTURE = "future"
+
+WHEN_REPEAT = "repeat "
+WHEN_CRON = " cron "
 
 VERB_MEASURE = "measure"
 VERB_QUERY = "query"
@@ -291,6 +312,9 @@ KEY_LINK = "link"
 KEY_EXPORT = "export"
 KEY_VERSION = "version"
 KEY_WHEN = "when"
+KEY_WHEN_REPEAT = "repeated-when"
+KEY_WHEN_OTHER = "outer-when"
+KEY_WHEN_INNER = "inner-when"
 KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
@@ -326,14 +350,14 @@ KEY_ELEMENTS = "elements"
 KEY_ELEMNAME = "name"
 KEY_ELEMPRIM = "prim"
 KEY_ELEMDESC = "desc"
-REGURI_DEFAULT = "http://ict-mplane.eu/registry/core.json"
+REGURI_DEFAULT = "http://ict-mplane.eu/registry/core"
 REGFMT_FLAT = "mplane-0"
 
 #######################################################################
 # Protocol constants
 #######################################################################
 
-MPLANE_VERSION = 0 # version 0 -- pre-D1.4 protocol, no interop guarantee
+MPLANE_VERSION = 1 # version 1 -- D1.4 protocol, interop guarantee
 
 #######################################################################
 # Reference implementation constants
@@ -361,6 +385,10 @@ _dur_seclabel = ( (86400, 'd'),
                   ( 3600, 'h'),
                   (   60, 'm'),
                   (    1, 's') )
+
+_innerwhen_pat = '\{ (.*?) \}'
+_innerwhen_re = re.compile(_innerwhen_pat)
+
 
 def parse_time(valstr):
     if valstr is None:
@@ -492,40 +520,150 @@ def _parse_wdayset(valstr):
 def _unparse_wdayset(valset):
     return SET_SEP.join(map(lambda x: _dow_label[x], sorted(list(valset))))
 
+
+class _Crontab(object):
+    def __init__(self):
+        super().__init__()
+        self._months = set()
+        self._days = set()
+        self._weekdays = set()
+        self._hours = set()
+        self._minutes = set()
+        self._seconds = set()
+
+    def _parse_value(self, val):
+        # Check if this is a range
+        rangesplit = val.split('-')
+        if len(rangesplit) > 1:
+            return set(range(int(rangesplit[0]),int(rangesplit[1])+1))
+
+        # Parse numset
+        return _parse_numset(val)
+
+    def _parse(self, valstr):
+        valsplit = valstr.split()
+
+        if len(valsplit) != 6:
+            raise ValueError(repr(valstr)+" does not appear to be a mPlane crontab")
+
+        self._seconds = set(range(0,60)) if (valsplit[0] == '*') else self._parse_value(valsplit[0])
+        self._minutes = set(range(0,60)) if (valsplit[1] == '*') else self._parse_value(valsplit[1])
+        self._hours = set(range(0,60)) if (valsplit[2] == '*') else self._parse_value(valsplit[2])
+        self._days = set(range(1,32)) if (valsplit[3] == '*') else self._parse_value(valsplit[3])
+        self._weekdays = set(range(0,7)) if (valsplit[4] == '*') else self._parse_value(valsplit[4])
+        self._months = set(range(1,13)) if (valsplit[5] == '*') else self._parse_value(valsplit[5])
+
+    def __str__(self):
+        return" ".join([_unparse_numset(self._seconds),
+                        _unparse_numset(self._minutes),
+                        _unparse_numset(self._hours),
+                        _unparse_numset(self._days),
+                        _unparse_numset(self._weekdays),
+                        _unparse_numset(self._months)])
+
+    def __repr__(self):
+        return "cron "+str(self)
+
 class When(object):
     """
     Defines the temporal scopes for capabilities, results, or 
     single measurement specifications.
 
     """
-    def __init__(self, valstr=None, a=None, b=None, d=None, p=None):
+    def __init__(self, valstr=None, a=None, b=None, duration=None, period=None,
+                 repeated=False, inner_duration=None, inner_period=None, crontab=None):
         super().__init__()
         self._a = a
         self._b = b
-        self._d = d
-        self._p = p
+        self._duration = duration
+        self._period = period
+        self._repeated = repeated
+        self._inner_duration = inner_duration
+        self._inner_period = inner_period
+        self._crontab = crontab
 
         if valstr is not None:
             self._parse(valstr)
 
     def _parse(self, valstr):
-        # First separate the period from the value and parse it
+        # First check if this is a repeated measurement
+        valsplit = valstr.split(WHEN_REPEAT)
+        if len(valsplit) > 1:
+            self._repeated = True
+
+            # Remove 'repeat '
+            valstr = valsplit[1]
+
+            # Check for inner when
+            innervalstr = _innerwhen_re.search(valstr)
+            if innervalstr:
+                innervalstr = innervalstr.group(1)
+                # check if inner-when begins with 'now'
+                if not innervalstr.startswith(TIME_NOW):
+                    raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (inner when has to be relative to now)")
+
+                # Separate the period from the value and parse it
+                valsplit = innervalstr.split(PERIOD_SEP)
+                if len(valsplit) > 1:
+                    (innervalstr, perstr) = valsplit
+                    self._inner_period = parse_dur(perstr)
+                else:
+                    self._period = None
+
+                # then try to split duration
+                valsplit = innervalstr.split(DURATION_SEP)
+                if len(valsplit) > 1:
+                    (innervalstr, durstr) = valsplit
+                    self._inner_duration = parse_dur(durstr)
+                    valsplit = [innervalstr]
+                else:
+                    self._inner_duration = None
+
+            # Remove inner when
+            valsplit = valstr.split(INNER_WHEN_SEP_START)[0]
+
+            # Finally check for a crontab
+            valsplit = valsplit.split(WHEN_CRON)
+            if len(valsplit) > 1:
+                # remove inner when and parse the crontab
+                self._crontab = _Crontab()
+                self._crontab._parse(valsplit[1])
+            else:
+                self._crontab = None
+
+            # Remove crontab
+            valstr = valsplit[0]
+        else:
+            self._inner_duration = None
+            self._inner_period = None
+            self._crontab = None
+
+        # Outer-when or simple-when
+        # separate the period from the value and parse it
         valsplit = valstr.split(PERIOD_SEP)
         if len(valsplit) > 1:
             (valstr, perstr) = valsplit
-            self._p = parse_dur(perstr)
+            self._period = parse_dur(perstr)
         else:
-            self._p = None
+            self._period = None
 
         # then try to split duration or range
         valsplit = valstr.split(DURATION_SEP)
         if len(valsplit) > 1:
             (valstr, durstr) = valsplit
-            self._d = parse_dur(durstr)
+            self._duration = parse_dur(durstr)
             valsplit = [valstr]
         else:
-            self._d = None
+            self._duration = None
             valsplit = valstr.split(RANGE_SEP)
+
+        # if this is a repeated-when without a cron, period has to be set
+        if self._repeated and self._crontab is None and self._period is None:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (no duration or cron set)")
+
+        # if this is a repeated-when with cron, period must not be set
+        if self._repeated and self._crontab and self._period:
+            raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (duration and cron set at the same time)")
         
         self._a = parse_time(valsplit[0])
         if len(valsplit) > 1:
@@ -534,15 +672,30 @@ class When(object):
             self._b = None
 
     def __str__(self):
-        valstr = unparse_time(self._a)
+        if self._repeated:
+            valstr = "".join((WHEN_REPEAT, unparse_time(self._a)))
+        else:
+            valstr = "".join((unparse_time(self._a)))
 
         if self._b is not None:
             valstr = "".join((valstr, RANGE_SEP, unparse_time(self._b)))
-        elif self._d is not None:
-            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._d)))
+        elif self._duration is not None:
+            valstr = "".join((valstr, DURATION_SEP, unparse_dur(self._duration)))
 
-        if (self._p) is not None:
-            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._p)))
+        if self._period is not None:
+            valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._period)))
+
+        if self._crontab is not None:
+            valstr = "".join((valstr, WHEN_CRON, str(self._crontab)))
+
+        if self._inner_duration is not None:
+            valstr = "".join((valstr, INNER_WHEN_SEP_START, TIME_NOW, DURATION_SEP, unparse_dur(self._inner_duration)))
+
+            if self._inner_period is not None:
+                valstr = "".join((valstr, PERIOD_SEP, unparse_dur(self._inner_period)))
+
+            valstr = "".join((valstr, INNER_WHEN_SEP_END))
+
         return valstr
 
     def __repr__(self):
@@ -591,7 +744,14 @@ class When(object):
         or Results.
 
         """
-        return self._a is not None and self._b is None and self._d is None
+        return self._a is not None and self._b is None and self.duration() is None
+
+    def is_repeated(self):
+        """
+        Return True if this temporal scope referes to a
+        repeated when.
+        """
+        return self._repeated
 
     def datetimes(self, tzero=None):
         """
@@ -614,8 +774,8 @@ class When(object):
         elif self._b is time_future:
             end = None
         elif self._b is None:
-            if self._d is not None:
-                end = start + self._d
+            if self.duration() is not None:
+                end = start + self.duration()
             else:
                 end = start
         else:
@@ -628,8 +788,8 @@ class When(object):
         Return the duration of this temporal scope as a timedelta.
 
         """
-        if self._d is not None:
-            return self._d
+        if self._duration is not None:
+            return self._duration
         elif self._b is None:
             return timedelta()
         elif self._b is time_future:
@@ -639,7 +799,7 @@ class When(object):
             return end - start
 
     def period(self):
-        return self._p
+        return self._period
 
     def timer_delays(self, tzero=None):
         """
@@ -677,8 +837,8 @@ class When(object):
         # determine end delay
         if self._b is not None and self._b is not time_future:
             ed = (end - tzero).total_seconds()
-        elif self._d is not None:
-            ed = sd + self._d.total_seconds();
+        elif self.duration() is not None:
+            ed = sd + self.duration().total_seconds()
         else:
             ed = None
 
@@ -728,7 +888,9 @@ class When(object):
         Return True if this scope follows (is contained by) another.
 
         """
-        if s.period() is not None and (self._p is None or self._p < s.period()):
+        if not self._repeated and s.period() is not None and (self.period() is None or self.period() < s.period()):
+            return False
+        if self._repeated and s.period() is not None and (self._inner_period is None or self._inner_period < s.period()):
             return False
         if s.in_scope(self._a, tzero):
             return True
@@ -737,125 +899,179 @@ class When(object):
         else:
             return False
 
-when_infinite = When(a=time_past, b=time_future)
-
-class Schedule(object):
-    """
-    Defines a schedule for repeated operations based on crontab-like
-    sets of months, days, days of weeks, hours, minutes, and seconds.
-    Used to specify repetitions of single measurements in a Specification.
-    Designed to be broadly compatible with LMAP calendar-based scheduling.
-
-    This class is not yet fully implemented or integrated into the
-    information model.
-
-    """
-    def __init__(self, dictval=None, when=None):
-        super().__init__()
-        self._when = when
-        self._months = set()
-        self._days = set()
-        self._weekdays = set()
-        self._hours = set()
-        self._minutes = set()
-        self._seconds = set()
-
-        if dictval is not None:
-            self._from_dict(dictval)
-
-    def __repr__(self):
-        rs = "<Schedule "
-        if self._when is not None:
-            rs += repr(self._when) + " "
-        rs += "cron "
-        rs += "/".join(map(str, [len(self._months),
-                                 len(self._days),
-                                 len(self._weekdays),
-                                 len(self._hours),
-                                 len(self._minutes),
-                                 len(self._seconds)]))
-        rs += ">"
-        return rs
-
-    def to_dict(self):
+    def iterator(self, t=None):
         """
-        Represents this schedule as a dictionary (for serialization).
+        Returns an iterator over When statements generated by a repeated when.
 
         """
-        d = {}
-        if self._when:
-            d[KEY_WHEN] = str(self._when)
-        if len(self._months):
-            d[KEY_MONTHS] = _unparse_numset(self._months)
-        if len(self._days):
-            d[KEY_DAYS] = _unparse_numset(self._days)
-        if len(self._weekdays):
-            d[KEY_WEEKDAYS] = _unparse_wdayset(self._weekdays)
-        if len(self._hours):
-            d[KEY_HOURS] = _unparse_numset(self._hours)
-        if len(self._minutes):
-            d[KEY_MINUTES] = _unparse_numset(self._minutes)
-        if len(self._seconds):
-            d[KEY_SECONDS] = _unparse_numset(self._seconds)
-        return d
+        if not self._repeated:
+            raise Exception("Can't get iterator for non-repeated when")
 
-    def _from_dict(self, d):
-        if KEY_WHEN in d:
-            self._when = When(valstr=d[KEY_WHEN])
-        if KEY_MONTHS in d:
-            self._months = _parse_numset(d[KEY_MONTHS])
-        if KEY_DAYS in d:
-            self._days = _parse_numset(d[KEY_DAYS])
-        if KEY_WEEKDAYS in d:
-            self._weekdays = _parse_wdayset(d[KEY_WEEKDAYS])
-        if KEY_HOURS in d:
-            self._hours = _parse_numset(d[KEY_HOURS])
-        if KEY_MINUTES in d:
-            self._minutes = _parse_numset(d[KEY_MINUTES])
-        if KEY_SECONDS in d:
-            self._seconds = _parse_numset(d[KEY_SECONDS])
-
-    def datetime_iterator(self, t=None):
-        """
-        Returns an iterator over datetimes generated by the schedule 
-        and period. 
-
-        """
         # default to now, zero microseconds, initialize minus one second
         if t is None:
             t = datetime.utcnow().replace(microsecond=0)
 
         # get base period (default 1s) and
-        period = None
-        if self._when is not None:
-            period = self._when.period()
+        period = self.period()
         if period is None:
             period = timedelta(seconds=1)
 
         # fast forward if necessary
-        lag = self._when.sort_scope(t)
+        lag = self.sort_scope(t)
         if lag < 0:
             t += timedelta(seconds=-lag)
 
+        tzero = t
+
         # loop through time by period and check for match
         t -= period
-        while True:
-            t += period
-            if self._when is not None and not self._when.in_scope(t):
-                break
-            if len(self._seconds) and (t.second not in self._seconds):
-                continue
-            if len(self._minutes) and (t.minute not in self._minutes):
-                continue
-            if len(self._hours) and (t.hour not in self._hours):
-                continue
-            if len(self._days) and (t.day not in self._days):
-                continue
-            if len(self._weekdays) and (t.weekday() not in self._weekdays):
-                continue
-            if len(self._months) and (t.month not in self._months):
-                continue
-            yield t
+        # repeat with cron
+        if self._crontab:
+            while True:
+                t += period
+                if self.sort_scope(t, tzero) > 0:
+                    break
+                if len(self._crontab._seconds) and (t.second not in self._crontab._seconds):
+                    continue
+                if len(self._crontab._minutes) and (t.minute not in self._crontab._minutes):
+                    continue
+                if len(self._crontab._hours) and (t.hour not in self._crontab._hours):
+                    continue
+                if len(self._crontab._days) and (t.day not in self._crontab._days):
+                    continue
+                if len(self._crontab._weekdays) and ((t.weekday() + 1) % 7 not in self._crontab._weekdays):
+                    continue
+                if len(self._crontab._months) and (t.month not in self._crontab._months):
+                    continue
+                yield When(a=t, period=self._inner_period, duration=self._inner_duration)
+        # repeat without cron
+        else:
+            while True:
+                t += period
+                if self.sort_scope(t, tzero) > 0:
+                    break
+
+                yield When(a=t, period=self._inner_period, duration=self._inner_duration)
+
+when_infinite = When(a=time_past, b=time_future)
+
+# class Schedule(object):
+#     """
+#     Defines a schedule for repeated operations based on crontab-like
+#     sets of months, days, days of weeks, hours, minutes, and seconds.
+#     Used to specify repetitions of single measurements in a Specification.
+#     Designed to be broadly compatible with LMAP calendar-based scheduling.
+
+#     This class is not yet fully implemented or integrated into the
+#     information model.
+
+#     """
+#     def __init__(self, dictval=None, when=None):
+#         super().__init__()
+#         self._when = when
+#         self._months = set()
+#         self._days = set()
+#         self._weekdays = set()
+#         self._hours = set()
+#         self._minutes = set()
+#         self._seconds = set()
+
+#         if dictval is not None:
+#             self._from_dict(dictval)
+
+#     def __repr__(self):
+#         rs = "<Schedule "
+#         if self._when is not None:
+#             rs += repr(self._when) + " "
+#         rs += "cron "
+#         rs += "/".join(map(str, [len(self._months),
+#                                  len(self._days),
+#                                  len(self._weekdays),
+#                                  len(self._hours),
+#                                  len(self._minutes),
+#                                  len(self._seconds)]))
+#         rs += ">"
+#         return rs
+
+#     def to_dict(self):
+#         """
+#         Represents this schedule as a dictionary (for serialization).
+
+#         """
+#         d = {}
+#         if self._when:
+#             d[KEY_WHEN] = str(self._when)
+#         if len(self._months):
+#             d[KEY_MONTHS] = _unparse_numset(self._months)
+#         if len(self._days):
+#             d[KEY_DAYS] = _unparse_numset(self._days)
+#         if len(self._weekdays):
+#             d[KEY_WEEKDAYS] = _unparse_wdayset(self._weekdays)
+#         if len(self._hours):
+#             d[KEY_HOURS] = _unparse_numset(self._hours)
+#         if len(self._minutes):
+#             d[KEY_MINUTES] = _unparse_numset(self._minutes)
+#         if len(self._seconds):
+#             d[KEY_SECONDS] = _unparse_numset(self._seconds)
+#         return d
+
+#     def _from_dict(self, d):
+#         if KEY_WHEN in d:
+#             self._when = When(valstr=d[KEY_WHEN])
+#         if KEY_MONTHS in d:
+#             self._months = _parse_numset(d[KEY_MONTHS])
+#         if KEY_DAYS in d:
+#             self._days = _parse_numset(d[KEY_DAYS])
+#         if KEY_WEEKDAYS in d:
+#             self._weekdays = _parse_wdayset(d[KEY_WEEKDAYS])
+#         if KEY_HOURS in d:
+#             self._hours = _parse_numset(d[KEY_HOURS])
+#         if KEY_MINUTES in d:
+#             self._minutes = _parse_numset(d[KEY_MINUTES])
+#         if KEY_SECONDS in d:
+#             self._seconds = _parse_numset(d[KEY_SECONDS])
+
+#     def datetime_iterator(self, t=None):
+#         """
+#         Returns an iterator over datetimes generated by the schedule 
+#         and period. 
+
+#         """
+#         # default to now, zero microseconds, initialize minus one second
+#         if t is None:
+#             t = datetime.utcnow().replace(microsecond=0)
+
+#         # get base period (default 1s) and
+#         period = None
+#         if self._when is not None:
+#             period = self._when.period()
+#         if period is None:
+#             period = timedelta(seconds=1)
+
+#         # fast forward if necessary
+#         lag = self._when.sort_scope(t)
+#         if lag < 0:
+#             t += timedelta(seconds=-lag)
+
+#         # loop through time by period and check for match
+#         t -= period
+#         while True:
+#             t += period
+#             if self._when is not None and not self._when.in_scope(t):
+#                 break
+#             if len(self._seconds) and (t.second not in self._seconds):
+#                 continue
+#             if len(self._minutes) and (t.minute not in self._minutes):
+#                 continue
+#             if len(self._hours) and (t.hour not in self._hours):
+#                 continue
+#             if len(self._days) and (t.day not in self._days):
+#                 continue
+#             if len(self._weekdays) and (t.weekday() not in self._weekdays):
+#                 continue
+#             if len(self._months) and (t.month not in self._months):
+#                 continue
+#             yield t
 
 def test_tscope():
     """Test When"""
@@ -1160,7 +1376,7 @@ class Element(object):
         return self._name
 
     def __repr__(self):
-        return "<Element "+self.qualified_name()+" "+repr(self._prim)+" >"
+        return "<Element "+self._qualname+" "+repr(self._prim)+" >"
 
     def name(self):
         """Return the name of this Element"""
@@ -1299,90 +1515,124 @@ class Registry(object):
 
         return json.dumps(d, indent=4)
 
-_registry = None
+    def uri():
+        """
+        Return the URI by which this registry is known.
+
+         """
+        return _uri
+
+_base_registry = None
+_registries = {}
 
 def initialize_registry(uri=REGURI_DEFAULT):
     """
     Initializes the mPlane registry from a URI; if no URI is given,
     initializes the registry from the internal core registry.
-    """
-    global _registry
-    _registry = Registry(uri)
 
-def element(name):
-    return _registry[name]
+    Call this before doing anything else.
+
+    """
+    global _base_registry
+    global _registries
+    _base_registry = Registry(uri)
+    _registries[uri] = _base_registry
+
+def registry_for_uri(uri):
+    """
+    Get a registry for a given URI, maintaining a local cache.
+    Called when parsing statements; generally not useful in client code. 
+
+    """
+    global _registries
+
+    if uri not in _registries:
+        _registries[uri] = Registry(uri)
+
+    return _registries[uri]
+
+def base_registry():
+    global _base_registry
+    return _base_registry
+
+def element(name, reguri=None):
+    global _base_registry
+    global _registries
+    if reguri:
+        return _registries[reguri][name]
+    else:
+        return _base_registry[name]
 
 #######################################################################
 # Old registry methods
 #######################################################################
 
-_typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
-_desc_re = re.compile('^\s+([^#]+)')
-_comment_re = re.compile('^\s*\#')
+# _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
+# _desc_re = re.compile('^\s+([^#]+)')
+# _comment_re = re.compile('^\s*\#')
 
-def _old_parse_elements(lines):
-    """
-    Given an iterator over lines from a file or stream describing
-    a set of Elements, returns a list of Elements. This file should 
-    contain element names and primitive names separated by ":" in the 
-    leftmost column, followed by zero or more indented lines of 
-    description. Used to initialize the mPlane element registry from a file;
-    call initialize_registry instead
+# def _old_parse_elements(lines):
+#     """
+#     Given an iterator over lines from a file or stream describing
+#     a set of Elements, returns a list of Elements. This file should 
+#     contain element names and primitive names separated by ":" in the 
+#     leftmost column, followed by zero or more indented lines of 
+#     description. Used to initialize the mPlane element registry from a file;
+#     call initialize_registry instead
        
-    """
-    elements = []
-    desclines = []
+#     """
+#     elements = []
+#     desclines = []
 
-    for line in lines:
-        m = _typedef_re.match(line)
-        if m:
-            if len(elements) and len(desclines):
-                elements[-1]._desc = " ".join(desclines)
-                desclines.clear()
-            elements.append(Element(m.group(1), _prim[m.group(2)]))
-        else:
-            m = _desc_re.match(line)
-            if m:
-                desclines.append(m.group(1))
+#     for line in lines:
+#         m = _typedef_re.match(line)
+#         if m:
+#             if len(elements) and len(desclines):
+#                 elements[-1]._desc = " ".join(desclines)
+#                 desclines.clear()
+#             elements.append(Element(m.group(1), _prim[m.group(2)]))
+#         else:
+#             m = _desc_re.match(line)
+#             if m:
+#                 desclines.append(m.group(1))
 
-    if len(elements) and len(desclines):
-        elements[-1]._desc = "".join(desclines)
+#     if len(elements) and len(desclines):
+#         elements[-1]._desc = "".join(desclines)
 
-    return elements
+#     return elements
 
-_old_element_registry = collections.OrderedDict()
+# _old_element_registry = collections.OrderedDict()
 
-def _old_parse_registry(filename=None):
-    """
-    Initializes the mPlane registry from a file; if no filename is given,
-    initializes the registry from the internal set of Elements.
-    """
-    _old_element_registry.clear()
+# def _old_parse_registry(filename=None):
+#     """
+#     Initializes the mPlane registry from a file; if no filename is given,
+#     initializes the registry from the internal set of Elements.
+#     """
+#     _old_element_registry.clear()
 
-    if filename is None:
-        filename = os.path.join(os.path.dirname(__file__), "registry.txt")
+#     if filename is None:
+#         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
 
-    with open(filename, mode="r") as file:
-        for elem in _old_parse_elements(file):
-            _old_element_registry[elem._name] = elem
+#     with open(filename, mode="r") as file:
+#         for elem in _old_parse_elements(file):
+#             _old_element_registry[elem._name] = elem
 
-def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
-    _old_parse_registry(in_filename)
+# def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
+#     _old_parse_registry(in_filename)
     
-    reg = Registry(uri=uri, parse=False)
-    reg._revision = 0
+#     reg = Registry(uri=uri, parse=False)
+#     reg._revision = 0
 
-    for elem in _old_element_registry.values():
-        reg._add_element(elem)
+#     for elem in _old_element_registry.values():
+#         reg._add_element(elem)
 
-    jstr = reg._dump_json()
+#     jstr = reg._dump_json()
 
-    if out_filename is not None:
-        with open(out_filename, "w") as jfile:
-            jfile.write(jstr)
-    else:
-        print(jstr)
-        
+#     if out_filename is not None:
+#         with open(out_filename, "w") as jfile:
+#             jfile.write(jstr)
+#     else:
+#         print(jstr)
 
 #######################################################################
 # Constraints
@@ -1612,7 +1862,7 @@ class Metavalue(Element):
                " value "+repr(self._val)+" >"
 
     def set_value(self, val):
-        if instanceof(val, str):
+        if isinstance(val, str):
             val = self._prim.parse(val)
         self._val = val
 
@@ -1679,10 +1929,11 @@ class Statement(object):
 
     """
     
-    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
         super().__init__()
         # Make a blank statement
         self._version = MPLANE_VERSION
+        self._reguri = REGURI_DEFAULT
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -1691,7 +1942,6 @@ class Statement(object):
         self._token = None
         self._link = None
         self._export = None
-        self._schedule = None
 
         if dictval is not None:
             # Fill in from dictionary
@@ -1706,6 +1956,8 @@ class Statement(object):
             elif isinstance(when, str):
                 when = When(when)           
             self._when = when
+            if reguri is not None:
+                self._reguri = reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -1737,9 +1989,9 @@ class Statement(object):
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically add a parameter to this statement."""
-        self._params[elem_name] = Parameter(element(elem_name), 
-                                  constraint=constraint,
-                                  val = val)
+        self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri), 
+                                            constraint=constraint,
+                                            val = val)
 
     def has_parameter(self, elem_name):
         """Return True if the statement has a parameter with the given name"""
@@ -1780,7 +2032,7 @@ class Statement(object):
 
     def add_metadata(self, elem_name, val):
         """Programatically add a metadata element to this statement."""
-        self._metadata[elem_name] = Metavalue(element(elem_name), val)
+        self._metadata[elem_name] = Metavalue(element(elem_name, reguri=self._reguri), val)
 
     def has_metadata(self, elem_name):
         """Return True if the statement has a metadata element with the given name"""
@@ -1796,7 +2048,7 @@ class Statement(object):
 
     def add_result_column(self, elem_name):
         """Programatically add a result column to this Statement."""
-        self._resultcolumns[elem_name] = ResultColumn(element(elem_name))
+        self._resultcolumns[elem_name] = ResultColumn(element(elem_name, reguri=self._reguri))
 
     def has_result_column(self, elem_name):
         return elem_name in self._resultcolumns
@@ -1840,6 +2092,10 @@ class Statement(object):
         """Return the statement's label"""
         return self._label
 
+    def relabel(self, label):
+        """Set the statement's label"""
+        self._label = label
+
     def when(self):
         """Get the statement's temporal scope"""
         return self._when
@@ -1866,7 +2122,8 @@ class Statement(object):
         and result columns (the schema) of this statement.
 
         """
-        sstr = "p " + " ".join(sorted(self._params.keys())) + \
+        sstr = self._reguri + \
+               " p " + " ".join(sorted(self._params.keys())) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
         hstr = hashlib.md5(sstr.encode('utf-8')).hexdigest()
         if lim is not None:
@@ -1874,7 +2131,7 @@ class Statement(object):
         else:
             return hstr
 
-    def _pv_hash(self, lim=None):
+    def _pv_hash(self, lim=None, astr=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         temporal scope, parameter values, and result columns 
@@ -1883,17 +2140,19 @@ class Statement(object):
         """
         spk = sorted(self._params.keys())
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
-        tstr = self._verb + " w " + str(self._when) +\
+        tstr = self._reguri + self._verb + " w " + str(self._when) +\
                " pk " + " ".join(spk) + \
                " pv " + " ".join(spv) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
+        if astr:
+            tstr += astr
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
         else:
             return hstr
 
-    def _mpcv_hash(self, lim=None):
+    def _mpcv_hash(self, lim=None, astr=None):
         """
         Return a hex string uniquely identifying the set of parameters,
         temporal scope, parameter constraints, parameter values, metadata, metadata values, 
@@ -1906,11 +2165,15 @@ class Statement(object):
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
         smk = sorted(self._metadata.keys())
         smv = [self._metadata[k].unparse(self._metadata[k].get_value()) for k in smk]
-        tstr = self._verb + " w " + str(self._when) +\
+        tstr = self._reguri + self._verb + \
+               " w " + str(self._when) + \
                " pk " + " ".join(spk) + \
                " pc " + " ".join(spc) + " pv " + " ".join(spv) + \
                " mk " + " ".join(smk) + " mv " + " ".join(smv) + \
-               " r " + " ".join(sorted(self._resultcolumns.keys()))
+               " r " + " ".join(sorted(self._resultcolumns.keys())) + \
+               " ex " + str(self._export)
+        if astr:
+            tstr += astr
         hstr = hashlib.md5(tstr.encode('utf-8')).hexdigest()
         if lim is not None:
             return hstr[:lim]
@@ -1954,6 +2217,8 @@ class Statement(object):
 
         d[KEY_VERSION] = self._version
 
+        d[KEY_REGISTRY] = self._reguri
+
         if self._label is not None:
             d[KEY_LABEL] = self._label
 
@@ -1967,9 +2232,6 @@ class Statement(object):
             d[KEY_TOKEN] = self._token
 
         d[KEY_WHEN] = str(self._when)
-
-        if self._schedule is not None:
-            d[KEY_SCHEDULE] = self._schedule.to_dict()
 
         if self.count_parameters() > 0:
             d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
@@ -2009,6 +2271,10 @@ class Statement(object):
         if KEY_VERSION in d:
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
+
+        if KEY_REGISTRY in d:
+            self._reguri = d[KEY_REGISTRY]
+            registry_for_uri(self._reguri) # make sure the registry is loaded
 
         if KEY_LABEL in d:
             self._label = d[KEY_LABEL]
@@ -2110,21 +2376,17 @@ class Specification(Statement):
     def __init__(self, dictval=None, capability=None, verb=VERB_MEASURE, label=None, token=None, when=None, schedule=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
 
-        if dictval is None:
-            # No dictionary, fill in schedule
-            self._schedule = schedule
+        if dictval is None and capability is not None:
+            # Build a statement from a capabilitiy
+            self._verb = capability._verb
+            self._label = capability._label
+            self._metadata = capability._metadata
+            self._params = deepcopy(capability._params)
+            self._resultcolumns = deepcopy(capability._resultcolumns)
 
-            if capability is not None:
-                # Build a statement from a capabilitiy
-                self._verb = capability._verb
-                self._label = capability._label
-                self._metadata = capability._metadata
-                self._params = deepcopy(capability._params)
-                self._resultcolumns = deepcopy(capability._resultcolumns)
-
-                # inherit from capability only when necessary
-                if when is None:
-                    self._when = capability._when
+            # inherit from capability only when necessary
+            if when is None:
+                self._when = capability._when
 
     def _more_repr(self):
         return " p(v)/m/r "+str(self.count_parameters())+"("+\
@@ -2163,32 +2425,37 @@ class Specification(Statement):
     def _default_token(self):
         return self._pv_hash()
 
+    def retoken(self, tzero = None):
+        """
+        Generate a new token, if necessary, taking into account the current time
+        if a specification has a relative temporal scope.
+
+        """
+        if not self._when.is_definite():
+            self._token = self._pv_hash(astr = repr(self._when.datetimes))
+
     def set_single_values(self):
         """Fill in values for all parameters whose constraints allow only one value."""
         for param in self._params.values():
             param.set_single_value()
 
-    def has_schedule(self):
-        return self._schedule is not None
-
     def subspec_iterator(self):
         """
         Iterate over subordinate specifications if this specification is repeated 
-        (i.e., has a Schedule); otherwise yields self once. Each subordinate 
+        (i.e., has a repeated Temporal Scope); otherwise yields self once. Each subordinate 
         specification has an absolute temporal scope derived from this specification's
         relative temporal scope and schedule.
         """
+        if self._when.is_repeated():
+            subspec = deepcopy(self)
 
-        if not self.has_schedule:
-            yield self
+            iter = self._when.iterator()
+            while 1:
+                subspec._when = next(iter)
+                yield subspec
         else:
-            pass #FIXME write this
+            yield self
 
-    def _from_dict(self, d):
-        super()._from_dict(d)
-
-        if KEY_SCHEDULE in d:
-            self._schedule = Schedule._from_dict(d[KEY_SCHEDULE])
 
 class Result(Statement):
     """docstring for Result: note the token is generally inherited from the specification"""
@@ -2420,16 +2687,19 @@ class Envelope(object):
 
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
         super().__init__()
+
+        self._messages = []
+        self._content_type = content_type
         if dictval is not None:
             self._from_dict(dictval)
-        else:
-          self._content_type = content_type
-          self._messages = []
 
     def __repr__(self):
         return "<Envelope "+self._content_type+\
                 " ("+str(len(self._messages))+"): "+\
                 " ".join(map(repr, self._messages))+">"
+
+    def __len__(self):
+        return len(self._messages)
 
     def append_message(self, msg):
         self._messages.append(msg)
@@ -2454,8 +2724,8 @@ class Envelope(object):
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
 
-        for md in self[KEY_CONTENTS]:
-          self.append_message(message_from_dict(md))
+        for md in d[KEY_CONTENTS]:
+            self.append_message(message_from_dict(md))
 
 #######################################################################
 # Utility methods
@@ -2494,4 +2764,8 @@ def parse_yaml(ystr):
 
 def unparse_yaml(msg):
     return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
+
+
+
+
 

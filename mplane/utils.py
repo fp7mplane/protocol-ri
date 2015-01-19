@@ -1,9 +1,8 @@
-#
 # mPlane Protocol Reference Implementation
 # Various Utilities
 #
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
-# Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
+#               Author: Stefano Pentassuglia
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -20,8 +19,15 @@
 #
 
 import os.path
+import re
+import mplane.model
+import json
 
 def read_setting(filepath, param):
+    """
+    Reads a setting from the indicated conf file
+    
+    """
     with open(filepath,'r') as f:
         for line in f.readlines():
             if line[0] != "#":
@@ -39,9 +45,12 @@ def check_file(filename):
     if filename is None or not os.path.exists(filename):
         raise ValueError("Error: File " + str(filename) + " does not appear to exist.")
         exit(1)
-        
+
 def normalize_path(path):
-    print(path)
+    """
+    Converts every path into absolute paths
+    
+    """
     if path[0] != '/':
         return os.path.abspath(path)
     else:

@@ -106,3 +106,7 @@
 | measurement.identifier | string | Free-form string identifying the implementation of the measurement on the component; often the name of the external program |
 | measurement.revision | natural | Release or deployment serial number of the implementation of the measurement on the component |
 | measurement.algorithm | string | Free-form string identifying the algorithm used for the measurement on the component |
+| location.latitude | float | The latitude of the component expressed as a floating point number of degrees north of the equator |
+| location.longitude | float | The longitude of the component expressed as a floating point number of degrees east of the standard meridian (on Earth, the Prime Meridian at Greenwich) |
+| location.altitude | float | The altitude of the component expressed as a floating point number of meters above the standard zero altitude (on Earth, mean sea level) |
+| location.civil | string | A free-form identifier of the civil location (postal address, city name, building name, etc) of the component |
