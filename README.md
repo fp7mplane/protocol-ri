@@ -12,6 +12,14 @@ Measurement statements are fundamentally based on schemas divided into Parameter
 
 # Using the Reference Implementation
 
+## Prerequisites
+
+The mPlane Reference Implementation requires Python 3.3 and the following additional packages:
+
+- pyyaml
+
+*[**Editor's Note**: complete this list]*
+
 ## Core Classes
 
 The core classes are documented using Sphinx. Sphinx documentation can be read [here](https://fp7mplane.github.io/protocol-ri).
@@ -33,8 +41,17 @@ The mPlane Client Shell is a quick and dirty command line interface around a gen
 
 Note that this is all very prerelease and nearly guaranteed to change.
 
-
 ## Building HTTP Server Components
 
 _this will probably change when moving to a CLI-based httpsrv.py, so write this then_ 
 
+# Differences between the Reference Implementation and the Protocol Specification
+
+The following classes and features are *not yet implemented* in the reference implementation:
+
+- Indirection messages
+- Withdrawal messages
+- mplane.model support for repeating measurements (assigned to FHA)
+- mplane.model support for prefix constraints
+- mplane.model support for the registry section (esp. default)
+- Callback control as specified in the protocol spec

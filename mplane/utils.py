@@ -41,6 +41,7 @@ def check_file(filename):
         exit(1)
         
 def normalize_path(path):
+    print(path)
     if path[0] != '/':
         return os.path.abspath(path)
     else:
