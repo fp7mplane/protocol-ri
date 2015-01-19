@@ -117,7 +117,7 @@ no metadata, and five result columns.
 
 First let's fill in a specific temporal scope for the measurement:
 
->>> spec.set_when("2014-12-24 22:18:42 + 1m / 1s")
+>>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
 And then let's fill in some parameters. First, we can fill in all parameters whose
 single values are already given by their constraints (in this case, source.ip4)
