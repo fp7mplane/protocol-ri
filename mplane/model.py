@@ -2232,7 +2232,7 @@ class Statement(object):
                 row.append(valstr)
         return rows
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         """
         Convert a Statement to a dictionary (for further conversion 
         to JSON or YAML), which can be passed as the dictval
@@ -2633,7 +2633,7 @@ class StatementNotification(Statement):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
 
     def to_dict(self, token_only=False):
-        d = super().to_dict()
+        d = super().to_dict(token_only)
 
         if token_only and self._token is not None:
             for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK, KEY_WHEN):
