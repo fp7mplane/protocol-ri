@@ -174,7 +174,7 @@ measured:
 
 The result can then be serialized and sent back to the client:
 
->>> resjson = json.dumps(res.to_dict())
+>>> resjson = mplane.model.unparse_json(res)
 >>> resjson # doctest: +SKIP
 '{"result": "measure", 
   "version": 1,
@@ -192,7 +192,7 @@ The result can then be serialized and sent back to the client:
 
 which can transform them back to a result and extract the values:
 
->>> clires = mplane.model.message_from_dict(json.loads(resjson))
+>>> clires = mplane.model.parse_json(resjson)
 >>> clires
 <result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
@@ -214,7 +214,7 @@ which can be used to quickly identify it in the future.
           A component could, however, assign serial-number based tokens, or tokens
           mapping to structures in its own filesystem, etc.
 
->>> jsonrcpt = json.dumps(rcpt.to_dict())
+>>> jsonrcpt = mplane.model.unparse_json(rcpt)
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
   "version": 1,
@@ -233,7 +233,7 @@ The component keeps the receipt, keyed by token, and returns it to the
 client in a message. The client then which generates a future redemption 
 referring to this receipt to retrieve the results:
 
->>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
+>>> clircpt = mplane.model.parse_json(jsonrcpt)
 >>> clircpt
 <receipt: 4e66a52f575499129f748a60eb0a26c7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
@@ -244,7 +244,7 @@ Note here that the redemption has the same token as the receipt;
 just the token may be sent back to the component to retrieve the 
 results:
 
->>> json.dumps(rdpt.to_dict(token_only=True)) # doctest: +SKIP
+>>> mplane.model.unparse_json(rdpt, token_only=True) # doctest: +SKIP
 '{"redemption": "measure", 
   "version": 1, 
   "registry": "http://ict-mplane.eu/registry/core", 
@@ -2783,8 +2783,8 @@ def message_from_dict(d):
 def parse_json(jstr):
     return message_from_dict(json.loads(jstr))
 
-def unparse_json(msg):
-    return json.dumps(msg.to_dict(), 
+def unparse_json(msg, token_only=False):
+    return json.dumps(msg.to_dict(token_only=token_only),
                       sort_keys=True, indent=2, separators=(',',': '))
 
 def parse_yaml(ystr):
