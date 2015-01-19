@@ -6,7 +6,6 @@
 #
 # (c) 2014-2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
-#             Brian Trammell <brian@trammell.ch>
 #
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -60,6 +59,11 @@ class AuthorizationOn(object):
         return r
             
     def check(self, cap, identity): 
+        """
+        Return true if the given identiy is authorized to use the given
+        capability by this set of authorization rules, false otherwise.
+
+        """
         cap_label = cap._label
         if ((cap_label in self.cap_role) and (identity in self.id_role)): # Deny unless explicitly allowed in .conf files
             intersection = self.cap_role[cap_label] & self.id_role[identity]

@@ -2,7 +2,7 @@
 # mPlane Protocol Specification
 
 - - -
-__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, as submitted as mPlane Deliverable 1.4, 31 October 2014__
+__ed. Brian Trammell <trammell@tik.ee.ethz.ch>, Software Development Kit revision__
 - - -
 
 This document defines the present revision of the mPlane architecture for
@@ -626,6 +626,10 @@ of capabilities provided by that to a supervisor, as composed from the capabilit
 offered by the associated components, according to its privileges.
 Therefore, any client will only has access to capabilities at the supervisor 
 that it is authorized to execute. The same controls are enforced on specifications.
+
+### Paths in mPlane URLS
+
+*[**Editor's Note**: ]
 
 ## mPlane over SSH
 
