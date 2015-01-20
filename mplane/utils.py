@@ -40,7 +40,25 @@ def read_setting(filepath, param):
                     else:
                         return line.split('= ')[1]
     return None
+
+def search_path(path):
+    """
+    Converts every path into absolute paths,
+    and checks if file exists. 
+    Should replace check_file() and normalize_path()
     
+    """
+    if path[0] != '/':
+        norm_path = os.path.abspath(path)
+    else:
+        norm_path = path
+        
+    if not os.path.exists(norm_path):
+        raise ValueError("Error: File " + norm_path + " does not appear to exist.")
+        exit(1)
+        
+    return norm_path
+ 
 def check_file(filename): 
     """
     Checks if the file exists at the given path

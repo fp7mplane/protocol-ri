@@ -117,7 +117,7 @@ no metadata, and five result columns.
 
 First let's fill in a specific temporal scope for the measurement:
 
->>> spec.set_when("2014-12-24 22:18:42 + 1m / 1s")
+>>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
 And then let's fill in some parameters. First, we can fill in all parameters whose
 single values are already given by their constraints (in this case, source.ip4)
@@ -138,7 +138,7 @@ the component from which we got the capability:
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "10.0.37.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
@@ -165,7 +165,7 @@ by assigning values to parameters which changed and result columns
 measured:
 
 >>> res = mplane.model.Result(specification=comspec)
->>> res.set_when("2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000")
+>>> res.set_when("2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000")
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
@@ -174,13 +174,13 @@ measured:
 
 The result can then be serialized and sent back to the client:
 
->>> resjson = json.dumps(res.to_dict())
+>>> resjson = mplane.model.unparse_json(res)
 >>> resjson # doctest: +SKIP
 '{"result": "measure", 
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
+  "when": "2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000", 
   "parameters": {"source.ip4": "10.0.27.2", 
                  "destination.ip4": "10.0.37.2"},
   "results": ["delay.twoway.icmp.us.min", 
@@ -192,9 +192,9 @@ The result can then be serialized and sent back to the client:
 
 which can transform them back to a result and extract the values:
 
->>> clires = mplane.model.message_from_dict(json.loads(resjson))
+>>> clires = mplane.model.parse_json(resjson)
 >>> clires
-<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
+<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -214,13 +214,13 @@ which can be used to quickly identify it in the future.
           A component could, however, assign serial-number based tokens, or tokens
           mapping to structures in its own filesystem, etc.
 
->>> jsonrcpt = json.dumps(rcpt.to_dict())
+>>> jsonrcpt = mplane.model.unparse_json(rcpt)
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
   "token": "4e66a52f575499129f748a60eb0a26c7", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
   "results": ["delay.twoway.icmp.us.min", 
@@ -233,7 +233,7 @@ The component keeps the receipt, keyed by token, and returns it to the
 client in a message. The client then which generates a future redemption 
 referring to this receipt to retrieve the results:
 
->>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
+>>> clircpt = mplane.model.parse_json(jsonrcpt)
 >>> clircpt
 <receipt: 4e66a52f575499129f748a60eb0a26c7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
@@ -244,7 +244,7 @@ Note here that the redemption has the same token as the receipt;
 just the token may be sent back to the component to retrieve the 
 results:
 
->>> json.dumps(rdpt.to_dict(token_only=True)) # doctest: +SKIP
+>>> mplane.model.unparse_json(rdpt, token_only=True) # doctest: +SKIP
 '{"redemption": "measure", 
   "version": 1, 
   "registry": "http://ict-mplane.eu/registry/core", 
@@ -2232,7 +2232,7 @@ class Statement(object):
                 row.append(valstr)
         return rows
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         """
         Convert a Statement to a dictionary (for further conversion 
         to JSON or YAML), which can be passed as the dictval
@@ -2633,7 +2633,7 @@ class StatementNotification(Statement):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
 
     def to_dict(self, token_only=False):
-        d = super().to_dict()
+        d = super().to_dict(token_only)
 
         if token_only and self._token is not None:
             for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK, KEY_WHEN):
@@ -2783,8 +2783,8 @@ def message_from_dict(d):
 def parse_json(jstr):
     return message_from_dict(json.loads(jstr))
 
-def unparse_json(msg):
-    return json.dumps(msg.to_dict(), 
+def unparse_json(msg, token_only=False):
+    return json.dumps(msg.to_dict(token_only=token_only),
                       sort_keys=True, indent=2, separators=(',',': '))
 
 def parse_yaml(ystr):
