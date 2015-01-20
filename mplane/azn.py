@@ -32,7 +32,13 @@ def Authorization(config_file = None):
     if config_file is None:
         return AuthorizationOff()
     else:
-        return AuthorizationOn(config_file)
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(config_file)
+        if "TLS" not in config.sections():
+            return AuthorizationOff()
+        else:
+            return AuthorizationOn(config_file)
         
 class AuthorizationOff(object):
         

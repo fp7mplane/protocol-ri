@@ -454,8 +454,8 @@ class HttpClient(BaseClient):
         if url in urlchain:
             return
 
-        pool = self.tls_state.pool_for(dst_url)
-        res = pool.request('get', dst_url)
+        pool = self._tls_state.pool_for(url)
+        res = pool.request('get', url)
 
         if res.status == 200:
             ctype = res.getheader("content-type")

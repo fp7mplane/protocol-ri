@@ -254,6 +254,10 @@ results:
 .. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
  
 
+>>> envelop = mplane.model.Envelope(token=comspec.get_token())
+>>> envelop.append_message(res)
+>>> envelop
+<envelope: message (1) token 4e66a52f575499129f748a60eb0a26c7: <result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>>
 """
 
 try:
@@ -2792,17 +2796,20 @@ class Envelope(object):
     _content_type = None
     _messages = None
 
-    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None):
         super().__init__()
 
         self._messages = []
         self._content_type = content_type
+        self._token = token
+
         if dictval is not None:
             self._from_dict(dictval)
 
     def __repr__(self):
-        return "<Envelope "+self._content_type+\
-                " ("+str(len(self._messages))+"): "+\
+        return "<envelope: "+self._content_type+\
+                " ("+str(len(self._messages))+")"+\
+                " token "+self.get_token()+": "+\
                 " ".join(map(repr, self._messages))+">"
 
     def __len__(self):
@@ -2833,6 +2840,12 @@ class Envelope(object):
 
         for md in d[KEY_CONTENTS]:
             self.append_message(message_from_dict(md))
+
+    def get_token(self, lim=None):
+        if self._token is not None and lim is not None and len(self._token) > lim:
+          return self._token[:lim]
+        else:
+          return self._token
 
 #######################################################################
 # Utility methods

@@ -28,18 +28,11 @@ the mPlane reference implementation.
 """
 
 import re
-import ipaddress
-import threading
 import subprocess
 import collections
-from datetime import datetime, timedelta
-from ipaddress import ip_address
+from datetime import datetime
 import mplane.model
 import mplane.scheduler
-import mplane.httpsrv
-import tornado.web
-import tornado.ioloop
-import argparse
 
 _pingline_re = re.compile("icmp_seq=(\d+)\s+\S+=(\d+)\s+time=([\d\.]+)\s+ms")
 
