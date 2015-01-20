@@ -26,6 +26,11 @@ module mplane.client
 .. automodule:: mplane.client
    :members:
 
+module mplane.component
+-------------------
+.. automodule:: mplane.component
+   :members:
+
 
 Indices and tables
 ==================
