@@ -1,3 +1,26 @@
+#
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#
+# mPlane Protocol Reference Implementation
+# Information Model and Element Registry
+#
+# (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)
+#          Author: Ciro Meregalli
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 from nose.tools import *
 from mplane import azn
 from mplane import tls
@@ -8,21 +31,25 @@ from os import path
 ''' Authorization module tests '''
 
 
+def setup():
+    print("Starting tests...")
+
+
 " set up test fixtures "
-# FIXME maybe is better to write a test config file.
-conf_path = path.abspath('conf')
-conf_file = 'component.conf'
+
+conf_path = path.dirname(__file__)
+conf_file = 'component-test.conf'
 config_file = path.join(conf_path, conf_file)
 
-" build up the capabilities' label"
+# build up the capabilities' label
 
 model.initialize_registry()
-cap = model.Capability(label="tstat-log_tcp_complete-core")
+cap = model.Capability(label="test-log_tcp_complete-core")
 
-" set the identity "
+# set the identity
 
-id_true_role = "org.mplane.SSB.Clients.Client-1"
-id_false_role = "dummy"
+id_true_role = "org.mplane.Test.Clients.Client-1"
+id_false_role = "Dummy"
 
 
 def test_Authorization():
@@ -47,11 +74,10 @@ def test_AuthorizationOff():
 
 ''' TLS module tests '''
 
-# FIXME maybe is better to write a test config file.
-cert = utils.search_path("PKI/ca/certs/SI/Component-SSB.crt")
-key = utils.search_path("PKI/ca/certs/SI/Component-SSB-plaintext.key")
-ca_chain = utils.search_path("PKI/ca/root-ca/root-ca.crt")
-identity = "org.mplane.SSB.Components.Component-2"
+cert = utils.search_path(path.join(conf_path, "component-test.crt"))
+key = utils.search_path(path.join(conf_path, "component-test-plaintext.key"))
+ca_chain = utils.search_path(path.join(conf_path, "root-ca.crt"))
+identity = "org.mplane.Test.Components.Component-1"
 forged_identity = "org.example.test"
 
 # with config file and without forged_identity
