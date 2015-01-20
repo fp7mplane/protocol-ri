@@ -2517,14 +2517,16 @@ class Specification(Statement):
     def _default_token(self):
         return self._pv_hash()
 
-    def retoken(self, tzero = None):
+    def retoken(self, force=False):
         """
         Generate a new token, if necessary, taking into account the current time
         if a specification has a relative temporal scope.
 
         """
-        if not self._when.is_definite():
-            self._token = self._pv_hash(astr = repr(self._when.datetimes))
+        if force:
+            self._token = self._default_token()
+        elif not self._when.is_definite():
+            self._token = self._pv_hash(astr = repr(self._when.datetimes()))
 
     def subspec_iterator(self):
         """
@@ -2534,11 +2536,12 @@ class Specification(Statement):
         relative temporal scope and schedule.
         """
         if self._when.is_repeated():
-            subspec = deepcopy(self)
+            subspec = deepcopy(self)  # Brian does not like that but he said it is okay
 
             iter = self._when.iterator()
             while 1:
                 subspec._when = next(iter)
+                subspec.retoken(True)
                 yield subspec
         else:
             yield self
@@ -2658,7 +2661,7 @@ class Exception(BareNotification):
     def get_token(self):
         return self._token
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         d = collections.OrderedDict()
         d[KIND_EXCEPTION] = self._token
         d[KEY_MESSAGE] = self._errmsg
@@ -2792,6 +2795,10 @@ class Envelope(object):
 
     def __len__(self):
         return len(self._messages)
+
+    def trim(self, n):
+        """ Removes everything except the last n elements """
+        del self._messages[:-n]
 
     def append_message(self, msg):
         self._messages.append(msg)

@@ -43,7 +43,7 @@ class BaseComponent(object):
         mplane.model.initialize_registry()
         self.config = mplane.utils.search_path(config_file)
         self.tls = mplane.tls.TlsState(self.config)
-        self.scheduler = mplane.scheduler.Scheduler(mplane.azn.Authorization(self.config))
+        self.scheduler = mplane.scheduler.Scheduler(self.config)
         for service in self._services():
             self.scheduler.add_service(service)
     
@@ -163,7 +163,7 @@ class MessagePostHandler(MPlaneHandler):
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
         # hand message to scheduler
-        reply = self.scheduler.receive_message(self.user, msg)
+        reply = self.scheduler.receive_message(self.tls.extract_peer_identity(self.request), msg)
 
         # wait for immediate delay
         if self.immediate_ms > 0 and \
@@ -186,4 +186,4 @@ class InitiatorHttpComponent(BaseComponent):
 if __name__ == "__main__":
     
     # ONLY FOR TEST PURPOSES
-    comp = ListenerHttpComponent("./conf/component.conf")
+    comp = ListenerHttpComponent("../conf/component.conf")
