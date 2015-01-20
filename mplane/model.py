@@ -117,13 +117,11 @@ First, let's fill in a specific temporal scope for the measurement:
 
 >>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
-And then let's fill in some parameters. First, we can fill in all parameters whose
-single values are already given by their constraints (in this case, source.ip4):
-
->>> spec.set_single_values()
-
-Then, let's set a destination. Note that strings are accepted and
-automatically parsed using each parameter's primitive type:
+And then let's fill in some parameters. All od the parameters whose
+single values are already given by their constraints (in this case, source.ip4)
+have already been filled in. So let's start with the destination.
+Note that strings are accepted and automatically parsed using each 
+parameter's primitive type:
 
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
 
@@ -2479,6 +2477,10 @@ class Specification(Statement):
             if when is None:
                 self._when = capability._when
 
+            # now set values we know we can
+            for param in self._params.values():
+                param.set_single_value()
+
     def _more_repr(self):
         return " p(v)/m/r "+str(self.count_parameters())+"("+\
                str(self.count_parameter_values())+")/"+\
@@ -2505,7 +2507,6 @@ class Specification(Statement):
         Check that this is a valid Specification; i.e., that all parameters have values.
 
         """
-
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -2524,11 +2525,6 @@ class Specification(Statement):
         """
         if not self._when.is_definite():
             self._token = self._pv_hash(astr = repr(self._when.datetimes))
-
-    def set_single_values(self):
-        """Fill in values for all parameters whose constraints allow only one value."""
-        for param in self._params.values():
-            param.set_single_value()
 
     def subspec_iterator(self):
         """
