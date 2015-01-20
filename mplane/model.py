@@ -300,16 +300,15 @@ Now we create an Envelope and append the two capabilities.
  <capability: measure when now ... future / 1s token a9ec7fce schema ea37cea5 p/m/r 2/0/1>
 >
 
-This Envelope
+Similar as with every other message this Envelope is serialized and send to the client:
 
+envjson = mplane.model.unparse_json(env)
 
-.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
- 
+The client receives the Envelope and decomposes the encapsulated messages:
 
->>> envelop = mplane.model.Envelope(token=comspec.get_token())
->>> envelop.append_message(res)
->>> envelop
-<envelope: message (1) token 4e66a52f575499129f748a60eb0a26c7: <result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>>
+>>> clienv = mplane.model.parse_json(envjson)
+>>> messages = [message for message in clienv.messages()]
+
 """
 
 try:
@@ -2876,11 +2875,11 @@ class Envelope(object):
     def kind_str(self):
         return KIND_ENVELOPE
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         d = {}
         d[self.kind_str()] = self._content_type
         d[KEY_VERSION] = self._version
-        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
+        d[KEY_CONTENTS] = [m.to_dict(token_only=token_only) for m in self.messages()]
         return d
 
     def _from_dict(self, d):
