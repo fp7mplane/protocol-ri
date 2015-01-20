@@ -102,7 +102,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<specification: measure when now ... future / 1s token 4e66a52f schema 5ce99352 p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token e00d7fe8 schema 5ce99352 p(v)/m/r 2(1)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters, 
 no metadata, and five result columns.
@@ -190,7 +190,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.parse_json(resjson)
 >>> clires
-<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
+<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token e00d7fe8 schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -201,7 +201,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'4e66a52f575499129f748a60eb0a26c7'
+'e00d7fe813cf17eeeea37b313dcfa4e7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -215,7 +215,7 @@ which can be used to quickly identify it in the future.
 '{"receipt": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
-  "token": "4e66a52f575499129f748a60eb0a26c7", 
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7", 
   "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
@@ -231,10 +231,10 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.parse_json(jsonrcpt)
 >>> clircpt
-<receipt: 4e66a52f575499129f748a60eb0a26c7>
+<receipt: e00d7fe813cf17eeeea37b313dcfa4e7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<redemption: 4e66a52f575499129f748a60eb0a26c7>
+<redemption: e00d7fe813cf17eeeea37b313dcfa4e7>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
@@ -244,7 +244,7 @@ results:
 '{"redemption": "measure", 
   "version": 1, 
   "registry": "http://ict-mplane.eu/registry/core", 
-  "token": "4e66a52f575499129f748a60eb0a26c7"
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7"
 }'
 
 As long as the measurement is running, the client can stop the measurement by sending an
