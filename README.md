@@ -65,7 +65,7 @@ The component.py module provides a framework for building components for both co
 
 The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. 
 
-*[**Editor's Note**: as this is basically final now, document the client shell]*
+*[**Editor's Note**: as this is basically final now, document the current set of commands supported by the client shell.]*
 
 # Testing and Developing the SDK
 

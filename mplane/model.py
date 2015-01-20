@@ -1806,7 +1806,7 @@ def parse_constraint(prim, sval):
     """
     Given a primitive and a string value, parse a constraint 
     string (returned via str(constraint)) into an instance of an 
-    appropriate Constraint class.
+    appropriate constraint class.
 
     """
     if sval == CONSTRAINT_ALL:
