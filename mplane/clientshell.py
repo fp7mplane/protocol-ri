@@ -24,20 +24,23 @@
 import mplane.model
 import mplane.client
 import mplane.render
+import mplane.utils
 import mplane.tls
 
+import sys
 import cmd
 import traceback
 import readline
 import argparse
+import configparser
 
 class ClientShell(cmd.Cmd):
 
-    intro = 'mPlane client shell (rev 8.1.2015, new-client-api branch)\n'\
+    intro = 'mPlane client shell (rev 20.1.2015, sdk branch)\n'\
             'Type help or ? to list commands. ^D to exit.\n'
     prompt = '|mplane| '
 
-    def __init__(self, tls_state=None):
+    def __init__(self, tls_state=None, config_file=None):
         super().__init__()
         self._client = mplane.client.HttpClient(tls_state = tls_state)
         self._defaults = {}
@@ -47,6 +50,21 @@ class ClientShell(cmd.Cmd):
 
         # don't print tracebacks by default
         self._print_tracebacks = False
+
+        # preload defaults
+        if config_file:
+            self._read_config(config_file)
+
+    def _read_config(self, config_file):
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(mplane.utils.search_path(config_file))
+
+        if "ClientShell" in config.sections:
+            if "default-url" in config["ClientShell"]:
+                self.do_seturl(config["ClientShell"]["default-url"])
+            if "capability-url" in config["ClientShell"]:
+                self.do_getcap(config["ClientShell"]["capability-url"])
 
     def do_seturl(self, arg):
         """
@@ -251,7 +269,7 @@ class ClientShell(cmd.Cmd):
             params[pname] = self._defaults[pname]
 
         # Now invoke it
-        self._client.invoke_capability(cap.get_token(), when, params, relabel)
+        self._client.invoke_capability(cap.get_token(), self._when, params, relabel)
         print("ok")
 
     # def complete_showcap(self, text, line, start_index, end_index):
@@ -316,9 +334,9 @@ class ClientShell(cmd.Cmd):
         print("You can try to continue, but client state may be inconsistent.")
         
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run an mPlane client")
-    parser.add_argument('--tlsconfig', metavar="config-file",
-                        help="TLS configuration file")
+    parser = argparse.ArgumentParser(description="mPlane generic testing client")
+    parser.add_argument('--config', metavar="config-file",
+                        help="Configuration file")
     return parser.parse_args()
     
 if __name__ == "__main__":
@@ -329,7 +347,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     # create a shell
-    cs = ClientShell(tls_state=mplane.tls.TlsState(args.tlsconfig))
+    cs = ClientShell(tls_state=mplane.tls.TlsState(args.config))
 
     while not cs.exited:
         try:

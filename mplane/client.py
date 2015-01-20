@@ -161,7 +161,7 @@ class BaseClient(object):
         spec.set_when(when)
 
         # fill in parameters
-        spec.set_single_values()
+        # spec.set_single_values() # this is automatic now
         for pname in spec.parameter_names():
             if spec.get_parameter_value(pname) is None:
                 if pname in params:
@@ -381,25 +381,30 @@ class HttpClient(BaseClient):
         self._ssn = 0
 
     def set_default_url(self, url):
-        self._default_url = url
+        if isinstance(url, str):
+            self._default_url = urllib3.util.parse_url(url)
+        else:
+            self._default_url = url
 
     def send_message(self, msg, dst_url=None):
         """
         send a message, store any result in client state.
         
         """
-
         # figure out where to send the message
         if not dst_url:
             dst_url = self._default_url
 
-        pool = self._tls_state.pool_for(dst_url)
+        if isinstance(dst_url, str):
+            dst_url = urllib3.util.parse_url(dst_url)
+            
+        pool = self._tls_state.pool_for(dst_url.scheme, dst_url.host, dst_url.port)
 
         headers = {"Content-Type": "application/x-mplane+json"}
         if self._tls_state.forged_identity():
             headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
         
-        res = pool.urlopen('POST', dst_url, 
+        res = pool.urlopen('POST', dst_url.path, 
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
         
