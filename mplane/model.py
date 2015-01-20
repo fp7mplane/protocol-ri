@@ -2343,6 +2343,11 @@ class Statement(object):
             return hstr
 
     def get_token(self, lim=None):
+        """ 
+        Return the token of a Statement.
+        If a token has not been explicitely set, 
+        it returns the default token for the Statement type
+        """
         if self._token is None:
           self._token = self._default_token()
         if lim is not None and len(self._token) > lim:
@@ -2620,7 +2625,11 @@ class Specification(Statement):
 
 
 class Result(Statement):
-    """docstring for Result: note the token is generally inherited from the specification"""
+    """
+    A result is a statement that a component measured
+    a given set of values at a given point in time according to a specification.
+    Note, the token is generally inherited from the specification.
+    """
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
         if dictval is None and specification is not None:
@@ -2674,6 +2683,9 @@ class Result(Statement):
                     self._resultcolumns[column_key[j]][i] = val
 
     def set_result_value(self, elem_name, val, row_index=0):
+        """ 
+        Set a single result value.
+        """
         self._resultcolumns[elem_name][row_index] = val
 
     def schema_dict_iterator(self):
@@ -2720,7 +2732,7 @@ class Exception(BareNotification):
     or non-nominal condition 
 
     """
-    def __init__(self, dictval=None, token=EXCEPTION_NO_TOKEN, errmsg=None):
+    def __init__(self, token, dictval=None, errmsg=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
             if errmsg is None:
@@ -2731,6 +2743,10 @@ class Exception(BareNotification):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
 
     def get_token(self):
+        """ 
+        Returns a token that originates from a message that has caused
+        the Expection or None if the token was explictly not set
+        """
         return self._token
 
     def to_dict(self):
@@ -2867,9 +2883,11 @@ class Envelope(object):
         return len(self._messages)
 
     def append_message(self, msg):
+        """ Append a message to an Envelope """
         self._messages.append(msg)
 
     def messages(self):
+        """" Returns an iterator to iterate over all messages in an Envelope """
         return iter(self._messages)
 
     def kind_str(self):
@@ -2893,6 +2911,7 @@ class Envelope(object):
             self.append_message(message_from_dict(md))
 
     def get_token(self, lim=None):
+        """ Returns the token or None if no taken as been set """
         if self._token is not None and lim is not None and len(self._token) > lim:
           return self._token[:lim]
         else:
