@@ -754,32 +754,32 @@ class When(object):
         return "<When: "+str(self)+">"
 
     def is_immediate(self):
-        """Return True if this is an immediate scope (i.e., starts now)"""
+        """Returns True if this is an immediate scope (i.e., starts now)."""
         return self._a is time_now
 
     def is_forever(self):
-        """Return True if this scope ends in the indeterminate future"""
+        """Returns True if this scope ends in the indeterminate future."""
         return self._b is time_future
 
     def is_past(self):
-        """Return True if this is an indefinite past scope"""
+        """Returns True if this is an indefinite past scope."""
         return self._a is time_past and self._b is time_now
 
     def is_future(self):
-        """Return True if this is an indefinite future scope"""
+        """Returns True if this is an indefinite future scope."""
         return self._a is time_now and self._b is time_future
 
     def is_infinite(self):
         """
-        Return True if this scope is completely infinite 
-        (from the infinite past to the infinite future)
+        Returns True if this scope is completely infinite
+        (from the infinite past to the infinite future).
 
         """
         return self._a is time_past and self._b is time_future
 
     def is_definite(self):
         """
-        Return True if this scope defines a definite time 
+        Returns True if this scope defines a definite time
         or a definite time interval.
 
         """
@@ -790,7 +790,7 @@ class When(object):
 
     def is_singleton(self):
         """
-        Return True if this temporal scope refers to a
+        Returns True if this temporal scope refers to a
         singleton measurement. Used in scheduling an enclosing
         Specification; has no meaning for Capabilities 
         or Results.
@@ -851,6 +851,7 @@ class When(object):
             return end - start
 
     def period(self):
+        """Returns the period of this temporal scope."""
         return self._period
 
     def timer_delays(self, tzero=None):
@@ -862,7 +863,7 @@ class When(object):
         The start delay is defined to be zero if the scheduled start time has
         already passed or the temporal scope is immediate (i.e., starts now).
         The start delay is None if the temporal scope has expired (that is,
-        the current time is after the calculated end time)
+        the current time is after the calculated end time).
 
         The end delay is defined to be None if the temporal scope has already
         expired, or if the temporal scope has no scheduled end (is infinite or
@@ -870,7 +871,7 @@ class When(object):
         when a temporal scope is expressed in terms of duration, and to 
         prioritize end time otherwise.
  
-        Used in scheduling an enclosing Specification for execution. 
+        Used in scheduling an enclosing Specification for execution.
         Has no meaning for Capabilities or Results.
 
         """
@@ -903,7 +904,7 @@ class When(object):
 
     def sort_scope(self, t, tzero=None):
         """
-        Return < 0 if time t falls before this scope,
+        Returns < 0 if time t falls before this scope,
         0 if time t falls within the scope, 
         or > 0 if time t falls after this scope. 
 
@@ -930,14 +931,14 @@ class When(object):
 
     def in_scope(self, t, tzero=None):
         """
-        Return True if time t falls within this scope.
+        Returns True if time t falls within this scope.
 
         """
         return self.sort_scope(t, tzero) == 0
 
     def follows(self, s, tzero=None):
         """
-        Return True if this scope follows (is contained by) another.
+        Returns True if this scope follows (is contained by) another.
 
         """
         if not self._repeated and s.period() is not None and (self.period() is None or self.period() < s.period()):
@@ -1128,7 +1129,6 @@ when_infinite = When(a=time_past, b=time_future)
 #             yield t
 
 def test_tscope():
-    """Test When"""
     # Definite scope
     wdef = When("2009-02-20 13:00:00 ... 2009-02-20 15:00:00")
     assert wdef.duration() == timedelta(0,7200)
@@ -1267,7 +1267,7 @@ class _Primitive(object):
 
     def parse(self, sval):
         """
-        Convert a string to a value; default implementation
+        Converts a string to a value; default implementation
         returns the string directly, returning None for the
         special string "*", which represents "all values" in 
         mPlane.
@@ -1280,7 +1280,7 @@ class _Primitive(object):
 
     def unparse(self, val):
         """
-        Convert a value to a string; default implementation
+        Converts a value to a string; default implementation
         uses native __str__ representation, replaces None with a
         the special string "*", representing all values.
 
@@ -1449,7 +1449,6 @@ _prim = {x.name: x for x in [prim_string,
                              prim_url]}
 
 def test_primitives():
-    """Test primitive parsing and unparsing"""
     import math
     assert prim_string.parse("foo") == 'foo'
     assert prim_string.unparse("foo") == 'foo'
@@ -1510,36 +1509,36 @@ class Element(object):
         return "<Element "+self._qualname+" "+repr(self._prim)+" >"
 
     def name(self):
-        """Return the name of this Element"""
+        """Returns the name of this Element"""
         return self._name
 
     def desc(self):
-        """Return the description of this Element"""
+        """Returns the description of this Element"""
         return self._desc
 
     def qualified_name(self):
-        """Return the name of this Element along with its namespace"""
+        """Returns the name of this Element along with its namespace"""
         return self._qualname
 
     def primitive_name(self):
-        """Return the name of this Element's primitive"""
+        """Returns the name of this Element's primitive"""
         return self._prim.name
 
     def parse(self, sval):
         """
-        Convert a string to a value for this Element; delegates to primitive.
+        Converts a string to a value for this Element; delegates to primitive.
         """
         return self._prim.parse(sval)
 
     def unparse(self, val):
         """
-        Convert a value to a string for this Element; delegates to primitive.
+        Converts a value to a string for this Element; delegates to primitive.
         """
         return self._prim.unparse(val)
 
     def compatible_with(self, rval):
         """
-        Determine based on naming rules if this element is compatible with
+        Determines based on naming rules if this element is compatible with
         element rval; that is, if transformation_to will return a function
         for turning a value of this element to the other. Compatibility based
         on name structure is a future feature; this method currently checks for
@@ -1648,7 +1647,7 @@ class Registry(object):
 
     def uri():
         """
-        Return the URI by which this registry is known.
+        Returns the URI by which this registry is known.
 
          """
         return _uri
@@ -1682,11 +1681,12 @@ def registry_for_uri(uri):
 
     return _registries[uri]
 
-def base_registry():
-    global _base_registry
-    return _base_registry
-
 def element(name, reguri=None):
+    """
+    Returns the Element with the given name.
+    If reguri is given, searches the speficied Registry, 
+    otherwise searches the base Registry.
+    """
     global _base_registry
     global _registries
     if reguri:
@@ -1713,14 +1713,14 @@ class _Constraint(object):
         self._prim = prim
 
     def __str__(self):
-        """Represent this Constraint as a string"""
+        """Represents this Constraint as a string"""
         return CONSTRAINT_ALL
 
     def __repr__(self):
         return "mplane.model.constraint_all"
 
     def met_by(self, val):
-        """Determine if this constraint is met by a given value."""
+        """Determines if this constraint is met by a given value."""
         return True
 
     def single_value(self):
@@ -1763,7 +1763,7 @@ class _RangeConstraint(_Constraint):
                                              ", "+repr(str(self))+")"
 
     def met_by(self, val):
-        """Determine if the value is within the range"""
+        """Determines if the value is within the range"""
         return (val >= self.a) and (val <= self.b)
 
     def single_value(self):
@@ -1792,7 +1792,7 @@ class _SetConstraint(_Constraint):
                                              ", "+repr(str(self))+")"
 
     def met_by(self, val):
-        """Determine if the value is a mamber of the set"""
+        """Determines if the value is a mamber of the set"""
         return val in self.vs
 
     def single_value(self):
@@ -1804,7 +1804,7 @@ class _SetConstraint(_Constraint):
 
 def parse_constraint(prim, sval):
     """
-    Given a primitive and a string value, parse a constraint 
+    Given a primitive and a string value, parses a constraint
     string (returned via str(constraint)) into an instance of an 
     appropriate Constraint class.
 
@@ -1817,8 +1817,6 @@ def parse_constraint(prim, sval):
         return _SetConstraint(prim=prim, sval=sval)
 
 def test_constraints():
-    """Test range and set constraints"""
-
     assert constraint_all.met_by("whatever")
     assert constraint_all.met_by(None)
 
@@ -1864,12 +1862,12 @@ class Parameter(Element):
                str(self._constraint)+" value "+repr(self._val)+">"
 
     def has_value(self):
-        """Return True if this component has a value."""
+        """Returns True if this component has a value."""
         return self._val is not None
 
     def is_single_value(self):
         """
-        Return True if this parameter's Constraint only allows a single value
+        Returns True if this parameter's Constraint only allows a single value
 
         """
         return self._constraint.single_value() is not None
@@ -1886,7 +1884,7 @@ class Parameter(Element):
 
     def can_set_value(self, val):
         """
-        Return True if the parameter can take the specified value, 
+        Returns True if the parameter can take the specified value,
         False otherwise.
         Either takes a value of the correct type for the associated 
         Primitive, or a string, which will be parsed to a value of 
@@ -1900,7 +1898,7 @@ class Parameter(Element):
 
     def set_value(self, val):
         """
-        Set the value of the Parameter. 
+        Sets the value of the Parameter.
         Either takes a value of the correct type for the associated Primitive, or 
         a string, which will be parsed to a value of the correct type.
 
@@ -1916,7 +1914,7 @@ class Parameter(Element):
             raise ValueError(repr(self) + " cannot take value " + repr(val))
 
     def get_value(self):
-        """Return this Parameter's value"""
+        """Returns this Parameter's value"""
         return self._val
 
     def _as_tuple(self):
@@ -1943,11 +1941,16 @@ class Metavalue(Element):
                " value "+repr(self._val)+" >"
 
     def set_value(self, val):
+        """ 
+        Sets the value.
+        If the value is a string it parses it.
+        """
         if isinstance(val, str):
             val = self._prim.parse(val)
         self._val = val
 
     def get_value(self):
+        """ Returns the value """
         return self._val
 
     def _as_tuple(self):
@@ -1997,6 +2000,7 @@ class ResultColumn(Element):
         return iter(self._vals)
 
     def clear(self):
+        """ Clears values. """
         self._vals.clear()
 
 class Statement(object):
@@ -2062,24 +2066,25 @@ class Statement(object):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
     def verb(self):
-        """Get this statement's verb"""
+        """Returns this statement's verb"""
         return self._verb
 
     def is_query(self):
+        """ FIXME: This method should be called is_schedulable(). Check implementations where this method is used. """
         return self._verb == VERB_QUERY
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
-        """Programatically add a parameter to this statement."""
+        """Programatically adds a parameter to this Statement."""
         self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri), 
                                             constraint=constraint,
                                             val = val)
 
     def has_parameter(self, elem_name):
-        """Return True if the statement has a parameter with the given name"""
+        """Returns True if the statement has a parameter with the given name."""
         return elem_name in self._params
 
     def parameter_names(self):
-        """Iterate over the names of parameters in this Statement"""
+        """Iterates over the names of parameters in this Statement."""
         yield from self._params.keys()
 
     def parameter_values(self):
@@ -2095,105 +2100,106 @@ class Statement(object):
         return d
 
     def count_parameters(self):
-        """Return the number of parameters in this Statement"""
+        """Returns the number of parameters in this Statement."""
         return len(self._params)
 
     def count_parameter_values(self):
-        """Return the number of parameters with values in this Statement"""
+        """Returns the number of parameters with values in this Statement."""
         return sum(map(lambda p: p.has_value(), self._params.values()))
 
     def get_parameter_value(self, elem_name):
-        """Return the value for a named parameter on this Statement."""
+        """Returns the value for a named parameter on this Statement."""
         return self._params[elem_name].get_value()
 
     def set_parameter_value(self, elem_name, value):
-        """Programatically set a value for a parameter on this Statement."""
+        """Programatically sets a value for a parameter on this Statement."""
         elem = self._params[elem_name]
         elem.set_value(value)
 
     def can_set_parameter_value(self, elem_name, value):
-        """Determine whether a given parameter can take a value"""
+        """Determines whether a given Parameter can take a value."""
         elem = self._params[elem_name]
         return elem.can_set_value(value)
 
     def is_single_parameter_value(self, param_name):
-        """Determine whether a given parameter is single-valued"""
+        """Determines whether a given parameter is single-valued."""
         return self._params[elem_name].is_singl(value)
 
 
     def add_metadata(self, elem_name, val):
-        """Programatically add a metadata element to this statement."""
+        """Programatically adds a metadata element to this Statement."""
         self._metadata[elem_name] = Metavalue(element(elem_name, reguri=self._reguri), val)
 
     def has_metadata(self, elem_name):
-        """Return True if the statement has a metadata element with the given name"""
+        """Returns True if the statement has a metadata element with the given name."""
         return elem_name in self._metadata
 
     def metadata_names(self):
-        """Iterate over the names of metadata elements in this Statement"""
+        """Iterates over the names of metadata elements in this Statement."""
         yield from self._metadata.keys()
 
     def count_metadata(self):
-        """Return the number of metavalues in this Statement"""
+        """Returns the number of metavalues in this Statement."""
         return len(self._metadata)
 
     def add_result_column(self, elem_name):
-        """Programatically add a result column to this Statement."""
+        """Programatically adds a result column to this Statement."""
         self._resultcolumns[elem_name] = ResultColumn(element(elem_name, reguri=self._reguri))
 
     def has_result_column(self, elem_name):
+        """Returns True if the statement has results column with the given name."""
         return elem_name in self._resultcolumns
 
     def result_column_names(self):
-        """Iterate over the names of result columns in this statement"""
+        """Iterates over the names of result columns in this Statement."""
         yield from self._resultcolumns.keys()
 
     def count_result_columns(self):
-        """Return the number of result columns in this Statement"""
+        """Returns the number of result columns in this Statement."""
         return len(self._resultcolumns)
 
     def count_result_rows(self):
-        """Return the number of result rows in this Statement"""
+        """Returns the number of result rows in this Statement."""
         return functools.reduce(max, 
                    [len(col) for col in self._resultcolumns.values()], 0)
 
     def get_link(self):
         """
-        Get the statement's link URL, which specifies where the next message 
+        Returns the statement's link URL, which specifies where the next message
         in the workflow should be sent to or retrieved from.
         """
         return self._link
 
     def set_link(self, link):
-        """Set the statement's link URL"""
+        """Sets the Statement's link URL"""
         self._link = link
 
     def get_export(self):
         """
-        Get the statement's export URL, which specifies where 
+        Returns the Statement's export URL, which specifies where
         results will be indirectly exported.
         """
         return self._export
 
     def set_export(self, export):
-        """Set the statement's export URL"""
+        """Sets the Statement's export URL."""
         self._export = export
 
     def get_label(self):
-        """Return the statement's label"""
+        """Returns the Statement's label."""
         return self._label
 
     def set_label(self, label):
-        """Set the statement's label"""
+        """Sets the statement's label"""
         self._label = label
 
     def when(self):
-        """Get the statement's temporal scope"""
+        """Returns the statement's temporal scope."""
         return self._when
 
     def set_when(self, when, force=False):
         """
-        Set the statement's temporal scope. Ensures that the temporal scope is
+        Sets the statement's temporal scope. Ensures that the temporal scope is
         within the previous temporal scope unless force is True.
         Takes either an instance of
         mplane.model.When, or a string describing the scope.
@@ -2209,7 +2215,7 @@ class Statement(object):
 
     def _schema_hash(self, lim=None):
         """
-        Return a hex string uniquely identifying the set of parameters
+        Returns a hex string uniquely identifying the set of parameters
         and result columns (the schema) of this statement.
 
         """
@@ -2224,7 +2230,7 @@ class Statement(object):
 
     def _pv_hash(self, lim=None, astr=None):
         """
-        Return a hex string uniquely identifying the set of parameters,
+        Returns a hex string uniquely identifying the set of parameters,
         temporal scope, parameter values, and result columns 
         of this statement. Used as a specification key.
 
@@ -2245,7 +2251,7 @@ class Statement(object):
 
     def _mpcv_hash(self, lim=None, astr=None):
         """
-        Return a hex string uniquely identifying the set of parameters,
+        Returns a hex string uniquely identifying the set of parameters,
         temporal scope, parameter constraints, parameter values, metadata, metadata values, 
         and result columns (the extended specification) of this statement.
         Used as a complete token for statements.
@@ -2273,9 +2279,9 @@ class Statement(object):
 
     def get_token(self, lim=None):
         """ 
-        Return the token of a Statement.
+        Returns the token of a Statement.
         If a token has not been explicitely set, 
-        it returns the default token for the Statement type
+        it returns the default token for the Statement type.
         """
         if self._token is None:
           self._token = self._default_token()
@@ -2302,7 +2308,7 @@ class Statement(object):
 
     def to_dict(self, token_only=False):
         """
-        Convert a Statement to a dictionary (for further conversion 
+        Converts a Statement to a dictionary (for further conversion
         to JSON or YAML), which can be passed as the dictval
         argument of the appropriate statement constructor.
 
@@ -2346,7 +2352,7 @@ class Statement(object):
 
     def _params_from_dict(self, d):
         """
-        Fill in parameters from a dictionary; used internally.
+        Fills in parameters from a dictionary; used internally.
         The default implementation interprets dictionary values
         as parameter values.
 
@@ -2356,7 +2362,7 @@ class Statement(object):
 
     def _from_dict(self, d):
         """
-        Fill in this Statement with values from a dictionary
+        Fills in this Statement with values from a dictionary
         produced with to_dict (i.e., as taken from JSON or YAML).
         Ignores result values, as these are handled by :func:`Result._from_dict()`; 
         ignores the schedule section, as this is handled in :func:`Specification._from_dict()`.
@@ -2434,7 +2440,10 @@ class Capability(Statement):
         super().set_when(when, force)
 
     def validate(self):
-        pval = functools.reduce(operator.__or__, 
+        """
+        Checks that this is a valid Capability; i.e., capabilites can not parameter nor results values.
+        """
+        pval = functools.reduce(operator.__or__,
                                 (p.has_value() for p in self._params.values()),
                                 False)
 
@@ -2444,7 +2453,7 @@ class Capability(Statement):
 
     def _params_from_dict(self, d):
         """
-        Fill in parameters from a dictionary; used internally.
+        Fills in parameters from a dictionary; used internally.
         The Capability implementation interprets dictionary values
         as constraints.
 
@@ -2494,6 +2503,7 @@ class Specification(Statement):
         return KIND_SPECIFICATION
 
     def fulfills(self, capability):
+        """ Returns True if this Speficication fulfills the Capability"""
         # verify that the schema hash is equal 
         if self._schema_hash() != capability._schema_hash():
             return False
@@ -2507,10 +2517,9 @@ class Specification(Statement):
 
     def validate(self):
         """
-        Check that this is a valid Specification; i.e., that all parameters have values.
+        Checks that this is a valid Specification; i.e., that all parameters have values.
 
         """
-
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -2523,7 +2532,7 @@ class Specification(Statement):
 
     def retoken(self, tzero = None):
         """
-        Generate a new token, if necessary, taking into account the current time
+        Generates a new token, if necessary, taking into account the current time
         if a specification has a relative temporal scope.
 
         """
@@ -2531,13 +2540,13 @@ class Specification(Statement):
             self._token = self._pv_hash(astr = repr(self._when.datetimes))
 
     def set_single_values(self):
-        """Fill in values for all parameters whose constraints allow only one value."""
+        """Fills in values for all parameters whose constraints allow only one value."""
         for param in self._params.values():
             param.set_single_value()
 
     def subspec_iterator(self):
         """
-        Iterate over subordinate specifications if this specification is repeated 
+        Iterates over subordinate specifications if this specification is repeated
         (i.e., has a repeated Temporal Scope); otherwise yields self once. Each subordinate 
         specification has an absolute temporal scope derived from this specification's
         relative temporal scope and schedule.
@@ -2557,7 +2566,8 @@ class Result(Statement):
     """
     A result is a statement that a component measured
     a given set of values at a given point in time according to a specification.
-    Note, the token is generally inherited from the specification.
+    
+    Note, tits token is generally inherited from the respective specification.
     """
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
@@ -2586,6 +2596,10 @@ class Result(Statement):
         return KIND_RESULT
 
     def validate(self):
+        """
+        Checks that this is a valid Result; i.e., that all parameters have values.
+            
+        """
         pval = functools.reduce(operator.__and__, 
                         (p.has_value() for p in self._params.values()),
                         True)
@@ -2613,13 +2627,13 @@ class Result(Statement):
 
     def set_result_value(self, elem_name, val, row_index=0):
         """ 
-        Set a single result value.
+        Sets a single result value.
         """
         self._resultcolumns[elem_name][row_index] = val
 
     def schema_dict_iterator(self):
         """
-        Iterate over each row in this result, yielding a dictionary 
+        Iterates over each row in this result, yielding a dictionary
         mapping all parameter and result column names to their values.
 
         """
@@ -2688,7 +2702,7 @@ class Exception(BareNotification):
         self._token = d[KIND_EXCEPTION]
         self._errmsg = d[KEY_MESSAGE]
 
-class StatementNotification(Statement):
+class _StatementNotification(Statement):
     """
     Common implementation superclass for notifications that 
     may contain all or part of a related Capability or Specification.
@@ -2726,7 +2740,7 @@ class StatementNotification(Statement):
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw StatementNotification")
 
-class Receipt(StatementNotification):
+class Receipt(_StatementNotification):
     """
     A component presents a receipt to a Client in lieu of a result, when the
     result will not be available in a reasonable amount of time; or to confirm
@@ -2738,9 +2752,13 @@ class Receipt(StatementNotification):
         return KIND_RECEIPT
 
     def validate(self):
+        """
+        Checks that this is a valid Receipt; performes the same checks as for a Specification.
+            
+        """
         Specification.validate(self)
 
-class Redemption(StatementNotification):
+class Redemption(_StatementNotification):
     """
     A client presents a Redemption to a component from which it has received
     a Receipt in order to get the associated Result.
@@ -2755,9 +2773,12 @@ class Redemption(StatementNotification):
         return KIND_REDEMPTION
 
     def validate(self):
+        """
+        Checks that this is a valid Redemption; performes the same checks as for a Specification.
+        """
         Specification.validate(self)
 
-class Withdrawal(StatementNotification):
+class Withdrawal(_StatementNotification):
     """A Withdrawal cancels a Capability"""
     def __init__(self, dictval=None, capability=None, token=None):
         super().__init__(dictval=dictval, statement=capability, token=token)
@@ -2766,9 +2787,12 @@ class Withdrawal(StatementNotification):
         return KIND_WITHDRAWAL
 
     def validate(self):
+        """
+        Checks that this is a valid Withdrawal; performes the same checks as for a Capability.
+        """
         Capability.validate(self)
 
-class Interrupt(StatementNotification):
+class Interrupt(_StatementNotification):
     """An Interrupt cancels a Specification"""
     def __init__(self, dictval=None, specification=None, token=None):
         super().__init__(dictval=dictval, statement=specification, token=token)
@@ -2777,6 +2801,9 @@ class Interrupt(StatementNotification):
         return KIND_INTERRUPT
 
     def validate(self):
+        """
+        Checks that this is a valid Interrupt; performes the same checks as for a Specification.
+        """
         Specification.validate(self)
 
 #######################################################################
@@ -2814,11 +2841,11 @@ class Envelope(object):
         return len(self._messages)
 
     def append_message(self, msg):
-        """ Append a message to an Envelope """
+        """ Appends a message to an Envelope """
         self._messages.append(msg)
 
     def messages(self):
-        """" Returns an iterator to iterate over all messages in an Envelope """
+        """ Returns an iterator to iterate over all messages in an Envelope """
         return iter(self._messages)
 
     def kind_str(self):
