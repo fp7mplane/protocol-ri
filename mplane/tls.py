@@ -39,38 +39,27 @@ import os.path
 import tornado.httpserver
 from socket import socket
 import configparser
+import mplane.utils
 
 DUMMY_DN = "Dummy.Distinguished.Name"
-
-def search_path(path):
-    """
-    Converts every path into absolute paths
-    
-    """
-    if path[0] != '/':
-        norm_path = os.path.abspath(path)
-    else:
-        norm_path = path
-        
-    if not os.path.exists(norm_path):
-        raise ValueError("Error: File " + norm_path + " does not appear to exist.")
-        exit(1)
-        
-    return norm_path
 
 class TlsState:
     def __init__(self, config_file=None, forged_identity=None):
         
-        if config_file:
+        if (config_file):
             # Read the configuration file
             config = configparser.ConfigParser()
             config.optionxform = str
-            config.read(search_path(config_file))
-
-            # get paths to CA, cert, and key
-            self._cafile = search_path(config["TLS"]["ca-chain"])
-            self._certfile = search_path(config["TLS"]["cert"])
-            self._keyfile = search_path(config["TLS"]["key"])
+            config.read(mplane.utils.search_path(config_file))
+            if "TLS" not in config.sections():
+                self._cafile = None
+                self._certfile = None
+                self._keyfile = None
+            else:
+                # get paths to CA, cert, and key
+                self._cafile = mplane.utils.search_path(config["TLS"]["ca-chain"])
+                self._certfile = mplane.utils.search_path(config["TLS"]["cert"])
+                self._keyfile = mplane.utils.search_path(config["TLS"]["key"])
         else:
             self._cafile = None
             self._certfile = None
