@@ -2324,7 +2324,7 @@ class Capability(Statement):
 
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
-        
+
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\

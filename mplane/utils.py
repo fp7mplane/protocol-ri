@@ -28,7 +28,6 @@ def read_setting(filepath, param):
     Reads a setting from the indicated conf file
     
     """
-    print(filepath)
     with open(filepath,'r') as f:
         for line in f.readlines():
             if line[0] != "#":
@@ -91,4 +90,3 @@ def split_stmt_list(msg):
     for json_stmt in json_stmts:
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
-
