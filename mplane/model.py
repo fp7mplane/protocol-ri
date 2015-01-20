@@ -102,7 +102,7 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<specification: measure when now ... future / 1s token 4e66a52f schema 5ce99352 p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token e00d7fe8 schema 5ce99352 p(v)/m/r 2(1)/0/5>
 
 Here we have a specification with a given token, schema, and 2 parameters, 
 no metadata, and five result columns.
@@ -117,13 +117,11 @@ First, let's fill in a specific temporal scope for the measurement:
 
 >>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
-And then let's fill in some parameters. First, we can fill in all parameters whose
-single values are already given by their constraints (in this case, source.ip4):
-
->>> spec.set_single_values()
-
-Then, let's set a destination. Note that strings are accepted and
-automatically parsed using each parameter's primitive type:
+And then let's fill in some parameters. All od the parameters whose
+single values are already given by their constraints (in this case, source.ip4)
+have already been filled in. So let's start with the destination.
+Note that strings are accepted and automatically parsed using each 
+parameter's primitive type:
 
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
 
@@ -192,7 +190,7 @@ which can transform them back to a result and extract the values:
 
 >>> clires = mplane.model.parse_json(resjson)
 >>> clires
-<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
+<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token e00d7fe8 schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -203,7 +201,7 @@ This receipt contains all the information in the specification, as well as a tok
 which can be used to quickly identify it in the future. 
 
 >>> rcpt.get_token()
-'4e66a52f575499129f748a60eb0a26c7'
+'e00d7fe813cf17eeeea37b313dcfa4e7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -217,7 +215,7 @@ which can be used to quickly identify it in the future.
 '{"receipt": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
-  "token": "4e66a52f575499129f748a60eb0a26c7", 
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7", 
   "when": "2017-12-24 22:18:42.000000 + 1m / 1s", 
   "parameters": {"destination.ip4": "10.0.37.2", 
                  "source.ip4": "10.0.27.2"}, 
@@ -233,10 +231,10 @@ referring to this receipt to retrieve the results:
 
 >>> clircpt = mplane.model.parse_json(jsonrcpt)
 >>> clircpt
-<receipt: 4e66a52f575499129f748a60eb0a26c7>
+<receipt: e00d7fe813cf17eeeea37b313dcfa4e7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<redemption: 4e66a52f575499129f748a60eb0a26c7>
+<redemption: e00d7fe813cf17eeeea37b313dcfa4e7>
 
 Note here that the redemption has the same token as the receipt; 
 just the token may be sent back to the component to retrieve the 
@@ -246,7 +244,7 @@ results:
 '{"redemption": "measure", 
   "version": 1, 
   "registry": "http://ict-mplane.eu/registry/core", 
-  "token": "4e66a52f575499129f748a60eb0a26c7"
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7"
 }'
 
 As long as the measurement is running, the client can stop the measurement by sending an
@@ -1806,7 +1804,7 @@ def parse_constraint(prim, sval):
     """
     Given a primitive and a string value, parses a constraint
     string (returned via str(constraint)) into an instance of an 
-    appropriate Constraint class.
+    appropriate constraint class.
 
     """
     if sval == CONSTRAINT_ALL:
@@ -2493,6 +2491,10 @@ class Specification(Statement):
             if when is None:
                 self._when = capability._when
 
+            # now set values we know we can
+            for param in self._params.values():
+                param.set_single_value()
+
     def _more_repr(self):
         return " p(v)/m/r "+str(self.count_parameters())+"("+\
                str(self.count_parameter_values())+")/"+\
@@ -2530,19 +2532,16 @@ class Specification(Statement):
     def _default_token(self):
         return self._pv_hash()
 
-    def retoken(self, tzero = None):
+    def retoken(self, force=False):
         """
         Generates a new token, if necessary, taking into account the current time
         if a specification has a relative temporal scope.
 
         """
-        if not self._when.is_definite():
-            self._token = self._pv_hash(astr = repr(self._when.datetimes))
-
-    def set_single_values(self):
-        """Fills in values for all parameters whose constraints allow only one value."""
-        for param in self._params.values():
-            param.set_single_value()
+        if force:
+            self._token = self._default_token()
+        elif not self._when.is_definite():
+            self._token = self._pv_hash(astr = repr(self._when.datetimes()))
 
     def subspec_iterator(self):
         """
@@ -2552,11 +2551,12 @@ class Specification(Statement):
         relative temporal scope and schedule.
         """
         if self._when.is_repeated():
-            subspec = deepcopy(self)
+            subspec = deepcopy(self)  # Brian does not like that but he said it is okay
 
             iter = self._when.iterator()
             while 1:
                 subspec._when = next(iter)
+                subspec.retoken(True)
                 yield subspec
         else:
             yield self
@@ -2692,7 +2692,7 @@ class Exception(BareNotification):
         """
         return self._token
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         d = collections.OrderedDict()
         d[KIND_EXCEPTION] = self._token
         d[KEY_MESSAGE] = self._errmsg
@@ -2839,6 +2839,10 @@ class Envelope(object):
 
     def __len__(self):
         return len(self._messages)
+
+    def trim(self, n):
+        """ Removes everything except the last n elements """
+        del self._messages[:-n]
 
     def append_message(self, msg):
         """ Appends a message to an Envelope """

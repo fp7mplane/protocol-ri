@@ -161,7 +161,7 @@ class BaseClient(object):
         spec.set_when(when)
 
         # fill in parameters
-        spec.set_single_values()
+        # spec.set_single_values() # this is automatic now
         for pname in spec.parameter_names():
             if spec.get_parameter_value(pname) is None:
                 if pname in params:
