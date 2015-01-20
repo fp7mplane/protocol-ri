@@ -79,9 +79,13 @@ key = utils.search_path(path.join(conf_path, "component-test-plaintext.key"))
 ca_chain = utils.search_path(path.join(conf_path, "root-ca.crt"))
 identity = "org.mplane.Test.Components.Component-1"
 forged_identity = "org.example.test"
+config_file_no_tls = path.join(conf_path, "component-test-no-tls.conf")
 
 # with config file and without forged_identity
 tls_with_file = tls.TlsState(config_file=config_file)
+# with config file without TLS sections and with forged_identity
+tls_with_file_no_tls = tls.TlsState(config_file=config_file_no_tls,
+                                    forged_identity=forged_identity)
 # without config file and with forged_identity
 tls_without_file = tls.TlsState(forged_identity=forged_identity)
 
@@ -107,6 +111,32 @@ def test_TLSState_init():
     assert_equal(tls_without_file._certfile, None)
     assert_equal(tls_without_file._keyfile, None)
     assert_equal(tls_without_file._identity, forged_identity)
+
+    assert_equal(tls_with_file_no_tls._cafile, None)
+    assert_equal(tls_with_file_no_tls._certfile, None)
+    assert_equal(tls_with_file_no_tls._keyfile, None)
+    assert_equal(tls_with_file_no_tls._identity, forged_identity)
+
+
+def test_TLSState_pool_for():
+    import urllib3
+    host = "127.0.0.1"
+    port = 8080
+    http_pool = tls_with_file.pool_for("http", host, port)
+    assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
+ 
+    https_pool = tls_with_file.pool_for("https", host, port)
+    assert_true(isinstance(https_pool, urllib3.HTTPSConnectionPool))
+    
+    fallback_http_pool = tls_with_file_no_tls.pool_for("https", host, port)
+    assert_false(isinstance(fallback_http_pool, urllib3.HTTPSConnectionPool))
+    assert_true(isinstance(fallback_http_pool, urllib3.HTTPConnectionPool))
+    
+    another_fallback_http_pool = tls_without_file.pool_for("https", host, port)
+    assert_false(isinstance(another_fallback_http_pool,
+                            urllib3.HTTPSConnectionPool))
+    assert_true(isinstance(another_fallback_http_pool,
+                           urllib3.HTTPConnectionPool))
 
 
 def test_TLSState_forged_identity():
