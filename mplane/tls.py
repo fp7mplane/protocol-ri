@@ -35,7 +35,7 @@
 
 import urllib3
 import ssl
-import os.path
+import functools
 import tornado.httpserver
 from socket import socket
 import configparser
@@ -67,31 +67,30 @@ class TlsState:
         
         # load cert and get DN
         self._identity = self.extract_local_identity(forged_identity)
-
-    def pool_for(self, url):
+    
+    @functools.lru_cache()
+    def pool_for(self, scheme, host, port):
         """
         Given a URL (from which a scheme and host can be extracted),
         return a connection pool (potentially with TLS state) 
         which can be used to connect to the URL.
         """
-
-        if isinstance(url, str):
-            url = urllib3.util.parse_url(url)
-        if url.scheme == "http":
-            return urllib3.HTTPConnectionPool(url.host, url.port) 
-        elif url.scheme == "https":
+        
+        if scheme == "http":
+            return urllib3.HTTPConnectionPool(host, port) 
+        elif scheme == "https":
             if self._keyfile:
-                return urllib3.HTTPSConnectionPool(url.host, url.port, 
+                return urllib3.HTTPSConnectionPool(host, port, 
                                                     key_file=self._keyfile, 
                                                     cert_file=self._certfile, 
                                                     ca_certs=self._cafile) 
             else:
-                return urllib3.HTTPSConnectionPool(url.host, url.port)
-        elif url.schema == "file":
+                return urllib3.HTTPSConnectionPool(host, port)
+        elif scheme == "file":
             # FIXME what to do here?
-            raise ValueError("Unsupported schema "+url.schema)            
+            raise ValueError("Unsupported scheme "+scheme)            
         else:
-            raise ValueError("Unsupported schema "+url.schema)
+            raise ValueError("Unsupported scheme "+scheme)
 
     def forged_identity(self):
         if not self._keyfile:
