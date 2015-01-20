@@ -33,6 +33,7 @@ class Component(object):
     def __init__(self, config_file):
         mplane.model.initialize_registry()
         self.config = config_file
+        self.scheduler = mplane.scheduler.Scheduler(mplane.azn.Authorization(config_file))
     
     def services(self):
         # Read the configuration file
