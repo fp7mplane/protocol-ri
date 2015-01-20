@@ -25,11 +25,10 @@
 Information model and element registry for the mPlane protocol.
 
 This module implements Statements and Notifications, the core
-messages used by the mPlane protocol, the Elements these
-use to describe measurement and query schemas, and various
-other classes to support them.
+messages used by the mPlane protocol to describe measurement 
+and query schemas, and various other classes to support them.
 
-There are three kinds of Statement:
+There are three kinds of Statements:
 
     - Capability represents something a component can do
     - Specification tells a component to do something it
@@ -37,7 +36,7 @@ There are three kinds of Statement:
     - Result returns the results for a Specification in-band
 
 Notifications are used to transfer other information between
-components and clients. There are four kinds of Notification:
+components and clients. There are four kinds of Notifications:
 
     - Receipt notifies that a Result is not yet ready or
       that the results of an operation will be indirectly exported.
@@ -46,17 +45,16 @@ components and clients. There are four kinds of Notification:
     - Interrupt notifies that a running Specification should be stopped.
 
 To see how all this fits together, let's simulate the message exchange
-in a simple ping measurement. First, we load the registry and 
-programatically create a new Capability, as would be advertised by
-the component. First, we initialize the registry and create a new 
-empty Capability.
+in a simple ping measurement. Initially, we have to load the default element 
+registry and programatically create a new empty Capability, as it would 
+be advertised by the component.
 
 >>> import mplane
 >>> import json
 >>> mplane.model.initialize_registry()
 >>> cap = mplane.model.Capability()
 
-First we set a temporal scope for the capability. Probe components 
+First, we set a temporal scope for the capability. Probe components
 generally advertise a temporal scope from the present stretching 
 into the indeterminate future. In this case, we advertise that the 
 measurement performed is periodic, by setting the minimum period 
@@ -80,7 +78,7 @@ total count of singleton measurements taken and packets lost:
 >>> cap.add_result_column("delay.twoway.icmp.count")
 >>> cap.add_result_column("packets.lost")
 
-Now we have a capability we could transform into JSON and make 
+Now we have a capability we could transform into JSON and make it
 available to clients via the mPlane protocol, or via static 
 download or configuration:
 
@@ -115,16 +113,16 @@ no metadata, and five result columns.
           and columns (schemas) will have identical schema hashes. Likewise,
           the token is defined by the schema as well as the parameter values.
 
-First let's fill in a specific temporal scope for the measurement:
+First, let's fill in a specific temporal scope for the measurement:
 
 >>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
 And then let's fill in some parameters. First, we can fill in all parameters whose
-single values are already given by their constraints (in this case, source.ip4)
+single values are already given by their constraints (in this case, source.ip4):
 
 >>> spec.set_single_values()
 
-Then let's set a destination. Note that strings are accepted and
+Then, let's set a destination. Note that strings are accepted and
 automatically parsed using each parameter's primitive type:
 
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
@@ -153,7 +151,7 @@ object and turn it back into a specification:
 >>> comspec = mplane.model.parse_json(specjson)
 
 The component would determine the measurement, query, or other operation to
-run by the specification, then extract the necessary parameter values, e.g.:
+run given by the specification, then extract the necessary parameter values, e.g.:
 
 >>> comspec.get_parameter_value("destination.ip4")
 IPv4Address('10.0.37.2')
@@ -251,8 +249,65 @@ results:
   "token": "4e66a52f575499129f748a60eb0a26c7"
 }'
 
-.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
- 
+As long as the measurement is running, the client can stop the measurement by sending an
+interrupt:
+
+>>> irpt = mplane.model.Interrupt(specification=spec)
+>>> jsonrcpt = mplane.model.unparse_json(irpt)
+
+The component receives the interrupt, stops the measurement and returns the results of
+performed measurement.
+
+Otherwise, in case the component cannot perform the speficied operation, it sends a
+withdrawal to cancel the previously advertised capability:
+
+>>> wtdr = mplane.model.Withdrawal(capability=cap)
+>>> mplane.model.unparse_json(wtdr) # doctest: +SKIP
+'{"withdrawal": "measure",
+"version": 1,
+"registry": "http://ict-mplane.eu/registry/core",
+"token": "d7e9df75145e209e144bf9c06e7a9d2f",
+"when": "now ... future / 1s",
+"parameters": {"destination.ip4": "*",
+"source.ip4": "10.0.27.2"},
+"results": ["delay.twoway.icmp.us.min",
+"delay.twoway.icmp.us.max",
+"delay.twoway.icmp.us.mean",
+"delay.twoway.icmp.count",
+"packets.lost"]
+}'
+
+Further several messages can be send at once by using an Envelope,
+e.g. a component could announce serval capabilites at once.
+
+In case of our simple ping component we create a second capability 
+that only provides the mean of the measurement values:
+
+>>> cap2 = mplane.model.Capability()
+>>> cap2.set_when("now ... future / 1s")
+>>> cap2.add_parameter("source.ip4", "10.0.27.2")
+>>> cap2.add_parameter("destination.ip4")
+>>> cap2.add_result_column("delay.twoway.icmp.us.mean")
+
+Now we create an Envelope and append the two capabilities.
+
+>>> env = mplane.model.Envelope()
+>>> env.append_message(cap)
+>>> env.append_message(cap2)
+>>> env
+<Envelope message (2):
+ <capability: measure when now ... future / 1s token d7e9df75 schema 5ce99352 p/m/r 2/0/5> 
+ <capability: measure when now ... future / 1s token a9ec7fce schema ea37cea5 p/m/r 2/0/1>
+>
+
+Similar as with every other message this Envelope is serialized and send to the client:
+
+envjson = mplane.model.unparse_json(env)
+
+The client receives the Envelope and decomposes the encapsulated messages:
+
+>>> clienv = mplane.model.parse_json(envjson)
+>>> messages = [message for message in clienv.messages()]
 
 """
 
@@ -896,7 +951,7 @@ class When(object):
         else:
             return False
 
-    def iterator(self, t=None):
+    def iterator(self, tzero=None):
         """
         Returns an iterator over When statements generated by a repeated when.
 
@@ -905,8 +960,10 @@ class When(object):
             raise Exception("Can't get iterator for non-repeated when")
 
         # default to now, zero microseconds, initialize minus one second
-        if t is None:
+        if tzero is None:
             t = datetime.utcnow().replace(microsecond=0)
+        else:
+            t = tzero
 
         # get base period (default 1s) and
         period = self.period()
@@ -914,7 +971,7 @@ class When(object):
             period = timedelta(seconds=1)
 
         # fast forward if necessary
-        lag = self.sort_scope(t)
+        lag = self.sort_scope(t, tzero)
         if lag < 0:
             t += timedelta(seconds=-lag)
 
@@ -1078,6 +1135,7 @@ def test_tscope():
     assert wdef.period() is None
     assert wdef.is_definite()
     assert not wdef.is_infinite()
+    assert not wdef.is_repeated()
     assert wdef.in_scope(parse_time("2009-02-20 14:15:16"))
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
@@ -1090,7 +1148,8 @@ def test_tscope():
     wrel = When("now + 30m / 15s")
     assert wrel.duration() == timedelta(0,1800)
     assert wrel.period() == timedelta(0,15)
-    assert not wrel.is_definite() 
+    assert not wrel.is_definite()
+    assert not wrel.is_repeated()
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
     assert wrel.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
@@ -1101,9 +1160,84 @@ def test_tscope():
     # Infinite scope
     assert when_infinite.duration() is None
     assert when_infinite.period() is None
+    assert not when_infinite.is_repeated()
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
     assert (when_infinite.datetimes()) == (None, None)
+
+    # repeated when without inner-when (should be the same as immediate scrope with period)
+    wrep = When("repeat now + 30m / 15s")
+    assert wrep.is_repeated()
+    assert wrep.duration() == timedelta(0,1800)
+    assert wrep.period() == timedelta(0,15)
+    assert not wrep.is_definite()
+    assert wrep.is_immediate()
+    assert wrep.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
+    assert wrep.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
+
+    # repeated when with period and inner-when
+    wrep = When("repeat now + 30m / 1m { now + 5s / 1s }")
+    assert wrep.is_repeated()
+    assert wrep.duration() == timedelta(0,1800)
+    assert wrep.period() == timedelta(0,60)
+    assert not wrep.is_definite()
+    assert wrep.is_immediate()
+    assert wrep.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
+    assert wrep.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
+
+    # check when from subspec (first iteration)
+    iter = wrep.iterator(parse_time("2009-02-20 13:30:00"))
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-02-20 13:30:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 13:30:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 13:30:05"))
+    assert wrep_subspec.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (5400, 5405)
+
+    # check when from subspec (second iteration)
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-02-20 13:31:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 13:31:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:31:00"), parse_time("2009-02-20 13:31:05"))
+    assert wrep_subspec.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (5460, 5465)
+
+    # cron when (first monday each month)
+    wcron = When("repeat now ... future cron 0 0 * 1,2,3,4,5,6,7 1 * { now + 5s / 1s }")
+    assert wcron.is_repeated()
+    assert not wcron.is_definite()
+    assert wcron.is_immediate()
+    assert wcron.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+
+    # check when from subspec (first iteration)
+    iter = wcron.iterator(parse_time("2009-02-20 13:30:00"))
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-03-02 00:00:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 00:06:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-03-02 00:00:00"), parse_time("2009-03-02 00:00:05"))
+    assert wrep_subspec.follows(When("2009-03-02 00:00:00 ... 2009-03-02 15:00:00"), tzero=parse_time("2009-03-02 00:00:03"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-03-01 23:00:00")) == (3600, 3605)
 
 
 #######################################################################
@@ -2713,17 +2847,20 @@ class Envelope(object):
     _content_type = None
     _messages = None
 
-    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None):
         super().__init__()
 
         self._messages = []
         self._content_type = content_type
+        self._token = token
+
         if dictval is not None:
             self._from_dict(dictval)
 
     def __repr__(self):
-        return "<Envelope "+self._content_type+\
-                " ("+str(len(self._messages))+"): "+\
+        return "<envelope: "+self._content_type+\
+                " ("+str(len(self._messages))+")"+\
+                " token "+self.get_token()+": "+\
                 " ".join(map(repr, self._messages))+">"
 
     def __len__(self):
@@ -2738,11 +2875,11 @@ class Envelope(object):
     def kind_str(self):
         return KIND_ENVELOPE
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         d = {}
         d[self.kind_str()] = self._content_type
         d[KEY_VERSION] = self._version
-        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
+        d[KEY_CONTENTS] = [m.to_dict(token_only=token_only) for m in self.messages()]
         return d
 
     def _from_dict(self, d):
@@ -2754,6 +2891,12 @@ class Envelope(object):
 
         for md in d[KEY_CONTENTS]:
             self.append_message(message_from_dict(md))
+
+    def get_token(self, lim=None):
+        if self._token is not None and lim is not None and len(self._token) > lim:
+          return self._token[:lim]
+        else:
+          return self._token
 
 #######################################################################
 # Utility methods

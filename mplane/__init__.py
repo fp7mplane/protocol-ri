@@ -2,24 +2,23 @@
 .. moduleauthor:: Brian Trammell <brian@trammell.ch>
 
 This module provides a reference implementation of the mPlane protocol. It is
-organized into layers. :mod:`mplane.model` implements the mPlane protocol 
+organized into serval modules:
+
+:mod:`mplane.model` implements the mPlane protocol
 information model: message types, the element registry, and various support
 classes. 
 
 On top of the information model, the :mod:`mplane.scheduler` module defines
 a framework for binding :class:`mplane.model.Capability` classes to runnable
-code, and for invoking that code on the receipt of mPlane statements; this is
-used to build components and frameworks. 
+code, and for invoking that code on the receipt of mPlane Statements; this is
+used to build clients and components.
 
 The :mod:`mplane.client` module
 defines interfaces for building clients, as well as providing a CLI
 to a completely generic mPlane HTTP client.
 
-The :mod:`mplane.httpsrv` module binds the Information Model to the Tornado
-web application framework, for building component-push HTTP components.
-
-The :mod:`mplane.ping` module implements an example ping application using 
-the mPlane reference implementation.
+The :mod:`mplane.component` module
+defines interfaces for building components.
 
 This software is copyright 2013 the mPlane Consortium. 
 It is made available under the terms of the 

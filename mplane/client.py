@@ -395,7 +395,7 @@ class HttpClient(BaseClient):
 
         pool = self._tls_state.pool_for(dst_url)
 
-        headers = {"content-type": "application/x-mplane+json"}
+        headers = {"Content-Type": "application/x-mplane+json"}
         if self._tls_state.forged_identity():
             headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
         
@@ -404,7 +404,7 @@ class HttpClient(BaseClient):
                            headers=headers)
         
         if (res.status == 200 and 
-            res.getheader("content-type") == "application/x-mplane+json"):
+            res.getheader("Content-Type") == "application/x-mplane+json"):
             # FIXME handle identity completely here, look at how SSB client does this
             self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
         else:
@@ -445,20 +445,30 @@ class HttpClient(BaseClient):
         spec.validate()
         self.send_message(spec, dst_url=cap.get_link())
 
-    def retrieve_capabilities(self, url, urlchain=[]):
+    def retrieve_capabilities(self, url, urlchain=[], pool=None):
         """
         connect to the given URL, retrieve and process the 
         capabilities/withdrawals found there
         """
+        
         # detect loops in capability links
         if url in urlchain:
             return
-
-        pool = self.tls_state.pool_for(dst_url)
-        res = pool.request('get', dst_url)
+            
+        if isinstance(url, str):
+            url = urllib3.util.parse_url(url)
+        
+        if pool is None:
+            if url.host is not None:
+                pool = self._tls_state.pool_for(url.scheme, url.host, url.port)
+            else:
+                print("ConnectionPool not defined")
+                exit(1)
+        
+        res = pool.request('GET', url.path)
 
         if res.status == 200:
-            ctype = res.getheader("content-type")
+            ctype = res.getheader("Content-Type")
             if ctype == "application/x-mplane+json":
                 # Probably an envelope. Process the message.
                 self.handle_message(
@@ -470,7 +480,8 @@ class HttpClient(BaseClient):
                 parser.close()
                 for capurl in parser.urls:
                     self.retrieve_capabilities(url=capurl, 
-                                               urlchain=urlchain + [url])
+                                               urlchain=urlchain + [url], pool=pool)
+                            
 
 class HttpListenerClient(BaseClient):
     """

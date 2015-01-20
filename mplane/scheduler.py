@@ -188,8 +188,8 @@ class MultiJob(object):
     """
 
     jobs = []
-    results = mplane.model.Envelope()
-    exceptions= mplane.model.Envelope()
+    results = None
+    exceptions= None
     service = None
     session = None
     specification = None
@@ -205,6 +205,8 @@ class MultiJob(object):
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
         self._subspec_iterator = specification.subspec_iterator()
+        self.results = mplane.model.Envelope(token=specification.get_token())
+        self.exceptions = mplane.model.Envelope(token=specification.get_token())
 
     def __repr__(self):
         return "<MultiJob for "+repr(self.specification)+">"
@@ -325,7 +327,7 @@ class Scheduler(object):
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
-        self._azn = azn
+        self.azn = azn
 
     def receive_message(self, user, msg, session=None):
         """
@@ -380,7 +382,7 @@ class Scheduler(object):
         # linearly search the available services
         for service in self.services:
             if specification.fulfills(service.capability()):
-                if self._azn.check(service.capability(), identity):
+                if self.azn.check(service.capability(), identity):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
                     if specification.when().is_repeated():
