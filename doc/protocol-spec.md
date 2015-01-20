@@ -23,6 +23,14 @@ and further described in the rest of the document. The _capability - specificati
 
 This document is the work of the mPlane consortium, specifically B. Trammell, M. Kühlewind, M. Mellia, A. Finamore, S. Pentassuglia, G. De Rosa, F. Invernizzi, M. Milanesio, D. Rossi, S. Niccolini, I. Leontiadis, T. Szemethy, B. Szabó, R. Winter, M. Faath, B. Donnet, and D. Papadimitriou. It reflects Version 1 of the mPlane protocol.
 
+## Changes from D1.4 
+
+This document differs from the revision of the protocol documented in the mPlane consortium's Deliverable 1.4 in the following points; all of these changes are interoperable with the protocol as defined there:
+
+- Addition of augmented registry information.
+- Addition of tokens to envelopes.
+- Clarification that interrupts are intended to return pending results.
+
 # mPlane Architecture
 
 ## Principles
@@ -235,7 +243,7 @@ operation, conveyed from a client to a component. It can be
 conceptually viewed as a capability whose parameters have been filled in with
 values.
 
-An __interrupt__ is a notification that a component should stop performing a specific operation, conveyed from client to component. It cancels a previously sent specification.
+An __interrupt__ is a notification that a component should stop performing a specific operation, conveyed from client to component. It terminates a previously sent specification. If the specification uses indirect export, the indirect export will simply stop running. If the specification has pending results, those results are returned in response to the interrupt.
 
 ### Result
 
