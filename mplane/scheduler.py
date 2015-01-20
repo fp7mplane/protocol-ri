@@ -29,9 +29,11 @@ results within the mPlane reference component.
 """
 
 from datetime import datetime, timedelta
+from copy import deepcopy
 import threading
 import mplane.model
 import mplane.azn
+import configparser
 
 class Service(object):
     """
@@ -189,7 +191,6 @@ class MultiJob(object):
 
     jobs = []
     results = None
-    exceptions= None
     service = None
     session = None
     specification = None
@@ -198,15 +199,15 @@ class MultiJob(object):
     _scheduling_finished = False
     _subspec_iterator = None
 
-    def __init__(self, service, specification, session=None):
+    def __init__(self, service, specification, session=None, max_results=0):
         super(MultiJob, self).__init__()
         self.service = service
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self._subspec_iterator = specification.subspec_iterator()
         self.results = mplane.model.Envelope(token=specification.get_token())
-        self.exceptions = mplane.model.Envelope(token=specification.get_token())
+        self._subspec_iterator = specification.subspec_iterator()
+        self._max_results = int(max_results)
 
     def __repr__(self):
         return "<MultiJob for "+repr(self.specification)+">"
@@ -277,41 +278,47 @@ class MultiJob(object):
             job.interrupt()
 
     def failed(self):
-        for job in self.jobs[:]:
-            if job.failed():
-                self.exceptions.append_message(job.get_reply())
-                self.jobs.remove(job)
+        """A multijob will only fail if it is finished and has no results"""
+        if self.finished() and len(self.results) == 0:
+            return True
 
-        return len(self.exceptions)
+        return False
 
     def finished(self):
         """Return True if all jobs are complete."""
         if not self._scheduling_finished:
             return False
 
-        for job in self.jobs[:]:
-            if job.finished() and not job.failed():
-                self.results.append_message(job.get_reply())
-                self.jobs.remove(job)
-            else:
-                return False
+        if len(self.jobs) > 0:
+            return False
 
         return True
 
+    def _collect_results(self):
+        """Stores the last self.max_results results."""
+        for job in self.jobs[:]:
+            if job.failed() or job.finished():
+                self.results.append_message(job.get_reply())
+                self.jobs.remove(job)
+
+        self.results.trim(self._max_results)
+
     def get_reply(self):
         """
-        If a result is available for this Job (i.e., if the job is
-        done running), return it. Otherwise, create a receipt from
-        the Specification and return that.
+        If results are available for this MultiJob, return them.
+        Otherwise, create a receipt from the Specification and return that.
 
         """
+        self._collect_results()
         self._replied_at = datetime.utcnow()
-        if self.failed():
-            return self.exceptions
-        elif self.finished():
+        if len(self.results) > 0:
+            #if not self.finished():
+            #    tmp = deepcopy(self.results)
+            #    tmp.append_message(self.receipt)
+            #    return tmp
             return self.results
         else:
-            return self.receipt
+            return self.receiptcopy
 
 
 class Scheduler(object):
@@ -322,12 +329,29 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self, azn=mplane.azn.always_authorized):
+    def __init__(self, config_file=None):
         super(Scheduler, self).__init__()
+
+        if (config_file):
+            # Read the configuration file
+            config = configparser.ConfigParser()
+            config.optionxform = str
+            config.read(mplane.utils.search_path(config_file))
+
+            self.azn = mplane.azn.Authorization(config)
+
+            if "component" not in config.sections():
+                self._max_results = 0
+            else:
+                # get max results to store
+                self._max_results = config["component"]["scheduler_max_results"]
+        else:
+            self._max_results = 0
+            self.azn = mplane.azn.Authorization()
+
         self.services = []
         self.jobs = {}
         self._capability_cache = {}
-        self.azn = azn
 
     def receive_message(self, user, msg, session=None):
         """
@@ -341,8 +365,12 @@ class Scheduler(object):
         elif isinstance (msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
-                reply = self.jobs[job_key].get_reply()
-                self.jobs.pop(job_key, None)
+                job = self.jobs[job_key]
+                reply = job.get_reply()
+                if isinstance (job, Job):
+                    self.jobs.pop(job_key, None)
+                elif isinstance (job, MultiJob) and job.finished():
+                    self.jobs.pop(job_key, None)
             else: reply = mplane.model.Exception(token=job_key, 
                 errmsg="Unknown job")
         else:
@@ -388,7 +416,8 @@ class Scheduler(object):
                     if specification.when().is_repeated():
                         new_job = MultiJob(service=service,
                                            specification=specification,
-                                           session=session)
+                                           session=session,
+                                           max_results=self._max_results)
                     else:
                         new_job = Job(service=service,
                                       specification=specification,
