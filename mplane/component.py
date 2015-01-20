@@ -28,14 +28,16 @@ import mplane.model
 import importlib
 import configparser
 
-class Component(object):
+class BaseComponent(object):
     
     def __init__(self, config_file):
         mplane.model.initialize_registry()
         self.config = config_file
         self.scheduler = mplane.scheduler.Scheduler(mplane.azn.Authorization(config_file))
+        for service in self._services():
+            self.scheduler.add_service(service)
     
-    def services(self):
+    def _services(self):
         # Read the configuration file
         config = configparser.ConfigParser()
         config.optionxform = str
@@ -52,9 +54,15 @@ class Component(object):
                     services.append(service)
         return services
 
+class ListenerHttpComponent(BaseComponent):
+    pass
+
+class InitiatorHttpComponent(BaseComponent):
+    pass
+
 if __name__ == "__main__":
     
     # ONLY FOR TEST PURPOSES
-    comp = Component("./conf/component.conf")
+    comp = BaseComponent("./conf/component.conf")
     for service in comp.services():
         print(service)
