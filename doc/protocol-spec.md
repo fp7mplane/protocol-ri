@@ -23,6 +23,14 @@ and further described in the rest of the document. The _capability - specificati
 
 This document is the work of the mPlane consortium, specifically B. Trammell, M. Kühlewind, M. Mellia, A. Finamore, S. Pentassuglia, G. De Rosa, F. Invernizzi, M. Milanesio, D. Rossi, S. Niccolini, I. Leontiadis, T. Szemethy, B. Szabó, R. Winter, M. Faath, B. Donnet, and D. Papadimitriou. It reflects Version 1 of the mPlane protocol.
 
+## Changes from D1.4 
+
+This document differs from the revision of the protocol documented in the mPlane consortium's Deliverable 1.4 in the following points; all of these changes are interoperable with the protocol as defined there:
+
+- Addition of augmented registry information.
+- Addition of tokens to envelopes.
+- Clarification that interrupts are intended to return pending results.
+
 # mPlane Architecture
 
 ## Principles
@@ -174,7 +182,7 @@ __Fully qualified__ element names consist of the element's name as an anchor aft
 
 ### Structured Element Names
 
-To ease understanding of mPlane type registries, element names are by default _structured_; that is, an element name is made up of the following structural parts in order, separated by the dot ('.') character:
+To ease understanding of mPlane type registries, element names are _structured_ by convention; that is, an element name is made up of the following structural parts in order, separated by the dot ('.') character:
 
 - __basename__: exactly one, the name of the property the element specifies or measures. All elements with the same basename describe the same basic property. For example, all elements with basename '`source`' relate to the source of a packet, flow, active measurement, etc.; and elements with basename '`delay`'' relate to the measured delay of an operation.
 - __modifier__: zero or more, additional information differentiating elements with the same basename from each other. Modifiers may associate the element with a protocol layer, or a particular variety of the property named in the basename. All elements with the same basename and modifiers refer to exactly the same property. Examples for the `delay` basename include `oneway` and `twoway`, differentiating whether a delay refers to the path from the source to the destination or from the source to the source via the destination; and `icmp` and `tcp`, describing the protocol used to measure the delay.
@@ -204,6 +212,14 @@ The mPlane protocol supports the following primitive types for elements in the t
 - __address__: an identifier of a network-level entity, including an address family. The address family is presumed to be implicit in the format of the message, or explicitly stored. Addresses may represent specific endpoints or entire networks.
 - __url__: a uniform resource locator
 
+### Augmented Registry Information
+
+Additional keys beyond __prim__, __desc__, and __name__ may appear in an mPlane registry to augment information about each element; these are not presently used by the reference implementation's information model but may be used by software built around
+
+Elements in the core registry at `http://ict-mplane.eu/registry/core` may contain the following augmented registry keys:
+
+- __units__: If applicable, units in which the element is expressed; equal to the units part of a structured name if present.
+
 ## Message Types
 
 Workflows in mPlane are built around the _capability - specification - result_ cycle. Capabilities, specifications, and results are kinds of __statements__: a capability is a statement that a component can perform some action (generally a measurement); a specification is a statement that a client would like a component to perform the action advertised in a capability; and a result is a statement that a component measured a given set of values at a given point in time according to a specification.
@@ -227,7 +243,7 @@ operation, conveyed from a client to a component. It can be
 conceptually viewed as a capability whose parameters have been filled in with
 values.
 
-An __interrupt__ is a notification that a component should stop performing a specific operation, conveyed from client to component. It cancels a previously sent specification.
+An __interrupt__ is a notification that a component should stop performing a specific operation, conveyed from client to component. It terminates a previously sent specification. If the specification uses indirect export, the indirect export will simply stop running. If the specification has pending results, those results are returned in response to the interrupt.
 
 ### Result
 
@@ -291,7 +307,7 @@ Each message is made up of sections, as described in the subsection below. The f
 | `resultvalues`  |            |               | req.   |             |          |
 | `export`        | opt.       | opt.          | opt.   | opt.        |          |
 | `link`          | opt.       |               |        |             |          |
-| `token`         | opt.       | opt.          | opt.   | opt.        |          |
+| `token`         | opt.       | opt.          | opt.   | opt.        | opt.     |
 | `contents`      |            |               |        |             | req.     |
 
 Withdrawals take the same sections as capabilities, and redemptions and interrupts 
@@ -538,6 +554,8 @@ If a specification contains a token, it may be answered by the component with a 
 
 If a receipt contains a token, it may be redeemed by the same client using a redemption containing the token instead of the parameters, metadata, and results sections.
 
+When grouping multiple results from a repeating specification into an envelope, the envelope may contain the token of the repeating specification.
+
 ### Contents
 
 The `contents` section appears only in envelopes, and is an ordered list of messages. If the envelope's kind identifies a message kind, the contents may contain only messages of the specified kind, otherwise if the kind is `message`, the contents may contain a mix of any kind of message.
@@ -627,9 +645,9 @@ offered by the associated components, according to its privileges.
 Therefore, any client will only has access to capabilities at the supervisor 
 that it is authorized to execute. The same controls are enforced on specifications.
 
-### Paths in mPlane URLS
+### Paths in mPlane URLs
 
-*[**Editor's Note**: ]
+*[**Editor's Note**: Add text here on how mPlane components and clients can encode additional information in URLs via the link section. Note ease of implementation for many web application frameworks of using different paths for different types of messages. There are some additional conventions used for mPlane over HTTPS. If a client or component has a URL it should use that for all interactions with its peer. However, if a client can only discover a component's address, it should `GET /capabilities` to get that component's capabilities. If a client posts a specification for a capability that does not contain a link to a component, and only has that component's address, it should `POST` the specification to `/specification`. If a component wants to return results to a client and only has the client's address, and the corresponding specification does not have a link, it should `POST` the result to `/result`.]*
 
 ## mPlane over SSH
 
