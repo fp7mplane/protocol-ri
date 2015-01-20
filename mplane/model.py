@@ -294,7 +294,7 @@ Now we create an Envelope and append the two capabilities.
 >>> env = mplane.model.Envelope()
 >>> env.append_message(cap)
 >>> env.append_message(cap2)
->>> env
+>>> env  # doctest: +SKIP
 <Envelope message (2):
  <capability: measure when now ... future / 1s token d7e9df75 schema 5ce99352 p/m/r 2/0/5> 
  <capability: measure when now ... future / 1s token a9ec7fce schema ea37cea5 p/m/r 2/0/1>
@@ -302,7 +302,7 @@ Now we create an Envelope and append the two capabilities.
 
 Similar as with every other message this Envelope is serialized and send to the client:
 
-envjson = mplane.model.unparse_json(env)
+>>> envjson = mplane.model.unparse_json(env)
 
 The client receives the Envelope and decomposes the encapsulated messages:
 
@@ -506,7 +506,7 @@ def unparse_dur(valtd):
 # Temporal Scoping and Scheduling
 #######################################################################
 
-class PastTime:
+class _PastTime:
     """
     Class representing the indeterminate past. 
     Do not instantiate; use the time_past instance of this class.
@@ -521,9 +521,9 @@ class PastTime:
     def strftime(self, ign):
         return str(self)
 
-time_past = PastTime()
+time_past = _PastTime()
 
-class NowTime:
+class _NowTime:
     """
     Class representing the present.
     Do not instantiate; use the time_now instance of this class.
@@ -538,9 +538,9 @@ class NowTime:
     def strftime(self, ign):
         return str(self)
 
-time_now = NowTime()
+time_now = _NowTime()
 
-class FutureTime:
+class _FutureTime:
     """
     Class representing the indeterminate future.
     Do not instantiate; use the time_future instance of this class.
@@ -555,7 +555,7 @@ class FutureTime:
     def strftime(self, ign):
         return str(self)
 
-time_future = FutureTime()
+time_future = _FutureTime()
 
 def _parse_numset(valstr):
     return set(map(int, valstr.split(SET_SEP)))
@@ -1244,7 +1244,7 @@ def test_tscope():
 # Primitive Types
 #######################################################################
 
-class Primitive(object):
+class _Primitive(object):
     """
     Represents a primitive mPlane data type. Primitive types define
     textual and native representations for data elements, and convert
@@ -1290,7 +1290,7 @@ class Primitive(object):
         else:
             return str(val)
 
-class StringPrimitive(Primitive):
+class _StringPrimitive(_Primitive):
     """
     Represents a string. Uses the default implementation.
     If necessary, use the prim_string instance of this class;
@@ -1303,7 +1303,7 @@ class StringPrimitive(Primitive):
     def __repr__(self):                
         return "mplane.model.prim_string"
 
-class NaturalPrimitive(Primitive):
+class _NaturalPrimitive(_Primitive):
     """
     Represents a natural number (unsigned integer).
 
@@ -1326,7 +1326,7 @@ class NaturalPrimitive(Primitive):
             # also converts values like 100.0 or 10E2
             return int(float(sval))
 
-class RealPrimitive(Primitive):
+class _RealPrimitive(_Primitive):
     """
     Represents a real number (floating point).
 
@@ -1348,7 +1348,7 @@ class RealPrimitive(Primitive):
         else:
             return float(sval)
 
-class BooleanPrimitive(Primitive):
+class _BooleanPrimitive(_Primitive):
     """ 
     Represents a real number (floating point).
 
@@ -1381,7 +1381,7 @@ class BooleanPrimitive(Primitive):
         else:
             raise ValueError("Invalid boolean value "+sval)
 
-class AddressPrimitive(Primitive):
+class _AddressPrimitive(_Primitive):
     """
     Represents a IPv4 or IPv6 host or network address.
 
@@ -1402,7 +1402,7 @@ class AddressPrimitive(Primitive):
         else:
             return ip_address(sval)
 
-class URLPrimitive(Primitive):
+class _URLPrimitive(_Primitive):
     """
     Represents a URL. For now, URLs are implemented only as strings,
     without any parsing or validation.
@@ -1414,7 +1414,7 @@ class URLPrimitive(Primitive):
     def __repr__(self):                
         return "mplane.model.prim_url"
 
-class TimePrimitive(Primitive):
+class _TimePrimitive(_Primitive):
     """
     Represents a UTC timestamp with arbitrary precision.
     Also handles special-purpose mPlane timestamps.
@@ -1432,13 +1432,13 @@ class TimePrimitive(Primitive):
     def unparse(self, val):
         return unparse_time(val)
 
-prim_string = StringPrimitive()
-prim_natural = NaturalPrimitive()
-prim_real = RealPrimitive()
-prim_boolean = BooleanPrimitive()
-prim_time = TimePrimitive()
-prim_address = AddressPrimitive()
-prim_url = URLPrimitive()
+prim_string = _StringPrimitive()
+prim_natural = _NaturalPrimitive()
+prim_real = _RealPrimitive()
+prim_boolean = _BooleanPrimitive()
+prim_time = _TimePrimitive()
+prim_address = _AddressPrimitive()
+prim_url = _URLPrimitive()
 
 _prim = {x.name: x for x in [prim_string, 
                              prim_natural, 
@@ -1695,81 +1695,10 @@ def element(name, reguri=None):
         return _base_registry[name]
 
 #######################################################################
-# Old registry methods
-#######################################################################
-
-# _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
-# _desc_re = re.compile('^\s+([^#]+)')
-# _comment_re = re.compile('^\s*\#')
-
-# def _old_parse_elements(lines):
-#     """
-#     Given an iterator over lines from a file or stream describing
-#     a set of Elements, returns a list of Elements. This file should 
-#     contain element names and primitive names separated by ":" in the 
-#     leftmost column, followed by zero or more indented lines of 
-#     description. Used to initialize the mPlane element registry from a file;
-#     call initialize_registry instead
-       
-#     """
-#     elements = []
-#     desclines = []
-
-#     for line in lines:
-#         m = _typedef_re.match(line)
-#         if m:
-#             if len(elements) and len(desclines):
-#                 elements[-1]._desc = " ".join(desclines)
-#                 desclines.clear()
-#             elements.append(Element(m.group(1), _prim[m.group(2)]))
-#         else:
-#             m = _desc_re.match(line)
-#             if m:
-#                 desclines.append(m.group(1))
-
-#     if len(elements) and len(desclines):
-#         elements[-1]._desc = "".join(desclines)
-
-#     return elements
-
-# _old_element_registry = collections.OrderedDict()
-
-# def _old_parse_registry(filename=None):
-#     """
-#     Initializes the mPlane registry from a file; if no filename is given,
-#     initializes the registry from the internal set of Elements.
-#     """
-#     _old_element_registry.clear()
-
-#     if filename is None:
-#         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
-
-#     with open(filename, mode="r") as file:
-#         for elem in _old_parse_elements(file):
-#             _old_element_registry[elem._name] = elem
-
-# def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
-#     _old_parse_registry(in_filename)
-    
-#     reg = Registry(uri=uri, parse=False)
-#     reg._revision = 0
-
-#     for elem in _old_element_registry.values():
-#         reg._add_element(elem)
-
-#     jstr = reg._dump_json()
-
-#     if out_filename is not None:
-#         with open(out_filename, "w") as jfile:
-#             jfile.write(jstr)
-#     else:
-#         print(jstr)
-
-#######################################################################
 # Constraints
 #######################################################################
 
-class Constraint(object):
+class _Constraint(object):
     """
     Represents a set of acceptable values for an element.
     The default constraint accepts everything; use
@@ -1803,9 +1732,9 @@ class Constraint(object):
         """
         return None
 
-constraint_all = Constraint(None)
+constraint_all = _Constraint(None)
 
-class RangeConstraint(Constraint):
+class _RangeConstraint(_Constraint):
     """Represents acceptable values for an element as an inclusive range"""
 
     def __init__(self, prim, sval=None, a=None, b=None):
@@ -1844,7 +1773,7 @@ class RangeConstraint(Constraint):
         else:
             return None
 
-class SetConstraint(Constraint):
+class _SetConstraint(_Constraint):
     """Represents acceptable values as a discrete set."""
     def __init__(self, prim, sval=None, vs=None):
         super().__init__(prim)
@@ -1877,15 +1806,15 @@ def parse_constraint(prim, sval):
     """
     Given a primitive and a string value, parse a constraint 
     string (returned via str(constraint)) into an instance of an 
-    appropriate Constraint class.
+    appropriate constraint class.
 
     """
     if sval == CONSTRAINT_ALL:
         return constraint_all
     elif sval.find(RANGE_SEP) > 0:
-        return RangeConstraint(prim=prim, sval=sval)
+        return _RangeConstraint(prim=prim, sval=sval)
     else:
-        return SetConstraint(prim=prim, sval=sval)
+        return _SetConstraint(prim=prim, sval=sval)
 
 def test_constraints():
     """Test range and set constraints"""
@@ -1923,7 +1852,7 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        elif isinstance(constraint, Constraint):
+        elif isinstance(constraint, _Constraint):
             self._constraint = constraint
         else:
             self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
@@ -2254,7 +2183,7 @@ class Statement(object):
         """Return the statement's label"""
         return self._label
 
-    def relabel(self, label):
+    def set_label(self, label):
         """Set the statement's label"""
         self._label = label
 
@@ -2843,13 +2772,11 @@ class Envelope(object):
     Envelopes are used to contain other Messages.
 
     """
-    _version = MPLANE_VERSION
-    _content_type = None
-    _messages = None
 
     def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None):
         super().__init__()
 
+        self._version = MPLANE_VERSION
         self._messages = []
         self._content_type = content_type
         self._token = token
@@ -2858,9 +2785,13 @@ class Envelope(object):
             self._from_dict(dictval)
 
     def __repr__(self):
+        if self._token:
+            token_part = " token "+self.get_token()
+        else:
+            token_part = ""
+
         return "<envelope: "+self._content_type+\
-                " ("+str(len(self._messages))+")"+\
-                " token "+self.get_token()+": "+\
+                " ("+str(len(self._messages))+")"+token_part+": "+\
                 " ".join(map(repr, self._messages))+">"
 
     def __len__(self):
