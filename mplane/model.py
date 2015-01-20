@@ -2183,7 +2183,7 @@ class Statement(object):
         """Return the statement's label"""
         return self._label
 
-    def relabel(self, label):
+    def set_label(self, label):
         """Set the statement's label"""
         self._label = label
 
