@@ -41,82 +41,51 @@ import psutil
 import os
 import time
 
-from DBConnector import DBConnector
-from ActiveManager import ActiveManager
 
-plugin_filename = '/tmp/plugin_test.out'
-
+def services(url):
+    services = []
+    if url is not None:
+        services.append(FirelogService(firelog_capability(url))
+    return services
+    
 def _firelog_process(url):
-    cmd = '%s/firefox -P %s -url %s' % ('./firefox', 'firelog', url)
+    cmd = ''
     return subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
     
-def firelog_capability(ipaddr, url):
-    cap = mplane.model.Capability(label="firelog", when = "now")
-    cap.add_parameter("source.ip4",ipaddr)
-    cap.add_parameter("firelog.session.url", url)
-    cap.add_result_column("cpuload")
-    cap.add_result_column("memload")
-    cap.add_result_column("firelog.plugin.file")
-    cap.add_result_column("firelog.stat")
-    cap.add_result_column("firelog.ping")
-    cap.add_result_column("firelog.trace")
+def firelog_capability(url):
+    cap = mplane.model.Capability(label="firelog", when = "now + inf ... future")
+    #cap.add_parameter("source.ip4", ipaddr)
+    cap.add_parameter("url", url)
+    cap.add_result_column("diagnosis")
     return cap
 
 class FirelogService(mplane.scheduler.Service):
+    
     def __init__(self, cap):
         # verify the capability is acceptable
-        if not (cap.has_parameter("source.ip4") and
-                cap.has_parameter("firelog.session.url")):
+        #if not (cap.has_parameter("source.ip4") and
+        if not cap.has_parameter("url")):
             raise ValueError("capability not acceptable")
         super(FirelogService, self).__init__(cap)
-        self._mem = -1
-        self._cpu = -1
         self._starttime = datetime.utcnow()
-        self._sipaddr = None 
-        #self._stats = None
-        #self._ping = None
-        #self._trace = None
-
+        
     def run(self, spec, check_interrupt):
-        if not spec.has_parameter("firelog.session.url"):
+        if not spec.has_parameter("url"):
             raise ValueError("Missing url")
         
-        count = None
         firelog_process = None
 
         def target():
-            self._sipaddr = spec.get_parameter_value("source.ip4")
-            url = spec.get_parameter_value("firelog.session.url")
+            #self._sipaddr = spec.get_parameter_value("source.ip4")
+            url = spec.get_parameter_value("url")
             firelog_process = _firelog_process(url)
-            cputable = []
-            memtable = []
-            while firelog_process.poll() == None:
-                arr = psutil.cpu_percent(interval=0.1,percpu=True)
-                cputable.append(sum(arr) / float(len(arr)))
-                memtable.append(psutil.virtual_memory().percent)
-                time.sleep(1)
-                
-            if firelog_process.poll() == 0:
-                self._mem = float(sum(memtable) / len(memtable))
-                self._cpu = float(sum(cputable) / len(cputable))
-
+            
         t = threading.Thread(target=target)
         t.start()
-        t.join()
+        out, err = t.join()
         if t.is_alive():
             firelog_process.terminate()
-            t.join()
-
-        if os.path.isfile(plugin_filename):
-            while not check_if_file_is_closed(plugin_filename):
-                time.sleep(1)
-
-        # TODO
-        # add parsing/ping/db/logic
-        dbc = DBConnector('firelog.db')
-        dbc.load_firelog_file(plugin_filename)
-        am = ActiveManager(dbc, self._sipaddr)
-        am.active_probe()
+            out, err = t.join()
         
         # derive a result from the specification
         res = mplane.model.Result(specification=spec)
@@ -125,34 +94,14 @@ class FirelogService(mplane.scheduler.Service):
         now = datetime.utcnow()
         res.set_when(mplane.model.When(a = self._starttime, b = now))
         
-        if os.path.isfile(plugin_filename):
-            while not check_if_file_is_closed(plugin_filename):
-                time.sleep(1)
-            res.set_result_value("cpuload", self._cpu)
-            res.set_result_value("memload", self._mem)
-            res.set_result_value("firelog.plugin.file", plugin_filename)
-        else:
-            return None
-
-        #res.set_result_value("firelog.stat", self._stats)
-        #res.set_result_value("firelog.ping", self._ping)
-        #res.set_result_value("firelog.trace", self._trace)
+        res.set_result_value("diagnosis", out)
 
         return res
 
-def check_if_file_is_closed(fname):
-    cmd = 'fuser -a %s' % fname
-    f = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE)
-    out, _ = f.communicate()
-    if len(out) == 0:
-        return True
-    return False
 
 def parse_args():
     global args
     parser = argparse.ArgumentParser(description="Run firelog probe server")
-    parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
-                        help="Browse and ping from the given IPv4 address")
     parser.add_argument('--url', '-u', metavar="firelog session web page url",
                         help="Browse the given web page")
     args = parser.parse_args()
@@ -168,17 +117,9 @@ if __name__ == "__main__":
         raise ValueError("need a url")
 
     url = args.url
-    ip4addr = None
-        
-    if args.ip4addr:
-        ip4addr = ip_address(args.ip4addr)
-        if ip4addr.version != 4:
-            raise ValueError("invalid IPv4 address")
-    if ip4addr is None:
-        raise ValueError("need at least one source address to run")
 
     scheduler = mplane.scheduler.Scheduler()
-    if ip4addr is not None:
-        scheduler.add_service(FirelogService(firelog_capability(ip4addr, url)))
+    if url is not None:
+        scheduler.add_service(FirelogService(firelog_capability(url)))
    
     mplane.httpsrv.runloop(scheduler)
