@@ -188,8 +188,8 @@ class MultiJob(object):
     """
 
     jobs = []
-    results = mplane.model.Envelope()
-    exceptions= mplane.model.Envelope()
+    results = None
+    exceptions= None
     service = None
     session = None
     specification = None
@@ -205,6 +205,8 @@ class MultiJob(object):
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
         self._subspec_iterator = specification.subspec_iterator()
+        self.results = mplane.model.Envelope(token=specification.get_token())
+        self.exceptions = mplane.model.Envelope(token=specification.get_token())
 
     def __repr__(self):
         return "<MultiJob for "+repr(self.specification)+">"
