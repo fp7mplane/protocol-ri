@@ -318,7 +318,7 @@ class MultiJob(object):
             #    return tmp
             return self.results
         else:
-            return self.receiptcopy
+            return self.receipt
 
 
 class Scheduler(object):
