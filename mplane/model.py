@@ -2417,8 +2417,7 @@ class Capability(Statement):
 
     Capabilities can either be created programatically, using the
     add_parameter(), add_metadata(), and add_result_column()
-    methods, or by reading from a JSON or YAML object [FIXME document
-    how this works once it's written]
+    methods, or by reading from a JSON object using parse_json().
 
     """
 
@@ -2905,9 +2904,19 @@ def message_from_dict(d):
     raise ValueError("Cannot determine message type from "+repr(d))
 
 def parse_json(jstr):
+    """
+    Parse a JSON object in a string and return the associated mPlane message.
+
+    """
     return message_from_dict(json.loads(jstr))
 
 def unparse_json(msg, token_only=False):
+    """
+    Transform an mPlane message into a JSON object representing it. If 
+    token_only is True, uses tokens only for message types for which that is
+    appropriate (i.e. Reciepts, Redemptions, Withdrawals, and Interrupts).
+
+    """
     return json.dumps(msg.to_dict(token_only=token_only),
                       sort_keys=True, indent=2, separators=(',',': '))
 
