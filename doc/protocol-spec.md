@@ -174,7 +174,7 @@ __Fully qualified__ element names consist of the element's name as an anchor aft
 
 ### Structured Element Names
 
-To ease understanding of mPlane type registries, element names are by default _structured_; that is, an element name is made up of the following structural parts in order, separated by the dot ('.') character:
+To ease understanding of mPlane type registries, element names are _structured_ by convention; that is, an element name is made up of the following structural parts in order, separated by the dot ('.') character:
 
 - __basename__: exactly one, the name of the property the element specifies or measures. All elements with the same basename describe the same basic property. For example, all elements with basename '`source`' relate to the source of a packet, flow, active measurement, etc.; and elements with basename '`delay`'' relate to the measured delay of an operation.
 - __modifier__: zero or more, additional information differentiating elements with the same basename from each other. Modifiers may associate the element with a protocol layer, or a particular variety of the property named in the basename. All elements with the same basename and modifiers refer to exactly the same property. Examples for the `delay` basename include `oneway` and `twoway`, differentiating whether a delay refers to the path from the source to the destination or from the source to the source via the destination; and `icmp` and `tcp`, describing the protocol used to measure the delay.
@@ -203,6 +203,14 @@ The mPlane protocol supports the following primitive types for elements in the t
 - __time__: a timestamp, expressed in terms of UTC. The precision of the timestamp is taken to be unambiguous based on its representation.
 - __address__: an identifier of a network-level entity, including an address family. The address family is presumed to be implicit in the format of the message, or explicitly stored. Addresses may represent specific endpoints or entire networks.
 - __url__: a uniform resource locator
+
+### Augmented Registry Information
+
+Additional keys beyond __prim__, __desc__, and __name__ may appear in an mPlane registry to augment information about each element; these are not presently used by the reference implementation's information model but may be used by software built around
+
+Elements in the core registry at `http://ict-mplane.eu/registry/core` may contain the following augmented registry keys:
+
+- __units__: If applicable, units in which the element is expressed; equal to the units part of a structured name if present.
 
 ## Message Types
 
@@ -291,7 +299,7 @@ Each message is made up of sections, as described in the subsection below. The f
 | `resultvalues`  |            |               | req.   |             |          |
 | `export`        | opt.       | opt.          | opt.   | opt.        |          |
 | `link`          | opt.       |               |        |             |          |
-| `token`         | opt.       | opt.          | opt.   | opt.        |          |
+| `token`         | opt.       | opt.          | opt.   | opt.        | opt.     |
 | `contents`      |            |               |        |             | req.     |
 
 Withdrawals take the same sections as capabilities, and redemptions and interrupts 
@@ -537,6 +545,8 @@ If a capability contains a token, it may be subsequently withdrawn by the same c
 If a specification contains a token, it may be answered by the component with a receipt containing the token instead of the parameters, metadata, and results sections. A specification containing a token may likewise be interrupted by the client with an interrupt containing the token. A component must not answer a specification with a token with a receipt or result containing a different token, but the token may be omitted in subsequent receipts and results.
 
 If a receipt contains a token, it may be redeemed by the same client using a redemption containing the token instead of the parameters, metadata, and results sections.
+
+When grouping multiple results from a repeating specification into an envelope, the envelope may contain the token of the repeating specification.
 
 ### Contents
 
