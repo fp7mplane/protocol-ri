@@ -138,7 +138,7 @@ class TlsState:
                     if line.startswith("Subject:"):
                         fields = line[len("Subject:"):].split(",")
                         for field in fields:
-                            if id == "":
+                            if identity == "":
                                 identity = identity + field.split('=')[1]
                             else: 
                                identity = identity + "." + field.split('=')[1]
