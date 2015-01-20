@@ -55,4 +55,5 @@ if __name__ == "__main__":
     
     # ONLY FOR TEST PURPOSES
     comp = Component("./conf/component.conf")
-    print(comp.services())
+    for service in comp.services():
+        print(service)
