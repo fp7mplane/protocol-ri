@@ -28,6 +28,7 @@ def read_setting(filepath, param):
     Reads a setting from the indicated conf file
     
     """
+    print(filepath)
     with open(filepath,'r') as f:
         for line in f.readlines():
             if line[0] != "#":
@@ -41,11 +42,15 @@ def read_setting(filepath, param):
                         return line.split('= ')[1]
     return None
     
-def check_file(filename):       
-    if filename is None or not os.path.exists(filename):
-        raise ValueError("Error: File " + str(filename) + " does not appear to exist.")
+def check_file(filename): 
+    """
+    Checks if the file exists at the given path
+    
+    """      
+    if not os.path.exists(filename):
+        raise ValueError("Error: File " + filename + " does not appear to exist.")
         exit(1)
-
+        
 def normalize_path(path):
     """
     Converts every path into absolute paths
@@ -55,3 +60,35 @@ def normalize_path(path):
         return os.path.abspath(path)
     else:
         return path
+
+def print_then_prompt(line):
+    """
+    Prints a message on screen, then prints the mplane prompt
+    
+    """
+    print(line)
+    print('|mplane| ', end="", flush = True)
+    pass
+
+def add_value_to(container, key, value):
+    """
+    Adds a value to a dict() of lists
+    
+    """
+    if key not in container:
+        container[key] = [value]
+    else:
+        container[key].append(value)
+        
+def split_stmt_list(msg):
+    """
+    Splits a JSON array of statements (capabilities or specifications) in 
+    JSON format into a list of single statements
+    
+    """
+    json_stmts = json.loads(msg)
+    stmts = []
+    for json_stmt in json_stmts:
+        stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
+    return stmts
+

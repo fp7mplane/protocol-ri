@@ -1147,6 +1147,10 @@ def parse_args():
                         help="Toggle security on/off. Values: 0=on,1=off")
     parser.add_argument('--certfile', metavar="cert-file-location",
                         help="Location of the configuration file for certificates")
+    parser.add_argument('-d', '--supervisor-ip4', metavar='supervisor-ip4', default=DEFAULT_SUPERVISOR_IP4, dest='SUPERVISOR_IP4',
+                        help='Supervisor IP address')
+    parser.add_argument('-p', '--supervisor-port', metavar='supervisor-port', default=DEFAULT_SUPERVISOR_PORT, dest='SUPERVISOR_PORT',
+                        help='Supervisor port number')
     args = parser.parse_args()
 
 # For right now, start a Tornado-based tracebox server
