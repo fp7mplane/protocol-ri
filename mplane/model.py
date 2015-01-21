@@ -2671,15 +2671,21 @@ class Exception(BareNotification):
     """
     A Component sends an Exception to a Client, or a Client to a 
     Component, to present a human-readable message about a failure
-    or non-nominal condition 
+    or non-nominal condition. 
+
+    The status field is used to store an HTTP 
+    status code corresponding to the exception to the 
+    client and component frameworks.
 
     """
-    def __init__(self, token, dictval=None, errmsg=None):
+    def __init__(self, token, dictval=None, errmsg=None, status=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
             if errmsg is None:
                 errmsg = "Unspecified exception"
             self._errmsg = errmsg
+
+        self.status = status
 
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
