@@ -105,20 +105,196 @@ def parse_args():
                         help="Browse the given web page")
     args = parser.parse_args()
 
+# from tstat-proxy.py
+class HttpProbe():
+    """
+    This class manages interactions with the supervisor:
+    registration, specification retrievement, and return of results
+    
+    """
+    
+    def __init__(self, immediate_ms = 5000):
+        parse_args()
+        self.dn = None
+        
+        # check if security is enabled, if so read certificate files
+        self.security = not args.DISABLE_SSL
+        if self.security:
+            mplane.utils.check_file(args.CERTFILE)
+            self.cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "cert"))
+            self.key = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "key"))
+            self.ca = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "ca-chain"))
+            mplane.utils.check_file(self.cert)
+            mplane.utils.check_file(self.key)
+            mplane.utils.check_file(self.ca)
+            self.pool = HTTPSConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT, key_file=self.key, cert_file=self.cert, ca_certs=self.ca)
+        else: 
+            self.pool = HTTPConnectionPool(args.SUPERVISOR_IP4, args.SUPERVISOR_PORT)
+            self.cert = None
+        
+        # get server DN, for Access Control purposes
+        self.dn = self.get_dn()
+        
+        # generate a Service for each capability
+        self.immediate_ms = immediate_ms
+        self.scheduler = mplane.scheduler.Scheduler(self.security, self.cert)
+        self.scheduler.add_service(FirelogService(FirelogService(firelog_capability(url)))
+        
+    def get_dn(self):
+        """
+        Extracts the DN from the server. 
+        If SSL is disabled, returns a dummy DN
+        
+        """
+        if self.security == True:
+            
+            # extract DN from server certificate.
+            # Unfortunately, there seems to be no way to do this using urllib3,
+            # thus ssl library is being used
+            s = socket()
+            c = ssl.wrap_socket(s,cert_reqs=ssl.CERT_REQUIRED, keyfile=self.key, certfile=self.cert, ca_certs=self.ca)
+            c.connect((args.SUPERVISOR_IP4, args.SUPERVISOR_PORT))
+            cert = c.getpeercert()
+            
+            dn = ""
+            for elem in cert.get('subject'):
+                if dn == "":
+                    dn = dn + str(elem[0][1])
+                else: 
+                    dn = dn + "." + str(elem[0][1])
+        else:
+            dn = DUMMY_DN
+        return dn
+     
+    def register_to_supervisor(self):
+        """
+        Sends a list of capabilities to the Supervisor, in order to register them
+        
+        """
+        url = "/" + REGISTRATION_PATH
+        
+        # generate the capability list
+        caps_list = ""
+        no_caps_exposed = True
+        for key in self.scheduler.capability_keys():
+            cap = self.scheduler.capability_for_key(key)
+            if (self.scheduler.ac.check_azn(cap._label, self.dn)):
+                caps_list = caps_list + mplane.model.unparse_json(cap) + ","
+                no_caps_exposed = False
+        caps_list = "[" + caps_list[:-1].replace("\n","") + "]"
+        connected = False
+        
+        if no_caps_exposed is True:
+           print("\nNo Capabilities are being exposed to the Supervisor, check permission files. Exiting")
+           exit(0)
+        
+        # send the list to the supervisor, if reachable
+        while not connected:
+            try:
+                res = self.pool.urlopen('POST', url, 
+                    body=caps_list.encode("utf-8"), 
+                    headers={"content-type": "application/x-mplane+json"})
+                connected = True
+                
+            except:
+                print("Supervisor unreachable. Retrying connection in 5 seconds")
+                sleep(5)
+                
+        # handle response message
+        if res.status == 200:
+            body = json.loads(res.data.decode("utf-8"))
+            print("\nCapability registration outcome:")
+            for key in body:
+                if body[key]['registered'] == "ok":
+                    print(key + ": Ok")
+                else:
+                    print(key + ": Failed (" + body[key]['reason'] + ")")
+            print("")
+        else:
+            print("Error registering capabilities, Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+            exit(1)
+    
+    def check_for_specs(self):
+        """
+        Poll the supervisor for specifications
+        
+        """
+        url = "/" + SPECIFICATION_PATH
+        
+        # send a request for specifications
+        res = self.pool.request('GET', url)
+        if res.status == 200:
+            
+            # specs retrieved: split them if there is more than one
+            specs = mplane.utils.split_stmt_list(res.data.decode("utf-8"))
+            for spec in specs:
+                
+                # hand spec to scheduler
+                reply = self.scheduler.receive_message(self.dn, spec)
+                
+                # return error if spec is not authorized
+                if isinstance(reply, mplane.model.Exception):
+                    result_url = "/" + RESULT_PATH
+                    # send result to the Supervisor
+                    res = self.pool.urlopen('POST', result_url, 
+                            body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                            headers={"content-type": "application/x-mplane+json"})
+                    return
+                
+                # enqueue job
+                job = self.scheduler.job_for_message(reply)
+                
+                # launch a thread to monitor the status of the running measurement
+                t = threading.Thread(target=self.return_results, args=[job])
+                t.start()
+                
+        # not registered on supervisor, need to re-register
+        elif res.status == 428:
+            print("\nRe-registering capabilities on Supervisor")
+            self.register_to_supervisor()
+        pass
+    
+    def return_results(self, job):
+        """
+        Monitors a job, and as soon as it is complete sends it to the Supervisor
+        
+        """
+        url = "/" + RESULT_PATH
+        reply = job.get_reply()
+        
+        # check if job is completed
+        while job.finished() is not True:
+            if job.failed():
+                reply = job.get_reply()
+                break
+            sleep(1)
+        if isinstance (reply, mplane.model.Receipt):
+            reply = job.get_reply()
+        
+        # send result to the Supervisor
+        res = self.pool.urlopen('POST', url, 
+                body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                headers={"content-type": "application/x-mplane+json"})
+                
+        # handle response
+        if res.status == 200:
+            print("Result for " + reply.get_label() + " successfully returned!")
+        else:
+            print("Error returning Result for " + reply.get_label())
+            print("Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+        pass
+
+        
 # For right now, start a Tornado-based ping server
 if __name__ == "__main__":
-    global args
-
     mplane.model.initialize_registry()
-    parse_args()
-
-    if args.url is None:
-        raise ValueError("need a url")
-
-    url = args.url
-
-    scheduler = mplane.scheduler.Scheduler()
-    if url is not None:
-        scheduler.add_service(FirelogService(firelog_capability(url)))
-   
-    mplane.httpsrv.runloop(scheduler)
+    probe = HttpProbe()
+    
+    # register this probe to the Supervisor
+    probe.register_to_supervisor()
+    
+    # periodically polls the Supervisor for Specifications
+    print("Checking for Specifications...")
+    while(True):
+        probe.check_for_specs()
+        sleep(5)
