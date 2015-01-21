@@ -27,6 +27,7 @@ import mplane.render
 import mplane.utils
 import mplane.tls
 
+import sys
 import cmd
 import traceback
 import readline
@@ -268,7 +269,7 @@ class ClientShell(cmd.Cmd):
             params[pname] = self._defaults[pname]
 
         # Now invoke it
-        self._client.invoke_capability(cap.get_token(), when, params, relabel)
+        self._client.invoke_capability(cap.get_token(), self._when, params, relabel)
         print("ok")
 
     # def complete_showcap(self, text, line, start_index, end_index):
