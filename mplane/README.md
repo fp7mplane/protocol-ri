@@ -20,7 +20,7 @@ Implementations for the client:
 # Components
 This section contains a short HOWTO for each component.
 
-## Component-initiated worklow - general discussion
+## Component-initiated workflow - general discussion
 Please note,  that a ```supervisor``` must operate as a prerequisite during the ```client initiated``` testing. For both cases the ```MPLANE_CONF_DIR``` needs to be exported.
 
 The aforementioned prerequisites can be stated by executing
@@ -32,7 +32,7 @@ After the supervisor is running and the compoent is started the successfull logi
 
     |mplane| Capability <capability name> received from <component name>
 
-## Client-initiated worklow - general discussion
+## Client-initiated workflow - general discussion
 
 ## Ping
 ### Component-initiated
@@ -114,10 +114,13 @@ Using the python module:
 
 The used IPv4 address can be specified via the ``-4`` argument. If it is not given the modules uses the first non-loopback IP address.
 
-Currently supported protocols:
+Tested protocols:
 
   * HLS - HTTP Live streaming
+   * http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8
+   * http://skylivehls.cdnlabs.fastweb.it/217851/tg24/index.m3u8
   * IIS - Smooth streaming
+   * http://skylivehss.cdnlabs.fastweb.it/227324/tg24.isml/Manifest
 
 ### Component-initiated
 
@@ -140,7 +143,7 @@ The specification is received on the component side, and the measurement is star
     <Service for <capability: measure (ott-download) when now ... future / 10s token 702484e7 schema 33a0f637 p/m/r 2/0/8>> matches <specification: measure (ott-download) when now + 10s / 10s token a7c86828 schema 33a0f637 p(v)/m/r 2(2)/0/8>
     Will interrupt <Job for <specification: measure (ott-download) when now + 10s / 10s token a7c86828 schema 33a0f637 p(v)/m/r 2(2)/0/8>> after 10.0 sec
     Scheduling <Job for <specification: measure (ott-download) when now + 10s / 10s token a7c86828 schema 33a0f637 p(v)/m/r 2(2)/0/8>> immediately
-running probe-ott --slot -1 --mplane 10 --url http://skylivehls.cdnlabs.fastweb.it/217851/tg24/index.m3u8
+    running probe-ott --slot -1 --mplane 10 --url http://skylivehls.cdnlabs.fastweb.it/217851/tg24/index.m3u8
     Returning <receipt: a7c8682814bca1294f673c6686e0743b>
     Result for ott-download successfully returned!
 
