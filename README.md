@@ -60,17 +60,17 @@ Identities in the mPlane SDK (for purposes of configuration) are represented as 
 
 The component.py module provides a framework for building components for both component-initiated and client-initiated workflows. To implement a component for use with this framework:
 
-1. Implement each measurement, query, or other action performed by the component as a subclass of mplane.scheduler.Service. Each service is bound to a single capability. Your service must implement at least the mplane.scheduler.Service.run(self, specification, check_interrupt) method. 
+- Implement each measurement, query, or other action performed by the component as a subclass of mplane.scheduler.Service. Each service is bound to a single capability. Your service must implement at least the mplane.scheduler.Service.run(self, specification, check_interrupt) method. 
 
-2. Implement a `services` function in your module that takes a set of keyword arguments derived from the configuration file section, and returns a list of Services provided by your component. For example:
+- Implement a `services` function in your module that takes a set of keyword arguments derived from the configuration file section, and returns a list of Services provided by your component. For example:
 
-```
+```python
 def service(**kwargs):
     return [MyFirstService(kwargs['local-ip-address']),
             MySecondService(kwargs['local-ip-address'])]
 ```
 
-3. Create a module section in the component configuration file; for example if your module is called mplane.components.mycomponent:
+- Create a module section in the component configuration file; for example if your module is called mplane.components.mycomponent:
 
 ```
 [service_mycomponent]
@@ -78,9 +78,13 @@ module: mplane.components.mycomponent
 local-ip-address: 10.2.3.4
 ```
 
+**[*Editor's Note:* need to define how to configure component.py for each workflow.]**
+
+- Run `component.py` to start your component.
+
 ## mPlane Client Shell
 
-The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. It supports the following commands:
+The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. To start it, simply run `client.py`. It supports the following commands:
 
 - `seturl`: Set the default URL for sending specifications and redemptions (when not given in a Capability's or Receipt's link section)
 - `getcap`: Retrieve capabilities and withdrawals from a given URL, and process them.
@@ -94,6 +98,10 @@ The mPlane Client Shell is a simple client intended for debugging of mPlane infr
 - `listmeas`: List known measurements (receipts and results)
 - `showmeas`: Show the details of a measurement given its label or token.
 - `tbenable`: Enable tracebacks for subsequent exceptions. Used for client debugging.
+
+## mPlane Stub Supervisor
+
+**[*Editor's Note:* need to finish building this, then document it.]**
 
 # Testing and Developing the SDK
 
