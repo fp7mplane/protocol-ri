@@ -306,7 +306,6 @@ The client receives the Envelope and decomposes the encapsulated messages:
 
 >>> clienv = mplane.model.parse_json(envjson)
 >>> messages = [message for message in clienv.messages()]
-
 """
 
 try:
@@ -2674,7 +2673,7 @@ class Exception(BareNotification):
     or non-nominal condition 
 
     """
-    def __init__(self, token, dictval=None, errmsg=None):
+    def __init__(self, token=None, dictval=None, errmsg=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
             if errmsg is None:
