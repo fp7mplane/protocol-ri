@@ -138,7 +138,7 @@ class HttpProbe():
         # generate a Service for each capability
         self.immediate_ms = immediate_ms
         self.scheduler = mplane.scheduler.Scheduler(self.security, self.cert)
-        self.scheduler.add_service(FirelogService(FirelogService(firelog_capability(url)))
+        self.scheduler.add_service(FirelogService(FirelogService(firelog_capability(url))))
         
     def get_dn(self):
         """
