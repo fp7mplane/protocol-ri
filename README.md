@@ -22,7 +22,7 @@ The mPlane SDK requires Python 3.3 and the following additional packages:
 
 ## Contents
 
-The SDK is made up of the several modules. The core classes are documented using Sphinx. Reasonably current Sphinx documentation can be read online [here](https://fp7mplane.github.io/protocol-ri).
+The SDK is made up of several modules. The core classes are documented using Sphinx. Reasonably current Sphinx documentation can be read online [here](https://fp7mplane.github.io/protocol-ri).
 
 - `mplane.model`: Information model and JSON representation of mPlane messages. 
 - `mplane.scheduler`: Component specification scheduler. Maps capabilities to Python code that implements them (in `Service`) and keeps track of running specifications and associated results (`Job` and `MultiJob`). 
