@@ -24,22 +24,30 @@ Implements Firelog on the mPlane reference implementation.
 
 """
 
-import re
-import ipaddress
 import threading
-import subprocess
-import collections
-from datetime import datetime, timedelta
-from ipaddress import ip_address
+from datetime import datetime
+from time import sleep
 import mplane.model
 import mplane.scheduler
-import mplane.httpsrv
-import tornado.web
-import tornado.ioloop
+import mplane.utils
+import mplane.tstat_caps
+from urllib3 import HTTPSConnectionPool
+from urllib3 import HTTPConnectionPool
+from socket import socket
+import ssl
 import argparse
-import psutil
-import os
-import time
+import sys
+import re
+import json
+
+DEFAULT_IP4_NET = "192.168.1.0/24"
+DEFAULT_SUPERVISOR_IP4 = '127.0.0.1'
+DEFAULT_SUPERVISOR_PORT = 8888
+REGISTRATION_PATH = "register/capability"
+SPECIFICATION_PATH = "show/specification"
+RESULT_PATH = "register/result"
+
+DUMMY_DN = "Dummy.Distinguished.Name"
 
 
 def services(url):
@@ -54,7 +62,7 @@ def _firelog_process(url):
     
 def firelog_capability(url):
     cap = mplane.model.Capability(label="firelog-diagnosis", when = "now + inf ... future")
-    cap.add_parameter("destination.url")
+    cap.add_parameter("destination.url", "default")
     cap.add_result_column("firelog.diagnosis")
     return cap
 
@@ -70,7 +78,10 @@ class FirelogService(mplane.scheduler.Service):
         
     def run(self, spec, check_interrupt):
         if not spec.has_parameter("destination.url"):
+            #with open(args.CONFFILE, 'r') as i:
+            #    urllist = ['www.google.com']
             raise ValueError("Missing url")
+            
         
         firelog_process = None
 
@@ -101,8 +112,19 @@ class FirelogService(mplane.scheduler.Service):
 def parse_args():
     global args
     parser = argparse.ArgumentParser(description="Run firelog probe server")
-    parser.add_argument('--url', '-u', metavar="firelog session web page url",
-                        help="Browse the given web page")
+    parser.add_argument('--url', '-u', metavar="firelog session web page url", dest='URL',
+                        help="Browse the given web page", default = None)
+    parser.add_argument('-conf', '--conffile', metavar="path", dest='CONFFILE', default = None,
+                        help="Location of the configuration file for the Firelog probe")
+    parser.add_argument('-d', '--supervisor-ip4', metavar='supervisor-ip4', default=DEFAULT_SUPERVISOR_IP4, dest='SUPERVISOR_IP4',
+                        help='Supervisor IP address')
+    parser.add_argument('-p', '--supervisor-port', metavar='supervisor-port', default=DEFAULT_SUPERVISOR_PORT, dest='SUPERVISOR_PORT',
+                        help='Supervisor port number')
+    parser.add_argument('--disable-ssl', action='store_true', default=False, dest='DISABLE_SSL',
+                        help='Disable secure communication')
+    parser.add_argument('-c', '--certfile', metavar="path", dest='CERTFILE', default = None,
+                        help="Location of the configuration file for certificates")
+    
     args = parser.parse_args()
 
 # from tstat-proxy.py
@@ -138,7 +160,7 @@ class HttpProbe():
         # generate a Service for each capability
         self.immediate_ms = immediate_ms
         self.scheduler = mplane.scheduler.Scheduler(self.security, self.cert)
-        self.scheduler.add_service(FirelogService(FirelogService(firelog_capability(url))))
+        self.scheduler.add_service(FirelogService(firelog_capability(args.URL)))
         
     def get_dn(self):
         """
