@@ -118,25 +118,39 @@ def test_TLSState_init():
     assert_equal(tls_with_file_no_tls._identity, forged_identity)
 
 
+host = "127.0.0.1"
+port = 8080
+
+
 def test_TLSState_pool_for():
     import urllib3
-    host = "127.0.0.1"
-    port = 8080
     http_pool = tls_with_file.pool_for("http", host, port)
     assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
  
     https_pool = tls_with_file.pool_for("https", host, port)
     assert_true(isinstance(https_pool, urllib3.HTTPSConnectionPool))
     
+
+@raises(ValueError)
+def test_TLSState_pool_for_fallback():
     fallback_http_pool = tls_with_file_no_tls.pool_for("https", host, port)
     assert_false(isinstance(fallback_http_pool, urllib3.HTTPSConnectionPool))
     assert_true(isinstance(fallback_http_pool, urllib3.HTTPConnectionPool))
-    
-    another_fallback_http_pool = tls_without_file.pool_for("https", host, port)
-    assert_false(isinstance(another_fallback_http_pool,
-                            urllib3.HTTPSConnectionPool))
-    assert_true(isinstance(another_fallback_http_pool,
-                           urllib3.HTTPConnectionPool))
+
+
+@raises(ValueError)
+def test_TLSState_pool_for_missing_file():
+    tls_without_file.pool_for("https", host, port)
+
+
+@raises(ValueError)
+def test_TLSState_pool_for_file_scheme():
+    tls_with_file.pool_for("file", host, port)
+
+
+@raises(ValueError)
+def test_TLSState_pool_for_unsupported_scheme():
+    tls_with_file.pool_for("break me!", host, port)
 
 
 def test_TLSState_forged_identity():
