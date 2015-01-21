@@ -18,10 +18,12 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import copy
 import json
 import tornado
 import os
 import mplane.model
+import datetime
 from _operator import contains
 
 CONFIGFILE = "guiconf.json"
@@ -272,10 +274,10 @@ class GetResultHandler(tornado.web.RequestHandler):
             self.redirect("/gui/static/login.html")
             return
         try:
-            token = self.get_argument("token")
             self.set_status(200);
             self.set_header("Content-Type", "text/json")
-    
+            token = self.get_argument("token")
+
             for dn in self._supervisor._results.keys():
                 for res in self._supervisor._results[dn]:
                     if res.get_token() == token:
@@ -290,7 +292,39 @@ class GetResultHandler(tornado.web.RequestHandler):
         self.finish()
 
     def post(self):
-        self.set_status(405, GUI_LISTCAPABILITIES_PATH + " is a read-only GET function")
+        queryJson = json.loads( self.request.body.decode("utf-8") )
+        fromTS = datetime.datetime.fromtimestamp( queryJson["from"] / 1000 )
+        toTS = datetime.datetime.fromtimestamp( queryJson["to"] / 1000 )        
+
+        selectedResults = []
+        for dn in self._supervisor._results.keys():
+            for res in self._supervisor._results[dn]:
+                skip = res.get_label() != queryJson["capability"]
+                for paramname in res.parameter_names():
+                    if str(res.get_parameter_value(paramname)) != queryJson["parameters"][paramname]:
+                        skip = True
+                (resstart,resend) = res.when().datetimes()
+                skip = skip or resend < fromTS or resstart > toTS
+                if not skip:
+                    selectedResults.append(res)
+        
+        if len(selectedResults) == 0:
+            self.write("{ERROR:\"No result was found\"}");
+            self.finish()
+            return;
+        
+        sorted( selectedResults, key=lambda res: res.when()._a )    
+        
+        resultvalues = []
+        response = { "result":"measure", "version":0, "registry": "http://ict-mplane.eu/registry/core", 
+            "label": queryJson["capability"], "when": str(mplane.model.When(a=fromTS, b=toTS)), "parameters": queryJson["parameters"],
+            "results": ["time", queryJson["result"]], "resultvalues": resultvalues }
+                
+        for res in selectedResults:
+            resultvalues.extend( res._result_rows() )
+
+        self.write( json.dumps(response) )
+        self.finish()
 
 class RunCapabilityHandler(tornado.web.RequestHandler):
     """    

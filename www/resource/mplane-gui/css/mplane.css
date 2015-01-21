@@ -31,11 +31,39 @@
 
 .addMeasurement{
 	background-image: url(../image/plus.png) !important;
+	background-repeat: no-repeat;
+	background-position: center;
 	 opacity: 0.4;
 }
 
-.addMeasurement:hover{
+.addMeasurementHover{
 	background-image: url(../image/plus.png) !important;
+	background-repeat: no-repeat;
+	background-position: center;
+	 opacity: 0.7;
+}
+
+.dragableMeasure.x-panel-body {
+	background-color: beige;
+	
+}
+
+.draggableMeasure:hover{
+	background-color: antiquewhite;
+	cursor: pointer;
+}
+
+.replaceMeasurement{
+	background-image: url(../image/refresh.png) !important;
+	background-repeat: no-repeat;
+	background-position: center;
+	 opacity: 0.4;
+}
+
+.replaceMeasurementHover{
+	background-image: url(../image/refresh.png) !important;
+	background-repeat: no-repeat;
+	background-position: center;
 	 opacity: 0.7;
 }
 

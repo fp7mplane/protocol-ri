@@ -39,7 +39,7 @@ import uuid
 from mplane import sv_gui_handlers
 
 DEFAULT_LISTEN_PORT = 8888
-DEFAULT_LISTEN_IP4 = '127.0.0.1'
+DEFAULT_LISTEN_IP4 = '0.0.0.0'
 
 REGISTRATION_PATH = "register/capability"
 SPECIFICATION_PATH = "show/specification"

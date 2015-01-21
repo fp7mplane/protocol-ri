@@ -18,8 +18,8 @@
 		  name : 'chart-library',
 		  namespace : 'NV.chart.library',
 		  path : 'chart-library',
-		  date : new Date('2015','01','13','16','57','41'), // 2015/01/13 16:57:41
-		  version : new Ext.Version('1.0.0.80'),
+		  date : new Date('2015','01','16','11','32','30'), // 2015/01/16 11:32:30
+		  version : new Ext.Version('1.0.0.81'),
 		  description : 'Chart Library'
 		};
 	
@@ -955,20 +955,7 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 			
 		}
 		if (this.hasCursor) {
-		/*	if(!this.chartCursor){
-				this.chartCursor = new AmCharts.ChartCursor();
-			}
-			*/
-		/*	this.chartCursor.cursorPosition = "middle";
-			this.chartCursor.bulletsEnable = false;
-			this.chartCursor.bulletSize = 2;
-			if (this.zoom) {
-				this.chartCursor.zoomable = true;
-			} else {
-				this.chartCursor.zoomable = false;
-			}
-			this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
-*/
+		
 			if (this.defaultPeriod.match('hh')) {
 				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
 			} else if (this.defaultPeriod.match('DD')) {
@@ -976,13 +963,7 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 			} else if (this.defaultPeriod.match('ss')) {
 				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
 			}
-		/*	try {
-				this.chart.removeChartCursor(this.chartCursor);
-			} catch (e) {
-
-			}
-			this.chart.addChartCursor(this.chartCursor);
-			*/
+		
 		}
 
 		try {
@@ -1627,7 +1608,7 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
 	/**
 	 * Csak 1 db series van. Ahhoz hogy minden jó legyen minden egyes elemre létre kell hozni egy külön series-t.
 	 * Majd csak az annyiadik eleme legyen nem 0, ahányadik ő maga :)
-	 * stacked legyen a grafikon fixen és minden szupi lesz
+	 * stacked legyen a grafikon fixen
 	 */
 	
 	constructor: function(config){
@@ -1640,11 +1621,11 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
     
    createSeriesObjects: function(){
 		//create the series objects
-		this.seriesMap = {};
+/*		this.seriesMap = {};
 		for(var i=0; i<this.series.length; i++){
 			var s =  Ext.create('NV.chart.library.utils.DynamicSeries', Ext.apply(this.series[i],{chart:this, id:this.series[i].seriesId}));
 			this.seriesMap[this.series[i].seriesId] = s;
-		}
+		}*/
 	},
    
 	createSeriesConfig : function(titles, colors){
@@ -1663,30 +1644,23 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
     	}
     	if(titles || colors){
     		this.seriesMap = {};
-    		
+    		var usedcolors = this.colors;
     		if(colors){
-        		for(var i =0; i<titles.length; i++){
-    	    		var color = colors[i%colors.length];
-        			this.seriesConfigs[0].color=color;
-        			this.seriesConfigs[0].title=titles[i];
-        			this.seriesConfigs[0].field = {
+    			usedcolors = colors;
+        	}
+    		for(var i =0; i<titles.length; i++){
+    			var color = this.colors[i%usedcolors.length];
+    			this.series[0].color=color;
+    			this.series[0].title=titles[i];
+    			this.series[0].field = {
         				value:i+1	
         			};
-        			this.seriesMap[i] = Ext.clone(this.seriesConfigs[0]);
+    			this.series[0].chart=this;
+    			var s =  Ext.create('NV.chart.library.utils.DynamicSeries', this.series[0]);
+    			this.seriesMap[i] = s;
 
-        		}
-        	}else{
-        		for(var i =0; i<titles.length; i++){
-        			var color = this.chartColors[i%this.chartColors.length];
-        			this.seriesConfigs[0].color=color;
-        			this.seriesConfigs[0].title=titles[i];
-        			this.seriesConfigs[0].field = {
-            				value:i+1	
-            			};
-        			this.seriesMap[i] = Ext.clone(this.seriesConfigs[0]);
-
-        		}
-        	}
+    		}
+    		
         	this.callParent();
 
     	}
@@ -1709,9 +1683,10 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
    
 	refreshChartStore: function(titles, colors){
 		
-    	this.chart.dataProvider = this.store;
+    	
     	var newPeriod = this.getPreferedPeriod();
     	this.createSeriesConfig(titles, colors);
+    	this.chartConfig.dataProvider = this.store;
     	if(newPeriod!=this.defaultPeriod){
     		this.defaultPeriod = newPeriod;
     		this.chart.categoryAxis.minPeriod = this.defaultPeriod;
@@ -1736,48 +1711,10 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
 			} else if (this.defaultPeriod == 'ss') {
 				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
 			}
-			try {
-				this.chart.removeChartCursor(this.chartCursor);
-			} catch (e) {
-
-			}
-			this.chart.addChartCursor(this.chartCursor);
+			
 		}    
-		this.chart.validateData();
-    },
-	
-	getDataFromServer: function (url){
-		
-		var me = this;
-		if(url){
-			me.dataUrl = url;
-		}
-		Ext.Ajax.request({
-			url : me.dataUrl,
-			success : function(response, options) {
-				var scope = options.scope;
-				var json = Ext.decode(response.responseText);
-				
-				scope.createStoreFromJson(json.measurementData);
-				scope.refreshChartStore(json.title);
-
-				if(scope.refreshIntervall!=null && scope.refreshIntervall!=undefined){
-					scope.task = new Ext.util.DelayedTask(function(){
-						try{
-							
-							scope.getDataFromServer(scope.dataUrl);
-						}catch(e){
-							
-						}
-					});
-					
-					scope.task.delay(scope.refreshIntervall*1000);
-				}
-
-			},
-			scope : me
-		});
-	}
+		this.drawChart();
+    }
 });
 
 // @tag chart-library

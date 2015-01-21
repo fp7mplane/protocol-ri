@@ -56,7 +56,7 @@ Ext.define('NV.mplane.gui.Constants',{
             	label:'On-Demand Chart View',
             	type:'ondemand',
             	icon:'dashboard.png'
-            },
+            }
 	},
 	dashboardMenu:{
        
@@ -72,6 +72,7 @@ Ext.define('NV.mplane.gui.Constants',{
 		resultDetails: "/gui/get/result",
 		
 		guiSettings : "/gui/settings"
+		 
 	},
 	
 	testUrls:{
@@ -236,6 +237,1157 @@ Ext.define('NV.mplane.gui.LoginForm',{
 			this.add(this.errorMessage);
 		}
 	}
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
+	singleton:true,
+	
+
+	dashboardConfig:{
+		width:2,
+		height:6
+		
+	},
+	panelsConfig : [],
+	localDatas : true,
+	enableAutoSave : true,
+	
+	init: function(){
+		if(NV.mplane.gui.Main.userSettings && NV.mplane.gui.Main.userSettings.onDemand){
+			//there is some user settings
+			this.dashboardConfig = NV.mplane.gui.Main.userSettings.onDemand.dashboardConfig;
+			this.panelsConfig = NV.mplane.gui.Main.userSettings.onDemand.panelsConfig;
+		}
+		this.createMiniDashboard();
+	},
+	
+	/**
+	 * add to an existing chart an another measure
+	 */
+	addMeasurement: function(x,y,config){
+		this.panelsConfig[y * this.dashboardConfig.width + x].push(config);
+		
+		if(this.miniDashboard.isVisible()){
+			var p = this.panels[y * this.dashboardConfig.width + x];
+			p.addLabel(config);
+		}else{
+			changed = true;
+		}
+		this.save();
+	},
+	
+	/**
+	 * clear the portlet, and add this one only
+	 */
+	replaceMeasurement: function(x,y,config){
+		this.insertMeasurement(x,y,config);
+	},
+	
+	/**
+	 * add measurement to an empty place
+	 * config:{
+	 * 		parameters:,
+	 * 		resultName: name of the result column,
+	 * 		capabilityName: name of the capability (label),
+	 * 		unit: ?
+	 * }
+	 * 
+	 * if this.localDatas==true, results are here too as measurementData
+	 */
+	insertMeasurement: function(x,y,config){
+		this.panelsConfig[y * this.dashboardConfig.width + x] = [];
+		this.panelsConfig[y * this.dashboardConfig.width + x].push(config);
+		
+		if(this.miniDashboard.isVisible()){
+			var p = this.panels[y * this.dashboardConfig.width + x];
+			p.removeLabels();
+			
+			p.addLabel(config);
+		}else{
+			changed = true;
+		}
+		this.save();
+	},
+	
+	removeMeasurement: function(x,y,configIndex){
+		Ext.Array.erase(this.panelsConfig[y * this.dashboardConfig.width + x], configIndex, 1);
+		this.panels[y * this.dashboardConfig.width + x].removeLabel(configIndex);
+		if(this.panelsConfig[y * this.dashboardConfig.width + x].length==0){
+			delete this.panelsConfig[y * this.dashboardConfig.width + x];
+		}
+		this.save();
+	},
+	
+	setWidth: function(width){
+		this.dashboardConfig.width = width;
+	},
+	
+	setHeight: function(height){
+		this.dashboardConfig.height = height;
+	},
+	
+
+	createMiniDashboard: function(){
+		this.panels = [];
+		for(var i=0; i<this.dashboardConfig.height; i++){
+			for(var j=0; j<this.dashboardConfig.width; j++){
+				var panel = Ext.create('NV.mplane.gui.utils.ondemand.MiniDashboardPanel',{
+					x:j,
+					y:i,
+					measurementConfigs:this.panelsConfig[i * this.dashboardConfig.width + j]?this.panelsConfig[i * this.dashboardConfig.width + j]:[]
+				});
+				
+				
+				this.panels.push(panel);
+			}
+		}
+		
+		this.miniDashboard = Ext.create('Ext.panel.Panel',{
+			xtype:'panel',
+	    	layout:{
+	    		type: 'column',
+	    	},
+	    	items: this.panels,
+	    	title: "On-Demand Charts",
+	    	border:false,
+	    	header:false,
+	    	flex:1,
+	    	autoScroll:true,
+	    	overflowY:'auto',
+	    	
+		});
+		this.changed = false;
+	},
+	
+	
+	createDashboard: function(){
+		this.dashboardPanels = [];
+		for(var i=0; i<this.dashboardConfig.height; i++){
+			for(var j=0; j<this.dashboardConfig.width; j++){
+				var myX = j;
+				var myY = i;
+				var panel = Ext.create('Ext.panel.Panel',{
+					xtype:'panel',
+					header:false,
+					frame:true,
+					bodyBorder:false,
+					border:false,
+					columnWidth: 1/this.dashboardConfig.width,
+					margin:5,
+					height:200,
+					width:50,
+					myX:myX,
+					myY:myY,
+					layout:"fit",
+					resizable:true
+			    	
+				});
+				this.dashboardPanels.push(panel);
+			}
+		}
+		
+		
+		
+		this.dashboard = Ext.create('Ext.panel.Panel',{
+			xtype:'panel',
+	    	layout:{
+	    		type: 'column',
+	    	},
+	    	autoScroll:true,
+	    	overflowY:'auto',
+	    	items: this.dashboardPanels,
+	    	title: "On-Demand Charts",
+	    	header:false,
+	    	border:false,
+	    	flex:1
+	    	
+		});
+		this.changed = false;
+	},
+	
+	getMiniDashboard: function(){
+		if(!this.miniDashboard || this.changed){
+			this.createMiniDashboard();
+		}
+		return this.miniDashboard;
+	},
+	
+	getDashboard: function(){
+	//	if(!this.dashboard || this.changed){
+			this.createDashboard();
+	//	}
+		return this.dashboard;
+	},
+	
+	showCharts: function(){
+		for(var i=0; i<this.dashboardConfig.height; i++){
+			for(var j=0; j<this.dashboardConfig.width; j++){
+				var myX = j;
+				var myY = i;
+				
+				if(this.panelsConfig[(myY) * this.dashboardConfig.width + myX] && this.panelsConfig[(myY) * this.dashboardConfig.width + myX].length>0){
+					var configs = this.panelsConfig[(myY) * this.dashboardConfig.width + myX];
+					
+					var chartConfig = {
+							"chartType" : "combo",
+							series:[],
+							"legend" : {
+								position : "right"
+							},
+							"axes" : [ {
+								"position" : "bottom",
+								"grid" : false,
+								"labelVisible" : true,
+								"showlabel" : true,
+								"type" : "Time",
+								"labelFont" : "10.0px serif",
+								"labelRotation" : -45
+							}, {
+								"position" : "left",
+								"grid" : true,
+								"labelVisible" : true,
+								"type" : "Numeric",
+								"labelFont" : "10.0px serif",
+								"format" : "# %"
+							} ],
+							cursor:true
+					};
+					
+					for(var k=0; k<configs.length; k++){
+						/**
+						 * add measurement to an empty place
+						 * config:{
+						 * 		parameters:,
+						 * 		resultName: name of the result column,
+						 * 		capabilityName: name of the capability (label),
+						 * 		unit: ?
+						 * }
+						 * 
+						 * if this.localDatas==true, results are here too as measurementData
+						 */
+						var config = configs[k];
+						
+						chartConfig.series.push({
+							"field" : {
+								"value" :k+1
+							},
+
+							"axis" : "left",
+							"type" : "line",
+							"seriesId" : k,
+							// "visible":false,
+							"title" : Ext.clone(config.resultName)
+						});
+					}
+					
+					chartConfig.measurementData = this.mergeMeasures(configs);
+
+					chart = NV.chart.library.ChartDrawer.drawChartFromJson(chartConfig);
+					console.log(chartConfig);
+					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].removeAll();
+					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].add(chart.chartContent);
+				}else{
+					//nincs config, üresnek kell leneni a panelnak
+					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].removeAll();
+				}
+
+			}
+		}
+			
+	},
+	
+	mergeMeasures: function(measures){
+		var mergedDatas = Ext.clone(measures[0].measurementData);
+		for(var i=1; i<measures.length; i++){
+			mergedDatas = this.mergeSort(mergedDatas, measures[i].measurementData); 
+		}
+		return mergedDatas;
+	},
+	
+	//b-ben csak 1 elem van
+	mergeSort: function(a, b){
+		var c = [];
+		var innerArrayLength = a[0].length+1;
+	    var a_index = 0, b_index = 0, c_index = 0;
+
+		while (a_index < a.length || b_index < b.length) {
+		    if(a.index == a.length){//a sor elfogyott, a b-ben még van elem
+		    	if(c[c.length-1][0] == b[b_index][0]){//b aktuális elemének timestamp-je megegyezik a c utolsó timestampjével
+		    		Ext.Array.replace(c[c.length-1],innerArrayLength-1,1,b[b_index][1]);
+		    		b_index++;
+		    	}else{//b aktuális elemének timestamp-je nagyobb mint a c utolsó elemének timestamp-je
+		    		//utolsó elemének hossza
+		    		c[c_index] = b[b_index];
+		    		while ( innerArrayLength > c[c_index].length ){
+		    			 Ext.Array.insert( c[c_index], 1, [null]);
+		    		}
+		    		c_index++;
+		    		b_index++;
+		    	}
+		    } else if (b.index == b.length){ //b sor elfogyott, a-ben még van elem
+		    	if(c[c.length-1][0] == a[a_index][0]){//a aktuális elemének timestbmp-je megegyezik b c utolsó timestbmpjével
+		    		var elementsToPush = a[a_index].slice( 1, a[a_index].length );
+		    		Ext.Array.replace(c[c.length-1],1,elementsToPush.length, elementsToPush);
+		    		a++;
+		    	}else{//a aktuális elemének timestamp-je nagyobb mint a c utolsó elemének timestemp-je
+		    		//utolsó elemének hosszb
+		    		c[c_index] = a[a_index];
+		    		while ( innerArrayLength > c[c_index].length ){
+		    			c[c_index].push(null);
+		    		}
+		    		c_index++;
+		    		a_index++;
+		    	}
+		    }
+		    else{//mindkét sorban van még elem
+		    	if(c.length>=1 && c[c.length-1][0] == a[a_index][0]){//a aktuális elemének timestamp-je megegyezik a c utolsó timestbmpjével
+		    		var elementsToPush = a[a_index].slice( 1, a[a_index].length );
+		    		Ext.Array.replace(c[c.length-1],1,elementsToPush.length, elementsToPush);
+		    		a_index++;
+		    	}else if(c.length>=1 && c[c.length-1][0] == b[b_index][0]){
+		    		Ext.Array.replace(c[c.length-1],innerArrayLength-1,1,b[b_index][1]);
+		    		b_index++;
+		    	}else{//c utolsó elemének timestamp-je nem egyezik meg egyik timestam-jével sem
+		    		if(a[a_index][0]<b[b_index][0]){
+		    			//a-ból kell elemet venni
+		    			c[c_index] = a[a_index];
+			    		while ( innerArrayLength > c[c_index].length ){
+			    			c[c_index].push(null);
+			    		}
+			    		c_index++;
+			    		a_index++;
+		    		}else{
+		    			//b-ből kell venni elemet
+		    			c[c_index] = b[b_index];
+			    		while ( innerArrayLength > c[c_index].length ){
+			    			 Ext.Array.insert( c[c_index], 1, [null]);
+			    		}
+			    		c_index++;
+			    		b_index++;
+		    		}
+		    	}
+		    }	
+		}
+		return c;
+	},
+	
+	save: function(){
+		if(this.enableAutoSave){
+			NV.mplane.gui.Main.saveData({onDemand:{dashboardConfig:this.dashboardConfig, panelsConfig:this.panelsConfig}});
+		}
+	}
+});
+
+// @tag mplane-gui
+Ext.require('NV.mplane.gui.Constants');
+Ext.require('NV.ext.ux.nv.GlobalErrorHandler');
+Ext.require('NV.mplane.gui.utils.ondemand.OnDemand');
+Ext.define('NV.mplane.gui.Main',{
+	singleton: true,
+	renderedTabs: {},	//tabs thats already opened once 
+	urlParams: {},
+	init: function(){
+		
+		test = false;	//global variable
+		
+		
+		
+		//process the url parameters
+		var array = document.location.search.substr(document.location.search.search("/?") + 1).split("&");
+		for ( var i = 0; i < array.length; i++) {
+			var command = array[i].split("=")[0];
+			var url = array[i].split("=")[1];
+			this.urlParams[command] = url;
+		}
+		
+		test = this.urlParams.test;
+		
+		if(test){
+			this.urls = NV.mplane.gui.Constants.testUrls;
+		}else{
+			this.urls = NV.mplane.gui.Constants.urls;
+		}
+
+		
+		Ext.Ajax.request({
+			url : this.urls.guiSettings,
+			success : function(response) {
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					window.location.href = "login.html";	
+					return;
+				}	
+				
+				this.continueInit(json);
+			},
+			failure : function(response) {
+				window.location.href = "login.html";	
+			},
+			scope : this
+		});
+	
+		
+	},
+
+	continueInit: function(currentUsersSettings){
+		this.userSettings = currentUsersSettings;
+		Ext.Ajax.request({
+			url : "resource/dashboard-layout/json/lang/nv.lang.en.json",
+			success : function(response) {
+				json =  Ext.decode(response.responseText);
+				
+				lang = json;
+			},
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+			scope : this
+		});
+		
+		
+		if(this.urlParams.page){
+			this.initParameters = {
+					page : this.urlParams.page,
+					objectId : this.urlParams.objectId
+				};
+		}
+
+		NV.mplane.gui.utils.ondemand.OnDemand.init();
+		
+		
+		this.tabPanel = Ext.create('Ext.tab.Panel', {
+			height : 700,
+			plain : false,
+			border : false,
+			bodyBorder : false,
+			style : {
+				backgroundColor : 'white'
+			},
+			flex : 1,
+			items : [{
+				xtype:'panel',
+				title:"welcome",
+				html:"<iframe frameBorder='0' src='welcome.html' width='100%' height='100%'></iframe>",
+				closable : false,
+				border : false,
+				bodyBorder : false,
+				itemId: 'welcomme'
+			}],
+			region:"center",
+			listeners : {
+				tabchange : function(tabPanel, newCard, oldCard, eOpts) {
+					try {
+						newCard.enableAutoRefresh();
+					} catch (e) {
+						console.log("failed enable auto refresh");
+						console.log(newCard);
+					}
+					try {
+						oldCard.disableAutoRefresh();
+					} catch (e) {
+						console.log("failed disable auto refresh");
+						console.log(oldCard);
+					}
+				},
+				scope : this
+			}
+		});
+
+		capabilityMenuItems = [];
+		
+
+		for(var i in NV.mplane.gui.Constants.capabilityMenu){
+			capabilityMenuItems.push({
+					header : false,
+					border : false,
+					bodyBorder : false,
+					cls : 'hoverMenu',
+					layout : {
+						type : 'hbox'
+					},
+					items : [ {
+
+						xtype : 'image',
+						src : 'resource/mplane-gui/image/' + NV.mplane.gui.Constants.capabilityMenu[i].icon,
+						width : 30,
+						height : 30,
+						padding: '5'
+					}, {
+						xtype : 'label',
+						html : NV.mplane.gui.Constants.capabilityMenu[i].label,
+						height : 30,
+						border : false,
+						bodyBorder : false,
+						flex : 1,
+						cls : 'leftSubmenu',
+						padding: '5'
+
+					} ],
+					listeners : {
+						render : function(panel) {
+							panel.body.on('click', function() {
+								
+								NV.mplane.gui.Main.goToPage({page:this.itemid});
+							}, this);
+						},
+						scope : {
+							main: this,
+							itemid : i
+						}
+					}
+			});
+		}
+
+		
+		this.menuPanel = Ext.create('Ext.panel.Panel', {
+		    title: 'Menu',
+		    width: 200,
+
+		    defaults: {
+		        // applied to each contained panel
+		        bodyStyle: 'padding:0px'
+		    },
+		    layout: {
+		        // layout-specific configs go here
+		        type: 'accordion',
+		        titleCollapse: true,
+		        animate: true,
+		        activeOnTop: false,
+		        hideCollapseTool: true
+		    },
+		    items: [{
+		        title: 'Components',
+		        layout:'vbox',
+		        items: capabilityMenuItems
+		                
+		    },{
+		        title: 'Dashboard',
+		        html: 'No dashboard specified'
+		    },{
+		        title: 'Settings',
+		        html: 'Manage users'
+		    }],
+			region : 'west',
+			 collapsible: true
+		});
+		
+		var panel = Ext.create('Ext.panel.Panel', {
+			
+			header : false,
+			layout : {
+				type : 'border'
+			},
+			border : false,
+			bodyBorder : false,
+			items : [ 
+			    {
+					html:"<image src='resource/mplane-gui/image/mplane_final_logo.png' height='50px'>",
+					region:"north"
+				},
+				this.tabPanel, 
+				this.menuPanel 
+			]
+		});
+		
+		
+		Ext.create('Ext.container.Viewport', {
+			renderTo : Ext.getBody(),
+			layout : {
+				type : 'fit'
+
+			},
+			items : panel
+
+		});
+		
+		if(this.initParameters){
+			this.goToPage(this.initParameters);
+		}
+	},
+	
+	goToPage:function(params){
+	
+		if(this.tabPanel.items.keys.indexOf(params.page)>=0){	//opened
+			this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
+		}else{
+							//new
+			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='capability'){
+				newTab = Ext.create('NV.mplane.gui.tab.AllCapabilityTab', {itemId:params.page});
+				this.renderedTabs[params.page] = newTab;
+			}
+			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='pending'){
+				newTab = Ext.create('NV.mplane.gui.tab.RunningMeasurementsTab', {itemId:params.page});
+				this.renderedTabs[params.page] = newTab;
+			}
+			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='results'){
+				newTab = Ext.create('NV.mplane.gui.tab.FinishedTasksTab', {itemId:params.page});
+				this.renderedTabs[params.page] = newTab;
+			}
+			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='ondemand'){
+				newTab = Ext.create('NV.mplane.gui.tab.OndemandTab', {itemId:params.page});
+				this.renderedTabs[params.page] = newTab;
+			}
+			
+			this.tabPanel.add(this.renderedTabs[params.page]);
+			this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
+		}
+		
+	},
+	
+	saveData: function(datas){
+		Ext.Ajax.request({
+			url: this.urls.guiSettings,
+			jsonData: datas,
+			method:'POST',
+			success : function(response) {
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					return;
+				}	
+				
+			},
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+		});
+	}
+
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
+	extend:'Ext.panel.Panel',
+	
+	gridUrl: undefined,// NV.mplane.gui.Main.urls.gridUrl,
+	
+	/**
+	 * read the grid configuaration and place
+	 */
+	constructor: function(config){
+		this.callParent([Ext.apply(config,{
+			
+			layout:{
+				type:'fit'
+			},
+			closable:true,
+			listeners:{
+				destroy: function(){
+					this.disableAutoRefresh();
+				},
+				scope:this
+			}
+		})]);
+		this.readRegistry();
+	},
+
+	readRegistry: function(){
+		if(NV.mplane.gui.Constants.parameterDescriptors){
+			this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
+			this.loadGridConfig();
+		}
+		else{
+			NV.mplane.gui.Constants.readRegistry('loadGridConfig',this);
+		}
+
+	},
+
+	loadGridConfig: function(){
+/*		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
+		Ext.Ajax.request({
+				url : this.gridUrl,
+				success : function(response) {
+					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+					if (!json) {
+						return;
+					}	
+				
+					this.addExtraParametersToFilters(json.config.filterConfig);
+					json.config.dataUrl = NV.mplane.gui.Main.urls.capabilityList;
+					json.config.myTab = this;
+					json.config.type = "list";
+					this.grid = Ext.create('NV.mplane.gui.utils.CapabilityGrid',json.config);
+					this.add(this.grid);
+				},
+				failure : function(response) {
+					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+				},
+				scope : this
+			});
+		*/
+	},
+
+	addExtraParametersToFilters: function(filterConfig){
+		for(var i = 0; i < this.parameterDescriptors.length; i++){
+			var filter = {
+					text:this.parameterDescriptors[i].name
+			};
+			if(this.parameterDescriptors[i].prim == 'natural' || this.parameterDescriptors[i].prim == 'real'){
+				filter.type = 'integer';
+			}
+			else if(this.parameterDescriptors[i].prim == 'time'){
+				filter.type = 'datetime';
+			}
+			else if(this.parameterDescriptors[i].prim == 'string'){
+				filter.type = 'string';
+			}
+			else if(this.parameterDescriptors[i].prim == 'address'){
+				filter.type = 'string',
+				filter.regexp = '\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b';
+			}else if(this.parameterDescriptors[i].prim == 'url'){
+				filter.type = 'string',
+				filter.regexp = '^(http|https|ftp)\://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(:[a-zA-Z0-9]*)?/?([a-zA-Z0-9\-\._\?\,\'/\\\+&amp;%\$#\=~])*$';
+			}else if(this.parameterDescriptors[i].prim == 'boolean'){
+				filter.type = 'boolean';
+			}else{
+				console.log("ivalid parameter type:");
+				console.log(this.parameterDescriptors[i]);
+			}
+			
+			filterConfig.filters[this.parameterDescriptors[i].name] = (filter);
+		}
+		return filterConfig.filters;
+	},
+	
+	enableAutoRefresh: function(){
+		if(this.grid){
+			this.grid.enableAutoRefresh();			
+		}
+	},
+	
+	disableAutoRefresh: function(){
+		if(this.grid){
+			this.grid.disableAutoRefresh();
+		}
+	}
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.tab.AllCapabilityTab',{
+	extend:'NV.mplane.gui.tab.BaseCapabilityTab',
+	runUrl: undefined,
+	/**
+	 * read the grid configuaration and place
+	 */
+	constructor: function(config){
+		this.callParent([Ext.apply(config,{
+			title:'List of capabilities',
+			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
+			runUrl : NV.mplane.gui.Main.urls.runUrl,
+		})]);
+	},
+
+	
+	loadGridConfig: function(){
+		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
+		Ext.Ajax.request({
+				url : this.gridUrl,
+				success : function(response) {
+					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+					if (!json) {
+						return;
+					}	
+				
+					this.addExtraParametersToFilters(json.config.filterConfig);
+					json.config.dataUrl = NV.mplane.gui.Main.urls.capabilityList;
+					json.config.myTab = this;
+					json.config.type = "list";
+					this.grid = Ext.create('NV.mplane.gui.utils.CapabilityGrid',json.config);
+					this.add(this.grid);
+				},
+				failure : function(response) {
+					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+				},
+				scope : this
+			});
+		
+	},
+
+	
+	runMeasures: function(measures){
+		if(measures.length>0){
+			this.runMeasure(measures, 0, measures.length);
+		}
+		
+	},
+	
+	runMeasure: function(measure){
+
+		w = Ext.create("NV.mplane.gui.windows.RunWindow",{
+			measure:measure, 
+			parent:this
+		});
+		w.show();
+		
+		
+	},
+	
+	sendRunParamsToServer: function(raw, values){
+		
+		
+		delete raw.parameterString;
+		var url = Ext.String.urlAppend(this.runUrl, "DN="+raw.probe);
+		delete raw.probe;
+		
+		raw.when = values.when;
+		delete values.when;
+		Ext.apply(raw.parameters, values);
+		
+		Ext.Ajax.request({
+			url: url,
+			method:'POST',
+			jsonData: raw,
+			success : function(response) {
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					return;
+				}	
+				
+			},
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+		});
+	}
+	
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.tab.FinishedTasksTab',{
+	extend:'NV.mplane.gui.tab.BaseCapabilityTab',	
+	detailsUrl: undefined,
+	/**
+	 * read the grid configuaration and place
+	 */
+	constructor: function(config){
+		
+		
+		
+		this.callParent([Ext.apply(config,{
+			title:'Results',
+			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
+			detailsUrl: NV.mplane.gui.Main.urls.resultDetails,
+		})]);
+	},
+
+	
+
+	loadGridConfig: function(){
+		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
+		Ext.Ajax.request({
+				url : this.gridUrl,
+				success : function(response) {
+					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+					if (!json) {
+						return;
+					}	
+				
+					this.addExtraParametersToFilters(json.config.filterConfig);
+					json.config.dataUrl = NV.mplane.gui.Main.urls.resultList;
+					json.config.detailsUrl = this.detailsUrl;
+					
+					json.config.myTab = this;
+					json.config.selectable = false;
+					json.config.type = "finished";
+					json.config.editable = true;
+					this.grid = Ext.create('NV.mplane.gui.utils.FinishedGrid',json.config);
+					this.add(this.grid);
+				},
+				failure : function(response) {
+					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+				},
+				scope : this
+			});
+		
+	}
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.tab.OndemandTab',{
+	extend:'Ext.panel.Panel',
+	/*
+	 * 1) create a dashboard, ondemand.dashboardocnfig.width* odemand.dashboardconfig.height panels
+	 */
+	
+	constructor: function(config){
+		this.callParent([Ext.apply(config,{
+			items: NV.mplane.gui.utils.ondemand.OnDemand.getDashboard(),
+			title:"On-Demand Chart View",
+			closable:true,
+			layout:"fit",
+			
+			listeners: {
+				afterrender: function(panel, eOpts){
+					NV.mplane.gui.utils.ondemand.OnDemand.showCharts();
+				},
+				
+			}		
+		})]);
+		
+	},
+	
+	enableAutoRefresh: function(){
+		NV.mplane.gui.utils.ondemand.OnDemand.showCharts();
+	},
+	
+	disableAutoRefresh: function(){
+		
+	}
+
+	
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.tab.RunningMeasurementsTab',{
+	extend:'NV.mplane.gui.tab.BaseCapabilityTab',
+
+	detailsUrl: undefined,
+	/**
+	 * read the grid configuaration and place
+	 */
+	constructor: function(config){
+		
+		
+		this.callParent([Ext.apply(config,{
+			title:'Running measurements',
+			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
+			detailsUrl: NV.mplane.gui.Main.urls.detailsUrl
+		})]);
+	},
+
+	
+
+	loadGridConfig: function(){
+		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
+		Ext.Ajax.request({
+				url : this.gridUrl,
+				success : function(response) {
+					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+					if (!json) {
+						return;
+					}	
+				
+					this.addExtraParametersToFilters(json.config.filterConfig);
+					json.config.dataUrl = NV.mplane.gui.Main.urls.runningList;
+					json.config.myTab = this;
+					json.config.selectable = false;
+					json.config.type = "running";
+					
+					this.grid = Ext.create('NV.mplane.gui.utils.PendingGrid',json.config);
+					this.add(this.grid);
+				},
+				failure : function(response) {
+					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+				},
+				scope : this
+			});
+		
+	}
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.utils.CapabilityGrid',{
+	extend:"NV.dashboard.layout.dashboard.components.Grid",
+	myTab: undefined,
+	type:undefined,
+	
+	createStore: function(){
+		var store, proxy;
+		if(this.dataUrl){
+			this.extraParams = {};
+			
+			
+			store = Ext.create('Ext.data.Store', {
+				model : 'GridModel',
+				remoteSort : !this.local,
+				remoteFilter : !this.local,
+				sorters: this.defaultSorters,
+				groupField : this.groupField,
+				proxy : {
+					type : 'ajax',
+					url : this.dataUrl,
+					extraParams: this.extraParams,
+					reader : Ext.create('NV.mplane.gui.utils.CapabilityReader',{
+						type : 'json',
+						root : 'list',
+						useSimpleAccessors:false
+					})
+				},
+				autoLoad : true,
+				pageSize : this.local?500:this.pageSize,
+
+				listeners : {	/** listeners for filter string refresh on top */
+					
+					refresh : function(store, records, successful, eOpts) {
+						this.storeRefreshFunction(store, records, successful, eOpts);
+					},
+
+					beforeload: function(store, operation, eOpts){
+						if(!this.firstLoaded && this.local){
+							this.firstLoaded = true;
+							this.setDefaultFilterss();
+						}
+						else if(this.filterable && this.filterPanel && this.needFilterRefresh){
+							this.needFilterRefresh = false;
+							this.refreshFilterValues();
+						}
+						this.needFilterRefresh=true;
+					},
+					
+					scope : this
+				}
+			});
+		}
+		return store;
+	},
+	createExtraFieldsBefore : function(fieldConfig) {
+		
+		fieldConfig.push({
+			menuDisabled : true,
+			sortable : false,
+			xtype : 'actioncolumn',
+			width : 30,
+			items : [ {
+		//		icon : 'resource/sencha-extjs/resources/themes/images/default/tree/folder-open.gif', 
+				icon: 'resource/mplane-gui/image/play.png',
+				tooltip : 'Create specification',
+				handler : function(grid, rowIndex, colIndex) {
+					var rec = grid.getStore().getAt(rowIndex);
+					this.myTab.runMeasure(rec);	
+				},
+				scope : this
+			} ]
+		});
+		
+	}
+});
+
+// @tag mplane-gui
+Ext.define('NV.mplane.gui.utils.CapabilityReader',{
+	extend:'Ext.data.reader.Json',
+		
+		 getResponseData: function(response) {
+		        var data, error;
+		 
+		        try {
+		            data = Ext.decode(response.responseText);
+		            //the data is grouped, and it's not good :(
+		            
+		            normalizedData = [];
+		            for(var key in data){
+		            	for(var i=0; i<data[key].length; i++){
+		            		//add the probe column to data
+		            		Ext.apply(data[key][i],{probe:key});
+		            		this.processParameters(data[key][i]);
+		            		normalizedData.push(data[key][i]);
+		            	
+		            	}
+		            }
+		            
+		            return this.readRecords({total:normalizedData.length,list:normalizedData});
+		        } catch (ex) {
+		            error = new Ext.data.ResultSet({
+		                total  : 0,
+		                count  : 0,
+		                records: [],
+		                success: false,
+		                message: ex.message
+		            });
+
+		            this.fireEvent('exception', this, response, error);
+
+		            Ext.Logger.warn('Unable to parse the JSON returned by the server');
+
+		            return error;
+		        }
+		    },
+		
+		processParameters: function(row){
+			var parametersString="";
+			var descriptors = NV.mplane.gui.Constants.parameterMap;
+    		for(var j in row.parameters){
+    			if(!descriptors[j]){
+    				console.log("error, no parameter descriptor for "+j);
+    			}
+    			if(row.parameters[j].trim()=="*"){
+    				//ki kell tölteni,
+    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
+    				
+    			}else if(descriptors[j].prim=='natural' && row.parameters[j].indexOf("..")>=0 ){
+    				//szám és - jel van benne -> ki kell tölteni
+    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
+    			
+    			}else if(descriptors[j].prim=='address' && row.parameters[j].indexOf("/")>=0 ){
+    				//ip cím és ki kell tölteni
+    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
+    			
+    			}else if(row.parameters[j].indexOf(",")>=0 ){
+    				//felsorolás és ki kell tölteni
+    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
+    			
+    			}else{
+    				//fix értéke van
+    				parametersString+=j+":"+row.parameters[j]+"<br>";
+    			}
+    			
+    			
+    		}
+    		Ext.apply(row, {parameterString:parametersString});
+		}
+
+
+});
+
+// @tag mplane-gui
+Ext.define("NV.mplane.gui.utils.FinishedGrid",{
+	extend:'NV.mplane.gui.utils.CapabilityGrid',
+	
+	config:{
+		detailsUrl: undefined
+	},
+	
+	createExtraFieldsBefore : function(fieldConfig) {
+		
+		fieldConfig.push({
+			menuDisabled : true,
+			sortable : false,
+			xtype : 'actioncolumn',
+			width : 30,
+			items : [ {
+		//		icon : 'resource/sencha-extjs/resources/themes/images/default/tree/folder-open.gif', 
+				icon: 'resource/dashboard-layout/image/tools/search.png',
+				tooltip : 'Show',
+				handler : function(grid, rowIndex, colIndex) {
+					var rec = grid.getStore().getAt(rowIndex);
+					this.handleEdit(rec, grid);
+				},
+				scope : this
+			} ]
+		});
+		
+	},
+	
+	handleEdit : function(rec, grid) {
+
+		Ext.Ajax.request({
+			params: {token: rec.raw.token},
+			method: 'GET',
+			url : this.detailsUrl,
+			success: function(response){
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					return;
+				}	
+				this.editWindow = Ext.create('NV.mplane.gui.windows.DetailsWindow', json);
+				this.editWindow.show();
+			},	
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+			scope : this
+		});
+	}           
+	
 });
 
 // @tag mplane-gui
@@ -457,797 +1609,246 @@ Ext.define('NV.mplane.gui.utils.OnDemand', {
 });
 
 // @tag mplane-gui
-Ext.require('NV.mplane.gui.Constants');
-Ext.require('NV.ext.ux.nv.GlobalErrorHandler');
-Ext.require('NV.mplane.gui.utils.OnDemand');
-Ext.define('NV.mplane.gui.Main',{
-	singleton: true,
-	renderedTabs: {},	//tabs thats already opened once 
-	urlParams: {},
-	init: function(){
-		
-		test = false;	//global variable
-		
-		
-		
-		//process the url parameters
-		var array = document.location.search.substr(document.location.search.search("/?") + 1).split("&");
-		for ( var i = 0; i < array.length; i++) {
-			var command = array[i].split("=")[0];
-			var url = array[i].split("=")[1];
-			this.urlParams[command] = url;
-		}
-		
-		test = this.urlParams.test;
-		
-		if(test){
-			this.urls = NV.mplane.gui.Constants.testUrls;
-		}else{
-			this.urls = NV.mplane.gui.Constants.urls;
-		}
-
-		
-		Ext.Ajax.request({
-			url : this.urls.guiSettings,
-			success : function(response) {
-				var json;
-				try{
-					json =  Ext.decode(response.responseText);
-				}
-				catch(e){
-					window.location.href = "login.html";	
-					return;
-				}
-				this.continueInit(json);
-			},
-			failure : function(response) {
-				window.location.href = "login.html";	
-			},
-			scope : this
-		});
-	
-		
-	},
-
-	continueInit: function(currentUsersSettings){
-		this.userSettings = currentUsersSettings;
-		Ext.Ajax.request({
-			url : "resource/dashboard-layout/json/lang/nv.lang.en.json",
-			success : function(response) {
-				lang = Ext.decode(response.responseText);//global variable
-			},
-			failure : function(response) {
-				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-			},
-			scope : this
-		});
-		
-		
-		if(this.urlParams.page){
-			this.initParameters = {
-					page : this.urlParams.page,
-					objectId : this.urlParams.objectId
-				};
-		}
-
-		NV.mplane.gui.utils.OnDemand.init();
-		
-		
-		this.tabPanel = Ext.create('Ext.tab.Panel', {
-			height : 700,
-			plain : false,
-			border : false,
-			bodyBorder : false,
-			style : {
-				backgroundColor : 'white'
-			},
-			flex : 1,
-			items : [{
-				xtype:'panel',
-				title:"welcome",
-				html:"<iframe frameBorder='0' src='welcome.html' width='100%' height='100%'></iframe>",
-				closable:true,
-				border : false,
-				bodyBorder : false,
-				itemId: 'welcomme'
-			}],
-			region:"center",
-			listeners : {
-				tabchange : function(tabPanel, newCard, oldCard, eOpts) {
-		/*			try {
-						newCard.enableAutoRefresh();
-					} catch (e) {
-						console.log("failed enable auto refresh");
-						console.log(newCard);
-					}
-					try {
-						oldCard.disableAutoRefresh();
-					} catch (e) {
-						console.log("failed disable auto refresh");
-						console.log(oldCard);
-					}
-*/
-				},
-				scope : this
-			}
-		});
-
-		capabilityMenuItems = [];
-		
-
-		for(var i in NV.mplane.gui.Constants.capabilityMenu){
-			capabilityMenuItems.push({
-					header : false,
-					border : false,
-					bodyBorder : false,
-					cls : 'hoverMenu',
-					layout : {
-						type : 'hbox'
-					},
-					items : [ {
-
-						xtype : 'image',
-						src : 'resource/mplane-gui/image/' + NV.mplane.gui.Constants.capabilityMenu[i].icon,
-						width : 30,
-						height : 30,
-						padding: '5'
-					}, {
-						xtype : 'label',
-						html : NV.mplane.gui.Constants.capabilityMenu[i].label,
-						height : 30,
-						border : false,
-						bodyBorder : false,
-						flex : 1,
-						cls : 'leftSubmenu',
-						padding: '5'
-
-					} ],
-					listeners : {
-						render : function(panel) {
-							panel.body.on('click', function() {
-								
-								NV.mplane.gui.Main.goToPage({page:this.itemid});
-							}, this);
-						},
-						scope : {
-							main: this,
-							itemid : i
-						}
-					}
-			});
-		}
-
-		
-		this.menuPanel = Ext.create('Ext.panel.Panel', {
-		    title: 'Menu',
-		    width: 200,
-
-		    defaults: {
-		        // applied to each contained panel
-		        bodyStyle: 'padding:0px'
-		    },
-		    layout: {
-		        // layout-specific configs go here
-		        type: 'accordion',
-		        titleCollapse: true,
-		        animate: true,
-		        activeOnTop: false,
-		        hideCollapseTool: true
-		    },
-		    items: [{
-		        title: 'Components',
-		        layout:'vbox',
-		        items: capabilityMenuItems
-		                
-		    },{
-		        title: 'Dashboard',
-		        html: 'No dashboard specified'
-		    },{
-		        title: 'Settings',
-		        html: 'Manage users'
-		    }],
-			region : 'west',
-			 collapsible: true
-		});
-		
-		var panel = Ext.create('Ext.panel.Panel', {
-			
-			header : false,
-			layout : {
-				type : 'border'
-			},
-			border : false,
-			bodyBorder : false,
-			items : [ 
-			    {
-					html:"<image src='resource/mplane-gui/image/mplane_final_logo.png' height='50px'>",
-					region:"north"
-				},
-				this.tabPanel, 
-				this.menuPanel 
-			]
-		});
-		
-		
-		Ext.create('Ext.container.Viewport', {
-			renderTo : Ext.getBody(),
-			layout : {
-				type : 'fit'
-
-			},
-			items : panel
-
-		});
-		
-		if(this.initParameters){
-			this.goToPage(this.initParameters);
-		}
-	},
-	
-	goToPage:function(params){
-	
-		if(this.tabPanel.items.keys.indexOf(params.page)>=0){	//opened
-			this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
-		}else{
-							//new
-			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='capability'){
-				newTab = Ext.create('NV.mplane.gui.tab.AllCapabilityTab', {itemId:params.page});
-				this.renderedTabs[params.page] = newTab;
-			}
-			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='pending'){
-				newTab = Ext.create('NV.mplane.gui.tab.RunningMeasurementsTab', {itemId:params.page});
-				this.renderedTabs[params.page] = newTab;
-			}
-			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='results'){
-				newTab = Ext.create('NV.mplane.gui.tab.FinishedTasksTab', {itemId:params.page});
-				this.renderedTabs[params.page] = newTab;
-			}
-			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='ondemand'){
-				newTab = Ext.create('NV.mplane.gui.tab.OndemandTab', {itemId:params.page});
-				this.renderedTabs[params.page] = newTab;
-			}
-			
-			this.tabPanel.add(this.renderedTabs[params.page]);
-			this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
-		}
-		
-	}
-
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
-	extend:'Ext.panel.Panel',
-	
-	gridUrl: undefined,// NV.mplane.gui.Main.urls.gridUrl,
-	
-	/**
-	 * read the grid configuaration and place
-	 */
-	constructor: function(config){
-		this.callParent([Ext.apply(config,{
-			
-			layout:{
-				type:'fit'
-			},
-			closable:true
-		})]);
-		this.readRegistry();
-	},
-
-	readRegistry: function(){
-		if(NV.mplane.gui.Constants.parameterDescriptors){
-			this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
-			this.loadGridConfig();
-		}
-		else{
-			NV.mplane.gui.Constants.readRegistry('loadGridConfig',this);
-		}
-
-	},
-
-	loadGridConfig: function(){
-/*		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
-		Ext.Ajax.request({
-				url : this.gridUrl,
-				success : function(response) {
-					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
-					if (!json) {
-						return;
-					}	
-				
-					this.addExtraParametersToFilters(json.config.filterConfig);
-					json.config.dataUrl = NV.mplane.gui.Main.urls.capabilityList;
-					json.config.myTab = this;
-					json.config.type = "list";
-					this.grid = Ext.create('NV.mplane.gui.utils.CapabilityGrid',json.config);
-					this.add(this.grid);
-				},
-				failure : function(response) {
-					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-				},
-				scope : this
-			});
-		*/
-	},
-
-	addExtraParametersToFilters: function(filterConfig){
-		for(var i = 0; i < this.parameterDescriptors.length; i++){
-			var filter = {
-					text:this.parameterDescriptors[i].name
-			};
-			if(this.parameterDescriptors[i].prim == 'natural' || this.parameterDescriptors[i].prim == 'real'){
-				filter.type = 'integer';
-			}
-			else if(this.parameterDescriptors[i].prim == 'time'){
-				filter.type = 'datetime';
-			}
-			else if(this.parameterDescriptors[i].prim == 'string'){
-				filter.type = 'string';
-			}
-			else if(this.parameterDescriptors[i].prim == 'address'){
-				filter.type = 'string',
-				filter.regexp = '\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b';
-			}else if(this.parameterDescriptors[i].prim == 'url'){
-				filter.type = 'string',
-				filter.regexp = '^(http|https|ftp)\://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(:[a-zA-Z0-9]*)?/?([a-zA-Z0-9\-\._\?\,\'/\\\+&amp;%\$#\=~])*$';
-			}else if(this.parameterDescriptors[i].prim == 'boolean'){
-				filter.type = 'boolean';
-			}else{
-				console.log("ivalid parameter type:");
-				console.log(this.parameterDescriptors[i]);
-			}
-			
-			filterConfig.filters[this.parameterDescriptors[i].name] = (filter);
-		}
-		return filterConfig.filters;
-	}
-	
-	
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.tab.AllCapabilityTab',{
-	extend:'NV.mplane.gui.tab.BaseCapabilityTab',
-	runUrl: undefined,
-	/**
-	 * read the grid configuaration and place
-	 */
-	constructor: function(config){
-		this.callParent([Ext.apply(config,{
-			title:'List of capabilities',
-			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
-			runUrl : NV.mplane.gui.Main.urls.runUrl,
-		})]);
-	},
-
-	
-	loadGridConfig: function(){
-		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
-		Ext.Ajax.request({
-				url : this.gridUrl,
-				success : function(response) {
-					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
-					if (!json) {
-						return;
-					}	
-				
-					this.addExtraParametersToFilters(json.config.filterConfig);
-					json.config.dataUrl = NV.mplane.gui.Main.urls.capabilityList;
-					json.config.myTab = this;
-					json.config.type = "list";
-					this.grid = Ext.create('NV.mplane.gui.utils.CapabilityGrid',json.config);
-					this.add(this.grid);
-				},
-				failure : function(response) {
-					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-				},
-				scope : this
-			});
-		
-	},
-
-	
-	runMeasures: function(measures){
-		if(measures.length>0){
-			this.runMeasure(measures, 0, measures.length);
-		}
-		
-	},
-	
-	runMeasure: function(measures, currentIndex, size){
-
-		w = Ext.create("NV.mplane.gui.windows.RunWindow",{
-			measures:measures, 
-			currentIndex:currentIndex, 
-			size:size, 
-			parent:this
-		});
-		w.show();
-		
-		
-	},
-	
-	sendRunParamsToServer: function(raw, values){
-		
-		
-		delete raw.parameterString;
-		var url = Ext.String.urlAppend(this.runUrl, "DN="+raw.probe);
-		delete raw.probe;
-		
-		raw.when = values.when;
-		delete values.when;
-		Ext.apply(raw.parameters, values);
-		
-		Ext.Ajax.request({
-			url: url,
-			method:'POST',
-			jsonData: raw,
-			success: function(opts){
-				
-			}
-		});
-	}
-	
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.tab.FinishedTasksTab',{
-	extend:'NV.mplane.gui.tab.BaseCapabilityTab',	
-	detailsUrl: undefined,
-	/**
-	 * read the grid configuaration and place
-	 */
-	constructor: function(config){
-		
-		
-		
-		this.callParent([Ext.apply(config,{
-			title:'Results',
-			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
-			detailsUrl: NV.mplane.gui.Main.urls.resultDetails,
-		})]);
-	},
-
-	
-
-	loadGridConfig: function(){
-		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
-		Ext.Ajax.request({
-				url : this.gridUrl,
-				success : function(response) {
-					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
-					if (!json) {
-						return;
-					}	
-				
-					this.addExtraParametersToFilters(json.config.filterConfig);
-					json.config.dataUrl = NV.mplane.gui.Main.urls.resultList;
-					json.config.detailsUrl = this.detailsUrl;
-					
-					json.config.myTab = this;
-					json.config.selectable = false;
-					json.config.type = "finished";
-					json.config.editable = true;
-					this.grid = Ext.create('NV.mplane.gui.utils.FinishedGrid',json.config);
-					this.add(this.grid);
-				},
-				failure : function(response) {
-					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-				},
-				scope : this
-			});
-		
-	}
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.tab.OndemandTab',{
-	extend:'Ext.panel.Panel',
-	/*
-	 * 1) create a dashboard, ondemand.dashboardocnfig.width* odemand.dashboardconfig.height panels
-	 */
-	
-	constructor: function(config){
-		this.callParent([Ext.apply(config,{
-			items: NV.mplane.gui.utils.OnDemand.getDashboard(),
-			title:"On-Demand Chart View",
-			closable:true,
-			listeners: {
-				afterrender: function(panel, eOpts){
-					NV.mplane.gui.utils.OnDemand.showCharts();
-				}
-			}
-		})]);
-		
-	}
-
-	
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.tab.RunningMeasurementsTab',{
-	extend:'NV.mplane.gui.tab.BaseCapabilityTab',
-
-	detailsUrl: undefined,
-	/**
-	 * read the grid configuaration and place
-	 */
-	constructor: function(config){
-		
-		
-		this.callParent([Ext.apply(config,{
-			title:'Running measurements',
-			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
-			detailsUrl: NV.mplane.gui.Main.urls.detailsUrl
-		})]);
-	},
-
-	
-
-	loadGridConfig: function(){
-		this.parameterDescriptors = NV.mplane.gui.Constants.parameterDescriptors;
-		Ext.Ajax.request({
-				url : this.gridUrl,
-				success : function(response) {
-					var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
-					if (!json) {
-						return;
-					}	
-				
-					this.addExtraParametersToFilters(json.config.filterConfig);
-					json.config.dataUrl = NV.mplane.gui.Main.urls.runningList;
-					json.config.myTab = this;
-					json.config.selectable = false;
-					json.config.type = "running";
-					this.grid = Ext.create('NV.mplane.gui.utils.CapabilityGrid',json.config);
-					this.add(this.grid);
-				},
-				failure : function(response) {
-					NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-				},
-				scope : this
-			});
-		
-	}
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.utils.CapabilityGrid',{
-	extend:"NV.dashboard.layout.dashboard.components.Grid",
-	myTab: undefined,
-	type:undefined,
-	
-	createStore: function(){
-		var store, proxy;
-		if(this.dataUrl){
-			this.extraParams = {};
-			
-			
-			store = Ext.create('Ext.data.Store', {
-				model : 'GridModel',
-				remoteSort : !this.local,
-				remoteFilter : !this.local,
-				sorters: this.defaultSorters,
-				groupField : this.groupField,
-				proxy : {
-					type : 'ajax',
-					url : this.dataUrl,
-					extraParams: this.extraParams,
-					reader : Ext.create('NV.mplane.gui.utils.CapabilityReader',{
-						type : 'json',
-						root : 'list',
-						useSimpleAccessors:false
-					})
-				},
-				autoLoad : true,
-				pageSize : this.local?500:this.pageSize,
-
-				listeners : {	/** listeners for filter string refresh on top */
-					
-					refresh : function(store, records, successful, eOpts) {
-						this.storeRefreshFunction(store, records, successful, eOpts);
-					},
-
-					beforeload: function(store, operation, eOpts){
-						if(!this.firstLoaded && this.local){
-							this.firstLoaded = true;
-							this.setDefaultFilterss();
-						}
-						else if(this.filterable && this.filterPanel && this.needFilterRefresh){
-							this.needFilterRefresh = false;
-							this.refreshFilterValues();
-						}
-						this.needFilterRefresh=true;
-					},
-					
-					scope : this
-				}
-			});
-		}
-		return store;
-	},
-	
-	
-	createDockedItems : function(dockedItems) {
-		
-		if(this.firstConfig.type=="list"){
-			var runButton = {
-					xtype : 'button',
-					icon : 'resource/mplane-gui/image/play.png',
-					tooltip : 'Create specification',
-					tooltipType: "title",
-					text:"Create specification",
-					listeners : {
-						click : function() {
-							this.myTab.runMeasures(this.grid.selModel.selected.items);					
-						},
-						scope : this
-					}
-				};
-
-				this.topItems = {
-						xtype : 'toolbar',
-						dock : 'top',
-						items : [ runButton]
-					};
-		}else if(this.firstConfig.type=="running"){
-	/*		var runButton = {
-					xtype : 'button',
-	//				icon : 'resource/mplane-gui/image/start.png',
-					tooltip : 'Show details',
-					tooltipType: "title",
-					text:"Show details",
-					listeners : {
-						click : function() {
-							this.myTab.showDetails(this.grid.selModel.selected.items);					
-						},
-						scope : this
-					}
-				};
-
-			this.topItems = {
-					xtype : 'toolbar',
-					dock : 'top',
-					items : [ runButton]
-				};*/
-		}
-	}
-});
-
-// @tag mplane-gui
-Ext.define('NV.mplane.gui.utils.CapabilityReader',{
-	extend:'Ext.data.reader.Json',
-		
-		 getResponseData: function(response) {
-		        var data, error;
-		 
-		        try {
-		            data = Ext.decode(response.responseText);
-		            //the data is grouped, and it's not good :(
-		            
-		            normalizedData = [];
-		            for(var key in data){
-		            	for(var i=0; i<data[key].length; i++){
-		            		//add the probe column to data
-		            		Ext.apply(data[key][i],{probe:key});
-		            		this.processParameters(data[key][i]);
-		            		normalizedData.push(data[key][i]);
-		            	
-		            	}
-		            }
-		            
-		            return this.readRecords({total:normalizedData.length,list:normalizedData});
-		        } catch (ex) {
-		            error = new Ext.data.ResultSet({
-		                total  : 0,
-		                count  : 0,
-		                records: [],
-		                success: false,
-		                message: ex.message
-		            });
-
-		            this.fireEvent('exception', this, response, error);
-
-		            Ext.Logger.warn('Unable to parse the JSON returned by the server');
-
-		            return error;
-		        }
-		    },
-		
-		processParameters: function(row){
-			var parametersString="";
-			var descriptors = NV.mplane.gui.Constants.parameterMap;
-    		for(var j in row.parameters){
-    			if(!descriptors[j]){
-    				console.log("error, no parameter descriptor for "+j);
-    			}
-    			if(row.parameters[j].trim()=="*"){
-    				//ki kell tölteni,
-    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
-    				
-    			}else if(descriptors[j].prim=='natural' && row.parameters[j].indexOf("..")>=0 ){
-    				//szám és - jel van benne -> ki kell tölteni
-    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
-    			
-    			}else if(descriptors[j].prim=='address' && row.parameters[j].indexOf("/")>=0 ){
-    				//ip cím és ki kell tölteni
-    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
-    			
-    			}else if(row.parameters[j].indexOf(",")>=0 ){
-    				//felsorolás és ki kell tölteni
-    			//	parametersString+="<b>"+j+"</b>:"+row.parameters[j]+"<br>";
-    			
-    			}else{
-    				//fix értéke van
-    				parametersString+=j+":"+row.parameters[j]+"<br>";
-    			}
-    			
-    			
-    		}
-    		Ext.apply(row, {parameterString:parametersString});
-		}
-
-
-});
-
-// @tag mplane-gui
-Ext.define("NV.mplane.gui.utils.FinishedGrid",{
+Ext.define("NV.mplane.gui.utils.PendingGrid",{
 	extend:'NV.mplane.gui.utils.CapabilityGrid',
-	
-	config:{
-		detailsUrl: undefined
-	},
 	
 	createExtraFieldsBefore : function(fieldConfig) {
 		
-		fieldConfig.push({
-			menuDisabled : true,
-			sortable : false,
-			xtype : 'actioncolumn',
-			width : 30,
-			items : [ {
-		//		icon : 'resource/sencha-extjs/resources/themes/images/default/tree/folder-open.gif', 
-				icon: 'resource/dashboard-layout/image/tools/search.png',
-				tooltip : 'Show',
-				handler : function(grid, rowIndex, colIndex) {
-					var rec = grid.getStore().getAt(rowIndex);
-					this.handleEdit(rec, grid);
-				},
-				scope : this
-			} ]
-		});
-		
-	},
-	
-	handleEdit : function(rec, grid) {
-
-		Ext.Ajax.request({
-			params: {token: rec.raw.token},
-			url : this.detailsUrl,
-			method:"GET",
-			success: function(response){
-				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
-				if (!json) {
-					return;
-				}	
-				
-				
-				
-				this.editWindow = Ext.create('NV.mplane.gui.windows.DetailsWindow', json);
-				this.editWindow.show();
-			},	
-			failure : function(response) {
-				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
-			},
-			scope : this
-		});
-	}           
-	
+	}
 });
 
 // @tag mplane-gui
-Ext.require('NV.mplane.gui.utils.OnDemand');
+Ext.define('NV.mplane.gui.utils.ondemand.MiniDashboardPanel',{
+	extend: "Ext.panel.Panel",
+	
+	config:{
+		measurementConfigs:undefined,
+		x:undefined,
+		y:undefined
+	},
+	
+	labels:[],
+	
+	/*
+	 * config:{
+	 * 	x:
+	 *  y:
+	 *  measurementConfigs
+	 * }
+	 */
+	constructor: function(config){
+		
+		var ondemand = NV.mplane.gui.utils.ondemand.OnDemand;
+		
+		this.x = config.x;
+		this.y = config.y;
+		
+		if(config.measurementConfigs.length == 0){
+			//just one container need
+			this.createAddContainer();
+		}else{
+			this.createAddReplaceContainer();
+		}
+		
+		//
+		this.measurementNameContainer = Ext.create("Ext.panel.Panel",{
+			layout:{
+				type:"vbox",
+				align:"stretch",
+			},
+			header:false,
+		});
+		
+		
+		this.bottomContainer = Ext.create("Ext.panel.Panel",{
+			header:false,
+			layout:"fit",
+			border:false,
+			padding:0,
+			border:0,
+			items:[
+			       this.addReplaceContainer
+			       ],
+			flex:1
+		});
+		
+		this.callParent([Ext.apply(config,{
+			xtype:'panel',
+			header:false,
+			frame:true,
+			bodyBorder:false,
+			border:false,
+			columnWidth: 1/ondemand.dashboardConfig.width,
+			margin:2,
+			height:100,
+
+			layout:{
+				type:"vbox",
+				align:"stretch"
+			},
+			items: [
+				this.measurementNameContainer,
+				this.bottomContainer
+			]
+	    	
+		})]);
+		this.initLabels();
+		
+	},
+	
+	initLabels: function(){
+		for(var i=0; i<this.measurementConfigs.length; i++){
+			this.addLabel(this.measurementConfigs[i]);
+		}
+	},
+	
+	removeLabels : function(){
+		this.measurementNameContainer.removeAll();
+	} ,
+	
+	removeLabel: function(index){
+		
+		this.measurementNameContainer.remove(this.measurementNameContainer.items.items[index]);
+		
+		if(this.measurementNameContainer.items.length==0){
+			this.bottomContainer.removeAll();
+			this.createAddContainer();
+			this.bottomContainer.add(this.addReplaceContainer);
+		}
+	},
+	
+	createAddReplaceContainer: function(){		
+		this.addReplaceContainer = Ext.create('Ext.panel.Panel',{
+			header:false,
+			border:false,
+			layout:{
+				type:"hbox",
+				align:"stretch"
+			},
+			items:[
+			       {
+			    	   xtype:"container",
+			    	   cls:"addMeasurement",
+			    	   flex:1,
+			    	   listeners:{
+				    		render: function(panel, eOpts){
+					   			var me = this;
+				    			Ext.create('Ext.dd.DropTarget', panel.el,{
+					   				notifyDrop: function(source, e, data){
+					   					NV.mplane.gui.utils.ondemand.OnDemand.addMeasurement(me.x, me.y,data.details);
+					   				},
+					   				ddGroup: "chartToDashboard",
+					   				overClass:'addMeasurementHover', 
+					   			});
+					   		},
+					   		scope:this
+				    	}
+			       },
+			       {
+			    	   xtype:"container",
+			    	   cls:"replaceMeasurement",
+			    	   flex:1,
+			    	   listeners:{
+				    		render: function(panel, eOpts){
+					   			var me = this;
+				    			Ext.create('Ext.dd.DropTarget', panel.el,{
+					   				notifyDrop: function(source, e, data){
+					   					NV.mplane.gui.utils.ondemand.OnDemand.replaceMeasurement(me.x, me.y,data.details);
+					   				},
+					   				ddGroup: "chartToDashboard",
+					   				overClass:'replaceMeasurementHover', 
+					   			});
+					   		},
+					   		scope:this
+				    	}
+			       }
+			       
+			]
+			
+		});
+	},
+	
+	createAddContainer: function(){
+		
+		this.addReplaceContainer = Ext.create('Ext.panel.Panel',{
+			header:false,
+			border:false,
+			layout:{
+				type:"hbox",
+				align:"stretch"
+			},
+			items:[
+			       {
+			    	   xtype:"container",
+			    	   cls:"addMeasurement",
+			    	   flex:1,
+			    	   listeners:{
+				    		render: function(panel, eOpts){
+					   			var me = this;
+				    			Ext.create('Ext.dd.DropTarget', panel.el,{
+					   				notifyDrop: function(source, e, data){
+					   					NV.mplane.gui.utils.ondemand.OnDemand.insertMeasurement(me.x, me.y, data.details);
+					   				},
+					   				ddGroup: "chartToDashboard",
+					   				overClass:'addMeasurementHover', 
+					   			});
+					   		},
+					   		scope:this
+					   		
+				    	}
+			       },
+			       
+			       
+			],
+			flex:1
+			
+		});
+	},
+	
+	addLabel : function(config){
+		this.measurementNameContainer.add(Ext.create('Ext.panel.Panel',{
+			header:false,
+			layout:"hbox",
+			index:this.measurementNameContainer.items.length,
+			items:[
+			       {
+			    	   xtype:"component",
+			    	   html:config.resultName,
+			    	   flex:1
+			       },
+			       {
+			    	   xtype:"image",
+			    	   src:"resource/dashboard-layout/image/grid/delete.png",
+			    	   width:16,
+			    	   
+			    	   listeners: {
+			    	        el: {
+			    	            click: function(a,b,c) {
+			    	            	NV.mplane.gui.utils.ondemand.OnDemand.removeMeasurement(this.me.x, this.me.y, this.index);
+			    	            },
+			    	            scope:{
+			    	            	me:this,
+				    	        	index:this.measurementNameContainer.items.length,
+			    	            }
+			    	        },
+			    	        scope:{
+			    	        	me:this,
+			    	        	index:this.measurementNameContainer.items.length,
+			    	        }
+			    	    }
+			       }
+			]
+		}));
+		if(this.measurementNameContainer.items.length==1){
+			this.bottomContainer.removeAll();
+			this.createAddReplaceContainer();
+			this.bottomContainer.add(this.addReplaceContainer);
+		}
+	}
+});
+
+// @tag mplane-gui
+Ext.require('NV.mplane.gui.utils.ondemand.OnDemand');
 Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 	extend : 'Ext.window.Window',
 
@@ -1279,7 +1880,7 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 
 		var valuesGrid = undefined;
 		var chart = undefined;
-		var chartContent = undefined;
+		var addToChartPanel = undefined;
 		if (justOneRow) {
 			var valuesMap = {};
 			for ( var i = 0; i < raw.resultvalues[0].length; i++) {
@@ -1323,7 +1924,9 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 				for ( var j = 0; j < raw.resultvalues[i].length; j++) {
 					valuesMap[raw.results[j]] = raw.resultvalues[i][j];
 					if(j==0){
-						raw.resultvalues[i][0] = new Date(raw.resultvalues[i][0]).getTime();
+						
+						var d = Ext.Date.parse(raw.resultvalues[i][0].split(".")[0],"Y-m-d H:i:s");
+						raw.resultvalues[i][0] = d.getTime();
 					}
 					else {// 0. is the time, not measure
 						dataByMeasurementName[raw.results[j]].push([ raw.resultvalues[i][0], raw.resultvalues[i][j] ]);
@@ -1377,15 +1980,23 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 				});
 
 			}
+			console.log(chartConfig);
 			chart = NV.chart.library.ChartDrawer.drawChartFromJson(chartConfig);
-			chartContent = chart.chartContent;
 
-			// create the poor man-s dashboard - addseries dialog
-
+			// create the poor ondemand dashboard - addseries dialog
 			var series = [];
-			for ( var i = 1; i < raw.results.length; i++) {
-				var measurementData = dataByMeasurementName[raw.results[i]];
-				var measurementId = raw.results[i];
+			for ( var i = 1; i < raw.results.length; i++) {				
+				var details = {
+						parameters: raw.parameters,
+						resultName: raw.results[i],
+						capabilityName: raw.label,
+						unit: raw.unit
+				};
+				
+				if(NV.mplane.gui.utils.ondemand.OnDemand.localDatas){
+					details.measurementData = dataByMeasurementName[raw.results[i]];
+				}
+				
 				series.push({
 					"xtype" : 'panel',
 					"html" : raw.results[i],
@@ -1394,15 +2005,19 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 					cls : "draggableMeasure",
 					margin : 2,
 					padding : 1,
-					measurementData : measurementData,
-					measurementId : measurementId,
+					measurementDetails : details,
 					listeners : {
 						"render" : function(container, eOpts) {
 							Ext.create('Ext.dd.DragSource', container.el, {
 								ddGroup : "chartToDashboard",
 								dragData: {
-									measurementData : container.measurementData,
-									measurementId : container.measurementId
+									details : container.measurementDetails,
+								},
+								resizeFrame:false,
+								moveOnly:false,
+								onStartDrag: function( data, e ){
+									
+									this.hideProxy();
 								}
 							/*
 							 * notifyEnter : function(source, evt, data) {
@@ -1417,7 +2032,7 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 			addToChartPanel = Ext.create('Ext.panel.Panel', {
 				layout : {
 					type : 'hbox',
-					align : 'stretch'
+					align : 'stretchmax'
 
 				},
 				header:false,
@@ -1432,14 +2047,14 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 							align:"stretchmax"
 						}
 					},
-					NV.mplane.gui.utils.OnDemand.getMiniDashboard() 
+					NV.mplane.gui.utils.ondemand.OnDemand.getMiniDashboard() 
 				]
 			});
 		}
 
 		var tabPanel = Ext.create('Ext.tab.Panel', {
 			width : 900,
-			height : 250,
+			height : 350,
 			flex : 1,
 			plain : true,
 			items : [ {
@@ -1451,8 +2066,14 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 				title : 'Chart',
 				disabled : justOneRow,
 				layout : 'fit',
-				items : [ chartContent ],
-				iconCls : 'chartTab'
+				items : [],
+				iconCls : 'chartTab',
+				listeners: {
+					afterrender: function(panel){
+						panel.add(this.chartContent);
+					},
+					scope:chart
+				}
 			}, {
 				title : 'Add to On-Demand',
 				disabled : justOneRow,
@@ -1475,6 +2096,7 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 				type : 'vbox',
 				align : 'stretch'
 			},
+			closeAction:'hide',
 			buttons : [ {
 				text : "Close",
 				handler : function() {
@@ -1497,27 +2119,26 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 	
 	constructor:function(config){
 		
-		var measures = config.measures;
-		var currentIndex = config.currentIndex; 
-		var size = config.size;
+		var measure = config.measure;
 		var parent = config.parent;
 		
 		var items = [];
+		/*
 		if(size>1){
 			items.push(Ext.create('Ext.form.FieldContainer',{
 				layout:'hbox',
 		        anchor: '100%',
 				items:[
 				       {xtype:"label", text:"Capability:", width:"100px"},
-				       {xtype:"label", text:measures[currentIndex].get("label")},
+				       {xtype:"label", text:measure.get("label")},
 				]
 			}));
-		}
+		}*/
 		
 		items.push(Ext.create('Ext.form.field.Text',{
 			anchor: '100%',
 	        name: "when",
-	        value: measures[currentIndex].raw.when,
+	        value: measure.raw.when,
 	        fieldLabel: "When",
 	        
 //	        tooltip: 'When run?',
@@ -1527,8 +2148,8 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 		}));
 		
 		var descriptors = NV.mplane.gui.Constants.parameterMap;
-		for(var i in measures[currentIndex].raw.parameters){
-			var actParam = measures[currentIndex].raw.parameters[i];
+		for(var i in measure.raw.parameters){
+			var actParam = measure.raw.parameters[i];
 			var editable = false;
 			if(actParam.trim()=="*"){
 				//ki kell tölteni,
@@ -1616,7 +2237,7 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        readOnlyCls: 'NvReadonlyField',
 			        regexText:'\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
 			    }));
-			}else if(descriptors[i].prim=='string' || descriptors[i].prim=='url'){
+			}else if(descriptors[i].prim=='string' || descriptors[i].prim=='url' ){
 				items.push(Ext.create('Ext.form.field.Text',{
 			        anchor: '100%',
 			        name: i,
@@ -1675,28 +2296,13 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 		
 		var me = this;
 		this.callParent([{
-			title : size==1?"Run "+measures[currentIndex].get("label"):"Run measures (" + (currentIndex+1) + "/" + (size) + ")",
+			title : "Run "+measure.get("label"),
 			items:this.runForm,
 			layout:'vbox',
 			buttons:[
+			        
 			         {
 			        	 text:"Cancel",
-			        	 handler: function(){
-			        		 me.hide();
-			        		 if(this.currentIndex+1<this.size){
-			        			 this.me.runMeasure(this.measures, this.currentIndex+1, this.size);
-			        		 }
-			        	 },
-			        	 scope:{
-			        		 measures: measures,
-			        		 currentIndex: currentIndex,
-			        		 size:size,
-			        		 me:parent,
-			        		 
-			        	 }
-			         },
-			         {
-			        	 text:"Cancel All",
 			        	 handler: function(){
 			        		 me.hide();
 			        	 }
@@ -1705,16 +2311,10 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        	 text:"Run",
 			        	 handler: function(){
 			        		 me.hide();
-			        		 this.me.sendRunParamsToServer(Ext.clone(this.measures[this.currentIndex].raw), this.runForm.getValues());
-			        		 
-			        		 if(this.currentIndex+1<this.size){
-			        			 this.me.runMeasure(this.measures, this.currentIndex+1, this.size);
-			        		 }
+			        		 this.me.sendRunParamsToServer(Ext.clone(this.measure.raw), this.runForm.getValues());
 			        	 },
 			        	 scope:{
-			        		 measures: measures,
-			        		 currentIndex: currentIndex,
-			        		 size:size,
+			        		 measure: measure,
 			        		 runForm:this.runForm,
 			        		 me:parent
 			        	 }
@@ -1725,6 +2325,7 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 });
 
 Ext.ClassManager.addNameAliasMappings({
+  "NV.mplane.gui.utils.ondemand.MiniDashboardPanel": [],
   "NV.mplane.gui.Constants": [],
   "NV.mplane.gui.tab.RunningMeasurementsTab": [],
   "NV.mplane.gui.utils.OnDemand": [],
@@ -1735,8 +2336,10 @@ Ext.ClassManager.addNameAliasMappings({
   "NV.mplane.gui.windows.RunWindow": [],
   "NV.mplane.gui.tab.FinishedTasksTab": [],
   "NV.mplane.gui.utils.CapabilityReader": [],
+  "NV.mplane.gui.utils.ondemand.OnDemand": [],
   "NV.mplane.gui.utils.CapabilityGrid": [],
   "NV.mplane.gui.utils.FinishedGrid": [],
+  "NV.mplane.gui.utils.PendingGrid": [],
   "NV.mplane.gui.tab.AllCapabilityTab": [],
   "NV.mplane.gui.Main": []
 });
