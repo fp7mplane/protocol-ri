@@ -454,6 +454,10 @@
     {
       "name": "period.ns",
       "prim": "natural"
+    },
+    {
+      "name": "firelog.diagnosis",
+      "prim": "string"
     }
   ]
 }

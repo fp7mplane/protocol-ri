@@ -45,7 +45,7 @@ import time
 def services(url):
     services = []
     if url is not None:
-        services.append(FirelogService(firelog_capability(url))
+        services.append(FirelogService(firelog_capability(url)))
     return services
     
 def _firelog_process(url):
@@ -53,10 +53,9 @@ def _firelog_process(url):
     return subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
     
 def firelog_capability(url):
-    cap = mplane.model.Capability(label="firelog", when = "now + inf ... future")
-    #cap.add_parameter("source.ip4", ipaddr)
-    cap.add_parameter("url", url)
-    cap.add_result_column("diagnosis")
+    cap = mplane.model.Capability(label="firelog-diagnosis", when = "now + inf ... future")
+    cap.add_parameter("destination.url")
+    cap.add_result_column("firelog.diagnosis")
     return cap
 
 class FirelogService(mplane.scheduler.Service):
@@ -64,20 +63,20 @@ class FirelogService(mplane.scheduler.Service):
     def __init__(self, cap):
         # verify the capability is acceptable
         #if not (cap.has_parameter("source.ip4") and
-        if not cap.has_parameter("url")):
+        if not cap.has_parameter("destination.url"):
             raise ValueError("capability not acceptable")
         super(FirelogService, self).__init__(cap)
         self._starttime = datetime.utcnow()
         
     def run(self, spec, check_interrupt):
-        if not spec.has_parameter("url"):
+        if not spec.has_parameter("destination.url"):
             raise ValueError("Missing url")
         
         firelog_process = None
 
         def target():
             #self._sipaddr = spec.get_parameter_value("source.ip4")
-            url = spec.get_parameter_value("url")
+            url = spec.get_parameter_value("destination.url")
             firelog_process = _firelog_process(url)
             
         t = threading.Thread(target=target)
@@ -94,7 +93,7 @@ class FirelogService(mplane.scheduler.Service):
         now = datetime.utcnow()
         res.set_when(mplane.model.When(a = self._starttime, b = now))
         
-        res.set_result_value("diagnosis", out)
+        res.set_result_value("firelog.diagnosis", out)
 
         return res
 
