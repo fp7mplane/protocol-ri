@@ -70,6 +70,7 @@ class Service(object):
         raise NotImplementedError("Cannot instantiate an abstract Service")
 
     def capability(self):
+        """Returns the capability belonging to this service"""
         return self._capability
 
     def __repr__(self):
@@ -160,6 +161,7 @@ class Job(object):
         self._interrupt.set()
 
     def failed(self):
+        """A job only fails if it is finished and has no results"""
         return self.exception is not None
 
     def finished(self):
