@@ -95,7 +95,6 @@ The mPlane Client Shell is a simple client intended for debugging of mPlane infr
 - `showmeas`: Show the details of a measurement given its label or token.
 - `tbenable`: Enable tracebacks for subsequent exceptions. Used for client debugging.
 
-
 # Testing and Developing the SDK
 
 ## Testing

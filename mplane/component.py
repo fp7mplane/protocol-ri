@@ -163,7 +163,7 @@ class MessagePostHandler(MPlaneHandler):
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
         # hand message to scheduler
-        reply = self.scheduler.receive_message(self.tls.extract_peer_identity(self.request), msg)
+        reply = self.scheduler.process_message(self.tls.extract_peer_identity(self.request), msg)
 
         # wait for immediate delay
         if self.immediate_ms > 0 and \

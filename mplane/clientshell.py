@@ -23,10 +23,10 @@
 
 import mplane.model
 import mplane.client
-import mplane.render
 import mplane.utils
 import mplane.tls
 
+import sys
 import cmd
 import traceback
 import readline
@@ -122,7 +122,7 @@ class ClientShell(cmd.Cmd):
         Usage: showcap [label-or-token] 
 
         """
-        print(mplane.render.render_text(self._client.capability_for(arg)))
+        print(mplane.model.render_text(self._client.capability_for(arg)))
 
     # def complete_showcap(self, text, line, start_index, end_index):
     #     """Tab-complete known capability labels and tokens"""
@@ -268,7 +268,7 @@ class ClientShell(cmd.Cmd):
             params[pname] = self._defaults[pname]
 
         # Now invoke it
-        self._client.invoke_capability(cap.get_token(), when, params, relabel)
+        self._client.invoke_capability(cap.get_token(), self._when, params, relabel)
         print("ok")
 
     # def complete_showcap(self, text, line, start_index, end_index):
@@ -283,12 +283,12 @@ class ClientShell(cmd.Cmd):
 
         """
         for label in self._client.receipt_labels():
-            rec = self._client.receipt_for(label)
+            rec = self._client.result_for(label)
             print("Receipt %s (token %s): %s" %
                   (label, rec.get_token(), rec.when()))
 
         for token in self._client.receipt_tokens():
-            rec = self._client.receipt_for(token)
+            rec = self._client.result_for(token)
             if rec.get_label() is None:
                 print("Receipt (token %s): %s" % (token, rec.when())) 
 
@@ -309,7 +309,9 @@ class ClientShell(cmd.Cmd):
         Usage: showmeas [label-or-token] 
 
         """
-        print(mplane.render.render_text(self._client.result_for(arg)))
+        res = self._client.result_for(arg)
+        text = mplane.model.render_text(res)
+        print(text)
 
     # def complete_showcap(self, text, line, start_index, end_index):
     #     """Tab-complete known receipt and result labels and tokens in any position"""

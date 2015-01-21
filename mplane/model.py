@@ -306,7 +306,6 @@ The client receives the Envelope and decomposes the encapsulated messages:
 
 >>> clienv = mplane.model.parse_json(envjson)
 >>> messages = [message for message in clienv.messages()]
-
 """
 
 try:
@@ -2679,6 +2678,7 @@ class Exception(BareNotification):
 
     """
     def __init__(self, token, dictval=None, errmsg=None, status=None):
+    def __init__(self, token=None, dictval=None, errmsg=None, status=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
             if errmsg is None:
@@ -2932,6 +2932,32 @@ def parse_yaml(ystr):
 def unparse_yaml(msg):
     return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
 
+def render_text(msg):    
+    d = msg.to_dict()
+    out = "%s: %s\n" % (msg.kind_str(), msg.verb())
+
+    for section in (KEY_LABEL, KEY_LINK, KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+        if section in d:
+            out += "    %-12s: %s\n" % (section, d[section])
+
+    for section in (KEY_PARAMETERS, KEY_METADATA):
+        if section in d:
+            out += "    %-12s(%2u): \n" % (section, len(d[section]))
+            for element in d[section]:
+                out += "        %32s: %s\n" % (element, d[section][element])
+
+    if KEY_RESULTVALUES in d:
+        out += "    %-12s(%2u):\n" % (KEY_RESULTVALUES, len(d[KEY_RESULTVALUES]))
+        for i, row in enumerate(d[KEY_RESULTVALUES]):
+            out += "          result %u:\n" % (i)
+            for j, val in enumerate(row):
+                out += "            %32s: %s\n" % (d[KEY_RESULTS][j], val)
+    elif KEY_RESULTS in d:
+        out += "    %-12s(%2u):\n" % (KEY_RESULTS, len(d[KEY_RESULTS]))
+        for element in d[KEY_RESULTS]:
+            out += "        %s\n" % (element)
+
+    return out
 
 
 

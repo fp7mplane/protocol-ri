@@ -247,9 +247,9 @@ class BaseClient(object):
         elif token_or_label in self._results:
             return self._results[token_or_label]
         elif token_or_label in self._receipt_labels:
-            receipt = self._receipt_labels[token_or_label]
+            return self._receipt_labels[token_or_label]
         elif token_or_label in self._receipts:
-            receipt = self._receipts[token_or_label]
+            return self._receipts[token_or_label]
         else:
             raise KeyError("no such token or label "+token_or_label)
        
@@ -381,28 +381,32 @@ class HttpClient(BaseClient):
         self._ssn = 0
 
     def set_default_url(self, url):
-        self._default_url = url
+        if isinstance(url, str):
+            self._default_url = urllib3.util.parse_url(url)
+        else:
+            self._default_url = url
 
     def send_message(self, msg, dst_url=None):
         """
         send a message, store any result in client state.
         
         """
-
         # figure out where to send the message
         if not dst_url:
             dst_url = self._default_url
 
-        pool = self._tls_state.pool_for(dst_url)
+        if isinstance(dst_url, str):
+            dst_url = urllib3.util.parse_url(dst_url)
+            
+        pool = self._tls_state.pool_for(dst_url.scheme, dst_url.host, dst_url.port)
 
         headers = {"Content-Type": "application/x-mplane+json"}
         if self._tls_state.forged_identity():
             headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
         
-        res = pool.urlopen('POST', dst_url, 
+        res = pool.urlopen('POST', dst_url.path, 
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
-        
         if (res.status == 200 and 
             res.getheader("Content-Type") == "application/x-mplane+json"):
             # FIXME handle identity completely here, look at how SSB client does this
