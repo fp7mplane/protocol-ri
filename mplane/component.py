@@ -33,41 +33,38 @@ import tornado.web
 import tornado.httpserver
 from datetime import datetime
 import time
+import argparse
 
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 
 class BaseComponent(object):
     
-    def __init__(self, config_file):
+    def __init__(self, config):
         mplane.model.initialize_registry()
-        self.config = mplane.utils.search_path(config_file)
+        self.config = config
         self.tls = mplane.tls.TlsState(self.config)
-        self.scheduler = mplane.scheduler.Scheduler(self.config)
+        self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():
             self.scheduler.add_service(service)
     
     def _services(self):
-        # Read the configuration file
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(mplane.utils.search_path(self.config))
         services = []
-        for section in config.sections():
+        for section in self.config.sections():
             if section.startswith("module_"):
-                module = importlib.import_module(config[section]["module"])
+                module = importlib.import_module(self.config[section]["module"])
                 kwargs = {}
-                for arg in config[section]:
+                for arg in self.config[section]:
                     if not arg.startswith("module"):
-                        kwargs[arg] = config[section][arg]
+                        kwargs[arg] = self.config[section][arg]
                 for service in module.services(**kwargs):
                     services.append(service)
         return services
 
 class ListenerHttpComponent(BaseComponent):
     
-    def __init__(self, config_file, port = 8888):
-        super(ListenerHttpComponent, self).__init__(config_file)
+    def __init__(self, config, port = 8888):
+        super(ListenerHttpComponent, self).__init__(config)
         
         application = tornado.web.Application([
             (r"/", MessagePostHandler, dict(scheduler=self.scheduler, tlsState=self.tls)),
@@ -181,9 +178,44 @@ class MessagePostHandler(MPlaneHandler):
         self._respond_message(reply)
     
 class InitiatorHttpComponent(BaseComponent):
-    pass
+    
+    def __init__(self, config):
+        super(InitiatorHttpComponent, self).__init__(config)
+        
+        if "TLS" not in self.config.sections():
+            self.sv_scheme = "http"
+        else:
+            self.sv_scheme = "https"
+        self.sv_host = self.config["component"]["supervisor_host"]
+        self.sv_port = self.config.getint("component", "supervisor_port")
+        self.registration_path = self.config["component"]["registration_path"]
+        self.specification_path = self.config["component"]["specification_path"]
+        self.result_path = self.config["component"]["result_path"]
+        
+        self.pool = self.tls.pool_for(self.sv_scheme, self.sv_host, self.sv_port)
 
 if __name__ == "__main__":
     
-    # ONLY FOR TEST PURPOSES
-    comp = ListenerHttpComponent("../conf/component.conf")
+    global args
+    parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
+    parser.add_argument('--config', metavar='conf-file', dest='CONF',
+                        help='Configuration file for the component')
+    args = parser.parse_args()
+    
+    # check if conf file parameter has been inserted in the command line
+    if not args.CONF:
+        print('\nERROR: missing --config\n')
+        parser.print_help()
+        exit(1)
+    
+    # Read the configuration file
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(mplane.utils.search_path(args.CONF))
+    
+    if config["component"]["workflow"] == "component-initiated":
+        component = InitiatorHttpComponent(config)
+    elif config["component"]["workflow"] == "client-initiated":
+        component = ListenerHttpComponent(config)
+    else:
+        raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
