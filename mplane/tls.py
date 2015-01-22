@@ -44,26 +44,17 @@ import mplane.utils
 DUMMY_DN = "Dummy.Distinguished.Name"
 
 class TlsState:
-    def __init__(self, config_file=None, forged_identity=None):
-        
-        if (config_file):
-            # Read the configuration file
-            config = configparser.ConfigParser()
-            config.optionxform = str
-            config.read(mplane.utils.search_path(config_file))
-            if "TLS" not in config.sections():
-                self._cafile = None
-                self._certfile = None
-                self._keyfile = None
-            else:
-                # get paths to CA, cert, and key
-                self._cafile = mplane.utils.search_path(config["TLS"]["ca-chain"])
-                self._certfile = mplane.utils.search_path(config["TLS"]["cert"])
-                self._keyfile = mplane.utils.search_path(config["TLS"]["key"])
-        else:
+    
+    def __init__(self, config, forged_identity=None):
+        if "TLS" not in config.sections():
             self._cafile = None
             self._certfile = None
             self._keyfile = None
+        else:
+            # get paths to CA, cert, and key
+            self._cafile = mplane.utils.search_path(config["TLS"]["ca-chain"])
+            self._certfile = mplane.utils.search_path(config["TLS"]["cert"])
+            self._keyfile = mplane.utils.search_path(config["TLS"]["key"])
         
         # load cert and get DN
         self._identity = self.extract_local_identity(forged_identity)

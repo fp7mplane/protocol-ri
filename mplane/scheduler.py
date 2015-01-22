@@ -337,15 +337,10 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self, config_file=None):
+    def __init__(self, config=None):
         super(Scheduler, self).__init__()
 
-        if (config_file):
-            # Read the configuration file
-            config = configparser.ConfigParser()
-            config.optionxform = str
-            config.read(mplane.utils.search_path(config_file))
-
+        if config:
             self.azn = mplane.azn.Authorization(config)
 
             if "component" not in config.sections():

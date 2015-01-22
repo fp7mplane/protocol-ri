@@ -347,8 +347,19 @@ if __name__ == "__main__":
     # look for TLS configuration
     args = parse_args()
 
+    # check if conf file parameter has been inserted in the command line
+    if not args.config:
+        print('\nERROR: missing --config\n')
+        parser.print_help()
+        exit(1)
+        
+    # Read the configuration file
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(mplane.utils.search_path(args.config))
+    
     # create a shell
-    cs = ClientShell(tls_state=mplane.tls.TlsState(args.config))
+    cs = ClientShell(tls_state=mplane.tls.TlsState(config))
 
     while not cs.exited:
         try:
