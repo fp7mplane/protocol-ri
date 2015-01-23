@@ -247,9 +247,9 @@ class BaseClient(object):
         elif token_or_label in self._results:
             return self._results[token_or_label]
         elif token_or_label in self._receipt_labels:
-            receipt = self._receipt_labels[token_or_label]
+            return self._receipt_labels[token_or_label]
         elif token_or_label in self._receipts:
-            receipt = self._receipts[token_or_label]
+            return self._receipts[token_or_label]
         else:
             raise KeyError("no such token or label "+token_or_label)
        
@@ -407,7 +407,6 @@ class HttpClient(BaseClient):
         res = pool.urlopen('POST', dst_url.path, 
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
-        
         if (res.status == 200 and 
             res.getheader("Content-Type") == "application/x-mplane+json"):
             # FIXME handle identity completely here, look at how SSB client does this

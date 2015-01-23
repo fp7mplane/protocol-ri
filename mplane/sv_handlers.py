@@ -118,14 +118,15 @@ class RegistrationHandler(MPlaneHandler):
         
         # unwrap json message from body
         if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            new_caps = mplane.utils.split_stmt_list(self.request.body.decode("utf-8"))
+            #new_caps = mplane.utils.split_stmt_list(self.request.body.decode("utf-8"))
+            env = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
             self._respond_plain_text(400, "Invalid format")
             return
         
         # register capabilities
         response = ""
-        for new_cap in new_caps:
+        for new_cap in env.messages(): #new_caps:
             if isinstance(new_cap, mplane.model.Capability):
                 found = False
                 if new_cap.get_label() in self._supervisor._label_to_dn:
@@ -170,16 +171,12 @@ class SpecificationHandler(MPlaneHandler):
             self._respond_plain_text(428)
             
         specs = self._supervisor._specifications.pop(self.dn, [])
-        self.set_status(200)
-        self.set_header("Content-Type", "application/x-mplane+json")
-        msg = ""
+        env = mplane.model.Envelope()
         for spec in specs:
-                msg = msg + mplane.model.unparse_json(spec) + ","
-                mplane.utils.add_value_to(self._supervisor._receipts, self.dn, mplane.model.Receipt(specification=spec))
-                mplane.utils.print_then_prompt("Specification " + spec.get_label() + " successfully pulled by " + self.dn)
-        msg = "[" + msg[:-1].replace("\n","") + "]"
-        self.write(msg)
-        self.finish()
+            env.append_message(spec)
+            mplane.utils.add_value_to(self._supervisor._receipts, self.dn, mplane.model.Receipt(specification=spec))
+            mplane.utils.print_then_prompt("Specification " + spec.get_label() + " successfully pulled by " + self.dn)
+        self._respond_json_text(200, mplane.model.unparse_json(env))
         
 class ResultHandler(MPlaneHandler):
     """

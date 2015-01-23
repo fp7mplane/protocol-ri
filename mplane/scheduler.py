@@ -70,6 +70,7 @@ class Service(object):
         raise NotImplementedError("Cannot instantiate an abstract Service")
 
     def capability(self):
+        """Returns the capability belonging to this service"""
         return self._capability
 
     def __repr__(self):
@@ -98,13 +99,14 @@ class Job(object):
     receipt = None
     _interrupt = None
 
-    def __init__(self, service, specification, session=None):
+    def __init__(self, service, specification, session=None, callback=None):
         super(Job, self).__init__()
         self.service = service
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
         self._interrupt = threading.Event()
+        self._callback = callback
 
     def __repr__(self):
         return "<Job for "+repr(self.specification)+">"
@@ -121,6 +123,9 @@ class Job(object):
             print("Got exception in _run(), returning "+str(self.exception))
             self._exception_at = datetime.utcnow()
         self._ended_at = datetime.utcnow()
+
+        if self._callback:
+            self._callback(self.receipt)
 
     def _check_interrupt(self):
         return self._interrupt.is_set()
@@ -160,6 +165,7 @@ class Job(object):
         self._interrupt.set()
 
     def failed(self):
+        """A job only fails if it is finished and has no results"""
         return self.exception is not None
 
     def finished(self):
@@ -199,7 +205,7 @@ class MultiJob(object):
     _scheduling_finished = False
     _subspec_iterator = None
 
-    def __init__(self, service, specification, session=None, max_results=0):
+    def __init__(self, service, specification, session=None, max_results=0, callback=None):
         super(MultiJob, self).__init__()
         self.service = service
         self.session = session
@@ -208,6 +214,7 @@ class MultiJob(object):
         self.results = mplane.model.Envelope(token=specification.get_token())
         self._subspec_iterator = specification.subspec_iterator()
         self._max_results = int(max_results)
+        self._callback = callback
 
     def __repr__(self):
         return "<MultiJob for "+repr(self.specification)+">"
@@ -218,7 +225,8 @@ class MultiJob(object):
         """
         new_job = Job(service=self.service,
                       specification=self._subspec,
-                      session=self.session)
+                      session=self.session,
+                      callback=self._job_callback)
 
         self.jobs.append(new_job)
         new_job.schedule()
@@ -312,13 +320,13 @@ class MultiJob(object):
         self._collect_results()
         self._replied_at = datetime.utcnow()
         if len(self.results) > 0:
-            #if not self.finished():
-            #    tmp = deepcopy(self.results)
-            #    tmp.append_message(self.receipt)
-            #    return tmp
             return self.results
         else:
             return self.receipt
+
+    def _job_callback(self, arg):
+        if self._callback:
+            self._callback(self.receipt)
 
 
 class Scheduler(object):
@@ -329,15 +337,10 @@ class Scheduler(object):
     submit_job().
 
     """
-    def __init__(self, config_file=None):
+    def __init__(self, config=None):
         super(Scheduler, self).__init__()
 
-        if (config_file):
-            # Read the configuration file
-            config = configparser.ConfigParser()
-            config.optionxform = str
-            config.read(mplane.utils.search_path(config_file))
-
+        if config:
             self.azn = mplane.azn.Authorization(config)
 
             if "component" not in config.sections():
@@ -353,27 +356,31 @@ class Scheduler(object):
         self.jobs = {}
         self._capability_cache = {}
 
-    def receive_message(self, user, msg, session=None):
+    def process_message(self, user, msg, session=None, callback=None):
         """
-        Receive and process a message. 
+        Process a message. If msg is a mplane.model.Specification and
+        the callback parameter is set to a function this function is
+        called with a mplane.model.Receipt each time a result is available.
+
         Returns a message to send in reply.
 
         """
         reply = None
         if isinstance(msg, mplane.model.Specification):
-            reply = self.submit_job(user, specification=msg, session=session)
+            reply = self.submit_job(user, specification=msg, session=session, callback=callback)
         elif isinstance (msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
                 job = self.jobs[job_key]
                 reply = job.get_reply()
-                if isinstance (job, Job):
+                if job.finished():
+                    print("dropped")
                     self.jobs.pop(job_key, None)
-                elif isinstance (job, MultiJob) and job.finished():
-                    self.jobs.pop(job_key, None)
-            else: reply = mplane.model.Exception(token=job_key, 
+            else:
+                reply = mplane.model.Exception(token=job_key,
                 errmsg="Unknown job")
         else:
+            print("exception")
             reply = mplane.model.Exception(token=msg.get_token(), 
                 errmsg="Unexpected message type")
 
@@ -400,7 +407,7 @@ class Scheduler(object):
         """
         return self._capability_cache[key]
 
-    def submit_job(self, user, specification, session=None, identity=None):
+    def submit_job(self, user, specification, session=None, identity=None, callback=None):
         """
         Search the available Services for one which can 
         service the given Specification, then create and schedule 
@@ -417,11 +424,13 @@ class Scheduler(object):
                         new_job = MultiJob(service=service,
                                            specification=specification,
                                            session=session,
-                                           max_results=self._max_results)
+                                           max_results=self._max_results,
+                                           callback=callback)
                     else:
                         new_job = Job(service=service,
                                       specification=specification,
-                                      session=session)
+                                      session=session,
+                                      callback=callback)
 
                     # Key by the receipt's token, and return
                     job_key = new_job.receipt.get_token()

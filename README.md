@@ -44,14 +44,13 @@ The following sections and keys are supported/required by each module:
     - `key`: path to file containing (decrypted) PEM-encoded secret key associated with this component/client's certificate
 - `Roles` section: Maps identities to roles for access control. Used by component.py. Each key in this section is an mPlane identity (see below), and the value is a comma-separated list of arbitrary role names assigned to the identity.
 - `Authorizations` section: Authorizes defined roles to invoke services associated with capabilities by capability label or token. Each key is a capability label or token, and the value is a comma-separated list of arbitrary role names which may invoke the capability. The use of labels is recommended for authorizations, as it makes authorization configuration more auditable. If authorizations are present, _only_ those capabilities which are explicitly authorized to a given client identity will be invocable. 
-- `Component` section: *[**Editor's Note:** write this once it's clear what belongs in this section]*
-- `Client` section: *[**Editor's Note:** write this once it's clear what belongs in this section]*
+- `Component` section: Global configuration for the component framework.
+- `Client` section: Global configuration for the client framework.
 - `ClientShell` section: Contains defaults for the mPlane client shell (see mPlane Client Shell below for details).
-
 
 ### Component Modules
 
-In addition, any section in a component.py configuration file beginning with the substring `module_` will cause a component module to be loaded at runtime and that modules services to be made available (see Implementing a Component below). The `module` key in this section identifies the Python module to load by name. All other keys in this section are passed to the module's `services()` function as keyword arguments.
+In addition, any section in a configuration file given to component.py which begins with the substring `module_` will cause a component module to be loaded at runtime and that modules services to be made available (see Implementing a Component below). The `module` key in this section identifies the Python module to load by name. All other keys in this section are passed to the module's `services()` function as keyword arguments.
 
 ### Identities
 
@@ -59,13 +58,50 @@ Identities in the mPlane SDK (for purposes of configuration) are represented as 
 
 ## Implementing a Component
 
-The component.py module provides a framework for building components for both component-initiated and client-initiated 
+The component.py module provides a framework for building components for both component-initiated and client-initiated workflows. To implement a component for use with this framework:
+
+- Implement each measurement, query, or other action performed by the component as a subclass of mplane.scheduler.Service. Each service is bound to a single capability. Your service must implement at least the mplane.scheduler.Service.run(self, specification, check_interrupt) method. 
+
+- Implement a `services` function in your module that takes a set of keyword arguments derived from the configuration file section, and returns a list of Services provided by your component. For example:
+
+```python
+def service(**kwargs):
+    return [MyFirstService(kwargs['local-ip-address']),
+            MySecondService(kwargs['local-ip-address'])]
+```
+
+- Create a module section in the component configuration file; for example if your module is called mplane.components.mycomponent:
+
+```
+[service_mycomponent]
+module: mplane.components.mycomponent
+local-ip-address: 10.2.3.4
+```
+
+**[*Editor's Note:* need to define how to configure component.py for each workflow.]**
+
+- Run `component.py` to start your component.
 
 ## mPlane Client Shell
 
-The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. 
+The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. To start it, simply run `client.py`. It supports the following commands:
 
-*[**Editor's Note**: as this is basically final now, document the current set of commands supported by the client shell.]*
+- `seturl`: Set the default URL for sending specifications and redemptions (when not given in a Capability's or Receipt's link section)
+- `getcap`: Retrieve capabilities and withdrawals from a given URL, and process them.
+- `listcap`: List available capabilities
+- `showcap`: Show the details of a capability given its label or token
+- `when`: Set the temporal scope for a subsequent `runcap` command
+- `set`: Set a default parameter value for a subsequent `runcap` command
+- `unset`: Unset a previously set default parameter value
+- `show`: Show a previously set default parameter value
+- `runcap`: Run a capability given its label or token
+- `listmeas`: List known measurements (receipts and results)
+- `showmeas`: Show the details of a measurement given its label or token.
+- `tbenable`: Enable tracebacks for subsequent exceptions. Used for client debugging.
+
+## mPlane Stub Supervisor
+
+**[*Editor's Note:* need to finish building this, then document it.]**
 
 # Testing and Developing the SDK
 

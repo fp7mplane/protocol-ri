@@ -70,7 +70,13 @@ class AuthorizationOn(object):
         capability by this set of authorization rules, false otherwise.
 
         """
-        cap_label = cap._label
+        
+        # Remove the suffix serial number from the specification label
+        # in order to make controls on the original label
+        for label in self.cap_role:
+            if label in cap._label:
+                cap_label = label
+                
         if ((cap_label in self.cap_role) and (identity in self.id_role)): # Deny unless explicitly allowed in .conf files
             intersection = self.cap_role[cap_label] & self.id_role[identity]
             if len(intersection) > 0:
