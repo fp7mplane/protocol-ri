@@ -317,6 +317,7 @@ except ImportError:
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
 import urllib.request
+import urllib.parse
 import collections
 import functools
 import operator
@@ -325,6 +326,8 @@ import json
 import yaml
 import re
 import os
+
+from mplane.utils import normalize_path
 
 #######################################################################
 # String constants for protocol framing
@@ -395,7 +398,7 @@ ENVELOPE_NOTIFICATION = "notification"
 KEY_REGFMT = "registry-format"
 KEY_REGREV = "registry-revision"
 KEY_REGURI = "registry-uri"
-KEY_REGINCLUDE = "include"
+KEY_REGINCLUDE = "includes"
 KEY_ELEMENTS = "elements"
 KEY_ELEMNAME = "name"
 KEY_ELEMPRIM = "prim"
@@ -1238,6 +1241,40 @@ def test_tscope():
     assert wrep_subspec.timer_delays(tzero=parse_time("2009-03-01 23:00:00")) == (3600, 3605)
 
 
+def test_registry():
+    # default registry trough the Registry-Object
+    base_registry = Registry()
+    assert repr(base_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert base_registry["start"].name() == "start"
+    assert base_registry["start"].primitive_name() == "time"
+    assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
+
+    # registry with a parent
+    test_registry = Registry("../tests/registry_with_parent.json")
+    assert repr(test_registry["testName"]) == "<Element ../tests/registry_with_parent.json#testName mplane.model.prim_time >"
+    assert test_registry["testName"].name() == "testName"
+    assert test_registry["testName"].primitive_name() == "time"
+    assert test_registry["testName"].desc() == "testDesc"
+    # element from the parent registry
+    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert test_registry["start"].name() == "start"
+    assert test_registry["start"].primitive_name() == "time"
+    assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
+    # overwritten element
+    assert repr(test_registry["end"]) == "<Element ../tests/registry_with_parent.json#end mplane.model.prim_time >"
+    assert test_registry["end"].name() == "end"
+    assert test_registry["end"].primitive_name() == "time"
+    assert test_registry["end"].desc() == "overwritten end"
+
+    # default registry through the element-method
+    initialize_registry()
+    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert element("start").name() == "start"
+    assert element("start").primitive_name() == "time"
+    assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
+
+
+
 #######################################################################
 # Primitive Types
 #######################################################################
@@ -1623,6 +1660,11 @@ class Registry(object):
             with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
                 self._parse_json_bytestream(stream)
         else:
+            # normalize path if is a file or if no scheme is given (we assume that is is a file)
+            scheme = urllib.parse.urlparse(uri).scheme
+            if scheme == "file" or scheme == "":
+                uri = "file://" + normalize_path(uri)
+
             with urllib.request.urlopen(uri) as stream:
                 self._parse_json_bytestream(stream)
 
