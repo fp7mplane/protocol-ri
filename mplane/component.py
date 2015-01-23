@@ -209,8 +209,9 @@ class InitiatorHttpComponent(BaseComponent):
         # periodically poll the Client/Supervisor for Specifications
         print("Checking for Specifications...")
         while(True):
+            self.idle_time = 5
             self.check_for_specs()
-            sleep(5)
+            sleep(self.idle_time)
 
     def register_to_client(self):
         """
@@ -229,9 +230,13 @@ class InitiatorHttpComponent(BaseComponent):
         connected = False
         
         if no_caps_exposed is True:
-           print("\nNo Capabilities are being exposed to " + client_identity + ", check permissions in config file. Exiting")
-           exit(0)
-           
+            print("\nNo Capabilities are being exposed to " + client_identity + ", check permissions in config file. Exiting")
+            exit(0)
+
+        # add callback capability to the list
+        callback_cap = mplane.model.Capability(label="callback", when = "now ... future")
+        env.append_message(callback_cap)
+
         # send the envelope to the client, if reachable
         while not connected:
             try:
@@ -272,6 +277,11 @@ class InitiatorHttpComponent(BaseComponent):
             env = mplane.model.parse_json(res.data.decode("utf-8"))
             for spec in env.messages():
                 
+                # handle callbacks
+                if spec.get_label()  == "callback":
+                    self.idle_time = spec.when().timer_delays()[1]
+                    break
+
                 # hand spec to scheduler
                 reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec)
                 
