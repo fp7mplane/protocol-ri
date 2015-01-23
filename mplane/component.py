@@ -217,28 +217,26 @@ class InitiatorHttpComponent(BaseComponent):
         Sends a list of capabilities to the Client, in order to register them
         
         """
-        # generate the capability list
-        caps_list = ""
-        
+        # generate the envelope containing the capability list
+        env = mplane.model.Envelope()
         no_caps_exposed = True
         client_identity = self.tls.extract_peer_identity(self.url)
         for key in self.scheduler.capability_keys():
             cap = self.scheduler.capability_for_key(key)
             if self.scheduler.azn.check(cap, client_identity):
-                caps_list = caps_list + mplane.model.unparse_json(cap) + ","
+                env.append_message(cap)
                 no_caps_exposed = False
-        caps_list = "[" + caps_list[:-1].replace("\n","") + "]"
         connected = False
         
         if no_caps_exposed is True:
            print("\nNo Capabilities are being exposed to " + client_identity + ", check permissions in config file. Exiting")
            exit(0)
            
-        # send the list to the client, if reachable
+        # send the envelope to the client, if reachable
         while not connected:
             try:
                 res = self.pool.urlopen('POST',self.registration_path,
-                    body=caps_list.encode("utf-8"), 
+                    body=mplane.model.unparse_json(env).encode("utf-8"), 
                     headers={"content-type": "application/x-mplane+json"})
                 connected = True
                 
@@ -271,8 +269,8 @@ class InitiatorHttpComponent(BaseComponent):
         if res.status == 200:
             
             # specs retrieved: split them if there is more than one
-            specs = mplane.utils.split_stmt_list(res.data.decode("utf-8"))
-            for spec in specs:
+            env = mplane.model.parse_json(res.data.decode("utf-8"))
+            for spec in env.messages():
                 
                 # hand spec to scheduler
                 reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec)
