@@ -56,6 +56,7 @@ def setup():
 conf_dir = path.dirname(__file__)
 conf_file = 'component-test.conf'
 config_path = path.join(conf_dir, conf_file)
+config_path_no_tls = path.join(conf_dir, "component-test-no-tls.conf")
 
 # build up the capabilities' label
 
@@ -73,6 +74,8 @@ def test_Authorization():
     assert_true(isinstance(res_none, azn.AuthorizationOff))
     res_auth = azn.Authorization(config_path)
     assert_true(isinstance(res_auth, azn.AuthorizationOn))
+    res_no_tls = azn.Authorization(config_path_no_tls)
+    assert_true(isinstance(res_no_tls, azn.AuthorizationOff))
 
 
 def test_AuthorizationOn():
@@ -96,7 +99,6 @@ ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
 
 identity = "org.mplane.Test.Components.Component-1"
 forged_identity = "org.example.test"
-config_file_no_tls = path.join(conf_dir, "component-test-no-tls.conf")
 
 host = "127.0.0.1"
 port = 8080
@@ -104,7 +106,7 @@ port = 8080
 # No forged_identity
 tls_with_file = tls.TlsState(config=get_config(config_path))
 # No TLS sections but with forged_identity
-tls_with_file_no_tls = tls.TlsState(config=get_config(config_file_no_tls),
+tls_with_file_no_tls = tls.TlsState(config=get_config(config_path_no_tls),
                                     forged_identity=forged_identity)
 
 
