@@ -34,6 +34,10 @@ import tornado.httpserver
 from datetime import datetime
 import time
 import argparse
+from time import sleep
+import urllib3
+import json
+import threading
 
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
@@ -183,16 +187,145 @@ class InitiatorHttpComponent(BaseComponent):
         super(InitiatorHttpComponent, self).__init__(config)
         
         if "TLS" not in self.config.sections():
-            self.sv_scheme = "http"
+            scheme = "http"
         else:
-            self.sv_scheme = "https"
-        self.sv_host = self.config["component"]["supervisor_host"]
-        self.sv_port = self.config.getint("component", "supervisor_port")
+            scheme = "https"
+        host = self.config["component"]["supervisor_host"]
+        port = self.config.getint("component", "supervisor_port")   
+        self.url = urllib3.util.url.Url(scheme=scheme, host=host, port=port)
         self.registration_path = self.config["component"]["registration_path"]
+        if not self.registration_path.startswith("/"):
+            self.registration_path = "/" + self.registration_path
         self.specification_path = self.config["component"]["specification_path"]
+        if not self.specification_path.startswith("/"):
+            self.specification_path = "/" + self.specification_path
         self.result_path = self.config["component"]["result_path"]
+        if not self.result_path.startswith("/"):
+            self.result_path = "/" + self.result_path
         
-        self.pool = self.tls.pool_for(self.sv_scheme, self.sv_host, self.sv_port)
+        self.pool = self.tls.pool_for(self.url.scheme, self.url.host, self.url.port)
+        self.register_to_client()
+
+        # periodically poll the Client/Supervisor for Specifications
+        print("Checking for Specifications...")
+        while(True):
+            self.check_for_specs()
+            sleep(5)
+
+    def register_to_client(self):
+        """
+        Sends a list of capabilities to the Client, in order to register them
+        
+        """
+        # generate the capability list
+        caps_list = ""
+        
+        no_caps_exposed = True
+        client_identity = self.tls.extract_peer_identity(self.url)
+        for key in self.scheduler.capability_keys():
+            cap = self.scheduler.capability_for_key(key)
+            if self.scheduler.azn.check(cap, client_identity):
+                caps_list = caps_list + mplane.model.unparse_json(cap) + ","
+                no_caps_exposed = False
+        caps_list = "[" + caps_list[:-1].replace("\n","") + "]"
+        connected = False
+        
+        if no_caps_exposed is True:
+           print("\nNo Capabilities are being exposed to " + client_identity + ", check permissions in config file. Exiting")
+           exit(0)
+           
+        # send the list to the client, if reachable
+        while not connected:
+            try:
+                res = self.pool.urlopen('POST',self.registration_path,
+                    body=caps_list.encode("utf-8"), 
+                    headers={"content-type": "application/x-mplane+json"})
+                connected = True
+                
+            except:
+                print("Supervisor (or client) unreachable. Retrying connection in 5 seconds")
+                sleep(5)
+                
+        # handle response message
+        if res.status == 200:
+            body = json.loads(res.data.decode("utf-8"))
+            print("\nCapability registration outcome:")
+            for key in body:
+                if body[key]['registered'] == "ok":
+                    print(key + ": Ok")
+                else:
+                    print(key + ": Failed (" + body[key]['reason'] + ")")
+            print("")
+        else:
+            print("Error registering capabilities, Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+            exit(1)
+    
+    def check_for_specs(self):
+        """
+        Poll the client for specifications
+        
+        """
+        
+        # send a request for specifications
+        res = self.pool.request('GET', self.specification_path)
+        if res.status == 200:
+            
+            # specs retrieved: split them if there is more than one
+            specs = mplane.utils.split_stmt_list(res.data.decode("utf-8"))
+            for spec in specs:
+                
+                # hand spec to scheduler
+                reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec)
+                
+                # return error if spec is not authorized
+                if isinstance(reply, mplane.model.Exception):
+                    # send result to the Client/Supervisor
+                    res = self.pool.urlopen('POST', self.result_path, 
+                            body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                            headers={"content-type": "application/x-mplane+json"})
+                    return
+                
+                # enqueue job
+                job = self.scheduler.job_for_message(reply)
+                
+                # launch a thread to monitor the status of the running measurement
+                t = threading.Thread(target=self.return_results, args=[job])
+                t.start()
+                
+        # not registered on supervisor, need to re-register
+        elif res.status == 428:
+            print("\nRe-registering capabilities on Supervisor")
+            self.register_to_supervisor()
+        pass
+    
+    def return_results(self, job):
+        """
+        Monitors a job, and as soon as it is complete sends it to the Supervisor
+        
+        """
+        reply = job.get_reply()
+        
+        # check if job is completed
+        while job.finished() is not True:
+            if job.failed():
+                reply = job.get_reply()
+                break
+            sleep(1)
+        if isinstance (reply, mplane.model.Receipt):
+            reply = job.get_reply()
+        
+        # send result to the Supervisor
+        res = self.pool.urlopen('POST', self.result_path, 
+                body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                headers={"content-type": "application/x-mplane+json"})
+                
+        # handle response
+        if res.status == 200:
+            print("Result for " + reply.get_label() + " successfully returned!")
+        else:
+            print("Error returning Result for " + reply.get_label())
+            print("Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+        pass
 
 if __name__ == "__main__":
     
