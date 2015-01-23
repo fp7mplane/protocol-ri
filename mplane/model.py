@@ -2677,7 +2677,6 @@ class Exception(BareNotification):
     client and component frameworks.
 
     """
-    def __init__(self, token, dictval=None, errmsg=None, status=None):
     def __init__(self, token=None, dictval=None, errmsg=None, status=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
