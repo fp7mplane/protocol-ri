@@ -29,13 +29,11 @@ from mplane import utils
 import configparser
 from os import path
 
-''' Authorization module tests '''
+
+''' HELPERS '''
 
 
-def setup():
-    print("Starting tests...")
-
-
+# FIXME: the following helper should be moved in mplane.utils module.
 def get_config(config_file):
     """
     Open a config file, parse it and return a config object.
@@ -45,11 +43,19 @@ def get_config(config_file):
     config.read(utils.search_path(config_file))
     return config
 
-" set up test fixtures "
 
-conf_path = path.dirname(__file__)
+''' Authorization Module Tests '''
+
+
+def setup():
+    print("Starting tests...")
+
+
+''' Set up test fixtures '''
+
+conf_dir = path.dirname(__file__)
 conf_file = 'component-test.conf'
-config_file = path.join(conf_path, conf_file)
+config_path = path.join(conf_dir, conf_file)
 
 # build up the capabilities' label
 
@@ -65,12 +71,12 @@ id_false_role = "Dummy"
 def test_Authorization():
     res_none = azn.Authorization(None)
     assert_true(isinstance(res_none, azn.AuthorizationOff))
-    res_auth = azn.Authorization(config_file)
+    res_auth = azn.Authorization(config_path)
     assert_true(isinstance(res_auth, azn.AuthorizationOn))
 
 
 def test_AuthorizationOn():
-    res = azn.AuthorizationOn(config_file)
+    res = azn.AuthorizationOn(config_path)
     assert_true(isinstance(res, azn.AuthorizationOn))
     assert_true(res.check(cap, id_true_role))
     assert_false(res.check(cap, id_false_role))
@@ -84,32 +90,22 @@ def test_AuthorizationOff():
 
 ''' TLS module tests '''
 
-cert = utils.search_path(path.join(conf_path, "component-1.crt"))
-key = utils.search_path(path.join(conf_path, "component-1-plaintext.key"))
-ca_chain = utils.search_path(path.join(conf_path, "root-ca.crt"))
+cert = utils.search_path(path.join(conf_dir, "component-1.crt"))
+key = utils.search_path(path.join(conf_dir, "component-1-plaintext.key"))
+ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
 
 identity = "org.mplane.Test.Components.Component-1"
 forged_identity = "org.example.test"
-config_file_no_tls = path.join(conf_path, "component-test-no-tls.conf")
+config_file_no_tls = path.join(conf_dir, "component-test-no-tls.conf")
 
+host = "127.0.0.1"
+port = 8080
 
-# with config file and without forged_identity
-tls_with_file = tls.TlsState(config=get_config(config_file))
-# with config file without TLS sections and with forged_identity
+# No forged_identity
+tls_with_file = tls.TlsState(config=get_config(config_path))
+# No TLS sections but with forged_identity
 tls_with_file_no_tls = tls.TlsState(config=get_config(config_file_no_tls),
                                     forged_identity=forged_identity)
-# without config file and with forged_identity
-# tls_without_file = tls.TlsState(forged_identity=forged_identity)
-
-# @raises(ValueError)
-# def test_search_path():
-#     root_path = '/conf'
-#     assert_equal(tls.search_path(root_path), root_path)
-#     existing_input_path = 'conf'
-#     output_path = path.abspath('conf')
-#     assert_equal(tls.search_path(existing_input_path, output_path))
-#     unexisting_input_path = 'conf'
-#     assert_equal(tls.search_path(unexisting_input_path), '')
 
 
 def test_TLSState_init():
@@ -118,19 +114,10 @@ def test_TLSState_init():
     assert_equal(tls_with_file._keyfile, key)
     assert_equal(tls_with_file._identity, identity)
 
-    # assert_equal(tls_without_file._cafile, None)
-    # assert_equal(tls_without_file._certfile, None)
-    # assert_equal(tls_without_file._keyfile, None)
-    # assert_equal(tls_without_file._identity, forged_identity)
-
     assert_equal(tls_with_file_no_tls._cafile, None)
     assert_equal(tls_with_file_no_tls._certfile, None)
     assert_equal(tls_with_file_no_tls._keyfile, None)
     assert_equal(tls_with_file_no_tls._identity, forged_identity)
-
-
-host = "127.0.0.1"
-port = 8080
 
 
 def test_TLSState_pool_for():
@@ -149,11 +136,6 @@ def test_TLSState_pool_for_fallback():
     assert_true(isinstance(fallback_http_pool, urllib3.HTTPConnectionPool))
 
 
-# @raises(ValueError)
-# def test_TLSState_pool_for_missing_file():
-#     tls_without_file.pool_for("https", host, port)
-
-
 @raises(ValueError)
 def test_TLSState_pool_for_file_scheme():
     tls_with_file.pool_for("file", host, port)
@@ -166,7 +148,6 @@ def test_TLSState_pool_for_unsupported_scheme():
 
 def test_TLSState_forged_identity():
     assert_equal(tls_with_file.forged_identity(), None)
-    # assert_equal(tls_without_file.forged_identity(), forged_identity)
 
 
 def test_TLSState_get_ssl_options():
@@ -176,7 +157,6 @@ def test_TLSState_get_ssl_options():
                   ca_certs=ca_chain,
                   cert_reqs=ssl.CERT_REQUIRED)
     assert_equal(tls_with_file.get_ssl_options(), output)
-    # assert_equal(tls_without_file.get_ssl_options(), None)
 
 
 import tornado.httpserver
@@ -187,9 +167,9 @@ import urllib3
 import time
 import ssl
 
-s_cert = utils.search_path(path.join(conf_path, "client-1.crt"))
-s_key = utils.search_path(path.join(conf_path, "client-1-plaintext.key"))
-s_ca_chain = utils.search_path(path.join(conf_path, "root-ca.crt"))
+s_cert = utils.search_path(path.join(conf_dir, "client-1.crt"))
+s_key = utils.search_path(path.join(conf_dir, "client-1-plaintext.key"))
+s_ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
 url = urllib3.util.url.parse_url(
     "https://Client-1.Clients.Test.mplane.org:8888")
 
