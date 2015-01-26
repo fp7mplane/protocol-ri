@@ -209,6 +209,17 @@ threading.Thread(target=startTornado).start()
 
 def test_extract_peer_identity():
     assert_equal(tls_with_file.extract_peer_identity(url), s_identity)
-    stopTornado()
-    print("\nWaiting for Tornado to stop...")
-    time.sleep(1)
+
+
+def test_extract_peer_identity_no_tls():
+    assert_equal(tls_with_file_no_tls.extract_peer_identity(url), tls.DUMMY_DN)
+
+
+def test_extract_peer_identity_invalid():
+    try:
+        tls_with_file.extract_peer_identity('break me!')
+    except ValueError as e:
+        assert_true(isinstance(e, ValueError))
+        stopTornado()
+        print("\nWaiting for Tornado to stop...")
+        time.sleep(0.5)
