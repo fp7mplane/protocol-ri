@@ -1,1 +1,1 @@
-proba
+{"onDemand":{"dashboardConfig":{"width":2,"height":6},"panelsConfig":[[{"parameters":{"destination.ip4":"192.168.25.1","source.ip4":"192.168.25.107"},"resultName":"delay.twoway.icmp.us","capabilityName":"ping-detail-ip4","measurementData":[[1421834858000,"363"],[1421834859000,"221"],[1421834860000,"212"],[1421834861000,"212"],[1421834862000,"202"]]}]]}}

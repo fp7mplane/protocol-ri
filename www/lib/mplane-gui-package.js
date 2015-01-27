@@ -18,8 +18,8 @@
 		  name : 'mplane-gui',
 		  namespace : 'NV.mplane.gui',
 		  path : 'mplane-gui',
-		  date : new Date('2015','01','12','16','28','01'), // 2015/01/12 16:28:01
-		  version : new Ext.Version('1.0.0.2'),
+		  date : new Date('2015','01','20','15','36','30'), // 2015/01/20 15:36:30
+		  version : new Ext.Version('1.0.0.3'),
 		  description : ''
 		};
 	
@@ -242,15 +242,15 @@ Ext.define('NV.mplane.gui.LoginForm',{
 // @tag mplane-gui
 Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 	singleton:true,
-	
 
 	dashboardConfig:{
 		width:2,
-		height:6
-		
+		height:4,
+		from: "now-30sec",
+		to: "now"
 	},
 	panelsConfig : [],
-	localDatas : true,
+	localDatas : false,
 	enableAutoSave : true,
 	
 	init: function(){
@@ -266,6 +266,11 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 	 * add to an existing chart an another measure
 	 */
 	addMeasurement: function(x,y,config){
+		for(var i=0; i<this.panelsConfig[y * this.dashboardConfig.width + x].length; i++){
+			if(this.panelsConfig[y * this.dashboardConfig.width + x][i] == config){
+				return;
+			}
+		}
 		this.panelsConfig[y * this.dashboardConfig.width + x].push(config);
 		
 		if(this.miniDashboard.isVisible()){
@@ -290,7 +295,6 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 	 * 		parameters:,
 	 * 		resultName: name of the result column,
 	 * 		capabilityName: name of the capability (label),
-	 * 		unit: ?
 	 * }
 	 * 
 	 * if this.localDatas==true, results are here too as measurementData
@@ -387,13 +391,24 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 			}
 		}
 		
+		this.intervallField = Ext.create('NV.dashboard.layout.dashboard.controllers.IntervalInput',{
+			fieldPosition:'horizontal',
+			name:'intervall',
+			label: 'Intervall',
+			value:{
+				after: this.dashboardConfig.from,
+				before: this.dashboardConfig.to
+			}
+		});
 		
 		
-		this.dashboard = Ext.create('Ext.panel.Panel',{
+		this.innerDashboardPanel = Ext.create('Ext.panel.Panel',{
 			xtype:'panel',
 	    	layout:{
 	    		type: 'column',
 	    	},
+	    	width:600,
+		    height:400,
 	    	autoScroll:true,
 	    	overflowY:'auto',
 	    	items: this.dashboardPanels,
@@ -401,23 +416,148 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 	    	header:false,
 	    	border:false,
 	    	flex:1
-	    	
 		});
+		
+		this.dashboard = Ext.create('Ext.panel.Panel',{
+			xtype:'panel',
+	    	layout:{
+	    		type:"vbox",
+	    		align:"stretch"
+	    	},
+	    	items:[{
+		    		xtype:'panel',
+		    		layout:{
+		    			type : "vbox",
+		    			align : "center"
+		    		},
+		    		items:[this.intervallField.getController(), {
+		    			xtype : "button",
+		    			text : "Set intervall",
+		    			handler: function(){
+		    				this.dashboardConfig.from = this.intervallField.getValue().after;
+		    				this.dashboardConfig.to = this.intervallField.getValue().before;
+		    				this.save();
+		    				this.showCharts();
+		    			},
+		    			scope:this
+		    		}]
+		    	},
+		    	this.innerDashboardPanel
+	    	]
+		});
+		
+		
 		this.changed = false;
 	},
 	
 	getMiniDashboard: function(){
-		if(!this.miniDashboard || this.changed){
+		if(!this.miniDashboard || this.changed){	//currently never change when window in background
 			this.createMiniDashboard();
 		}
 		return this.miniDashboard;
 	},
 	
 	getDashboard: function(){
-	//	if(!this.dashboard || this.changed){
-			this.createDashboard();
-	//	}
+		this.createDashboard();
 		return this.dashboard;
+	},
+	
+	createOnlineChart: function(configs, panel){
+		this.getMeasureFromServer(configs, 0, panel);
+	},
+	
+	/** all of the datas are here*/
+	continueMakeOnlineChartConfig: function(measures, panel){
+		var chartConfig = this.createChartConfig(measures);
+		
+		for(var i=0; i<measures.length; i++){
+			for(var j=0; j<measures[i].measurementData.length; j++){
+				console.log(measures[i].measurementData[j][0]);
+				var d = Ext.Date.parse(measures[i].measurementData[j][0].split(".")[0],"Y-m-d H:i:s");
+				measures[i].measurementData[j][0] = d.getTime();
+			}
+		}
+		
+		chartConfig.measurementData = this.mergeMeasures(measures);
+		
+		var chart = NV.chart.library.ChartDrawer.drawChartFromJson(chartConfig);
+		
+		panel.removeAll();
+		panel.add(chart.chartContent);
+	},
+	
+	createOfflineChart: function(configs){		
+		var chartConfig = this.createChartConfig(configs);
+		
+		chartConfig.measurementData = this.mergeMeasures(configs);
+
+		var chart = NV.chart.library.ChartDrawer.drawChartFromJson(chartConfig);
+		return chart;
+	},
+	
+	createChartConfig: function(configs){
+		var chartConfig = {
+				"chartType" : "combo",
+				series: [],
+				"legend" : {
+					position : "bottom"
+				},
+				decimals: 1,
+				cursor: true,
+				zoom:true,
+				enableSave:true,
+				"axes" : [ {
+					"position" : "bottom",
+					"grid" : false,
+					
+					"type" : "Time",
+					"labelFont" : "10.0px serif",
+					"labelRotation" : -45
+				}, {
+					"position" : "left",
+					"grid" : true,
+					"label" : {
+						unit : "sec",
+						format : "# us"
+					},
+					"type" : "Numeric",
+					
+				} ],
+				cursor:true
+		};
+		
+		for(var k=0; k<configs.length; k++){
+			/**
+			 * add measurement to an empty place
+			 * config:{
+			 * 		parameters:,
+			 * 		resultName: name of the result column,
+			 * 		capabilityName: name of the capability (label),
+			 * 		unit: ?
+			 * }
+			 * 
+			 * if this.localDatas==true, results are here too as measurementData
+			 */
+			var config = configs[k];
+			
+			chartConfig.series.push({
+				"field" : {
+					"value" :k+1
+				},
+
+				"axis" : "left",
+				"type" : "line",
+				"seriesId" : k,
+				// "visible":false,
+				"marker":{
+                	size:1,
+                	type:"round"    
+                
+                },
+				"title" : Ext.clone(config.capabilityName+" / "+config.resultName)
+			});
+		}
+		return chartConfig;
 	},
 	
 	showCharts: function(){
@@ -426,75 +566,62 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 				var myX = j;
 				var myY = i;
 				
-				if(this.panelsConfig[(myY) * this.dashboardConfig.width + myX] && this.panelsConfig[(myY) * this.dashboardConfig.width + myX].length>0){
-					var configs = this.panelsConfig[(myY) * this.dashboardConfig.width + myX];
+				var completePanelConfig = this.panelsConfig[(myY) * this.dashboardConfig.width + myX];
+				if(completePanelConfig && completePanelConfig.length>0){
+					var chart = undefined;
 					
-					var chartConfig = {
-							"chartType" : "combo",
-							series:[],
-							"legend" : {
-								position : "right"
-							},
-							"axes" : [ {
-								"position" : "bottom",
-								"grid" : false,
-								"labelVisible" : true,
-								"showlabel" : true,
-								"type" : "Time",
-								"labelFont" : "10.0px serif",
-								"labelRotation" : -45
-							}, {
-								"position" : "left",
-								"grid" : true,
-								"labelVisible" : true,
-								"type" : "Numeric",
-								"labelFont" : "10.0px serif",
-								"format" : "# %"
-							} ],
-							cursor:true
-					};
-					
-					for(var k=0; k<configs.length; k++){
-						/**
-						 * add measurement to an empty place
-						 * config:{
-						 * 		parameters:,
-						 * 		resultName: name of the result column,
-						 * 		capabilityName: name of the capability (label),
-						 * 		unit: ?
-						 * }
-						 * 
-						 * if this.localDatas==true, results are here too as measurementData
-						 */
-						var config = configs[k];
-						
-						chartConfig.series.push({
-							"field" : {
-								"value" :k+1
-							},
-
-							"axis" : "left",
-							"type" : "line",
-							"seriesId" : k,
-							// "visible":false,
-							"title" : Ext.clone(config.resultName)
-						});
+					if(this.localDatas){
+						chart = this.createOfflineChart(completePanelConfig);
+						this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].removeAll();
+						this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].add(chart.chartContent);
+					}else{
+						this.createOnlineChart(completePanelConfig, this.dashboardPanels[(myY) * this.dashboardConfig.width + myX]);
 					}
 					
-					chartConfig.measurementData = this.mergeMeasures(configs);
 
-					chart = NV.chart.library.ChartDrawer.drawChartFromJson(chartConfig);
-					console.log(chartConfig);
-					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].removeAll();
-					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].add(chart.chartContent);
 				}else{
-					//nincs config, üresnek kell leneni a panelnak
+					//no chart config, the panel is empty
 					this.dashboardPanels[(myY) * this.dashboardConfig.width + myX].removeAll();
 				}
 
 			}
 		}
 			
+	},
+	
+	getMeasureFromServer: function(measures, index, panel){
+		var jsonData = {
+				from:this.intervallField.getValue().after,
+				to:this.intervallField.getValue().before,
+				capability: measures[index].capabilityName,
+				result: measures[index].resultName,
+				parameters:measures[index].parameters
+			};
+			
+		Ext.Ajax.request({
+			url:NV.mplane.gui.Main.urls.resultDetails,
+			method:'POST',
+			jsonData: jsonData,
+			success : function(response) {
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					return;
+				}
+				
+				measures[index].measurementData = json.resultvalues;
+				
+				if(measures.length>=index+1){ //end of measures, need to draw
+					this.continueMakeOnlineChartConfig(measures, panel);
+				}else{
+					getMeasureFromServer(measures, index+1, panel);
+				}
+				
+			},
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+			scope:this
+		});
 	},
 	
 	mergeMeasures: function(measures){

@@ -18,6 +18,14 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""
+   This module contains HTTP request handlers for the GUI.
+   It always communicates in JSONs. Response "{}" means OK, for modifications,
+   otherwise response {ERROR: 'some complaints'} should be sent to the client.
+   
+   If there is no user signed in, the answer should be a HTTP redirect to all the request.  
+"""
+
 import copy
 import json
 import tornado
@@ -42,6 +50,9 @@ GUI_USERSETTINGS_PATH = "gui/settings"
 GUI_STATIC_PATH = "gui/static"
 
 class ForwardHandler(tornado.web.RequestHandler):
+    """
+    This handler implements a simple static HTTP redirect.
+    """
     def initialize(self, forwardUrl):
         self._forwardUrl = forwardUrl
 
@@ -52,6 +63,14 @@ class ForwardHandler(tornado.web.RequestHandler):
         self.redirect( self._forwardUrl )
 
 class LoginHandler(tornado.web.RequestHandler):
+    """
+    Implements authentication.
+    
+    GET: redirect to the login page.
+    
+    POST: checks the posted user credentials, and set a secure cookie named "user", if credentials are valid. Required content type is application/x-www-form-urlencoded,
+    username and password parameters are required. Response code is always 200. Body is {} for successful login, or {ERROR: "some complaints"} in all other cases.     
+    """
     def initialize(self, supervisor):
         self._supervisor = supervisor
 
@@ -80,6 +99,12 @@ class LoginHandler(tornado.web.RequestHandler):
 
 class UserSettingsHandler(tornado.web.RequestHandler):
     """
+    Stores and gives back user-specific settings. Signed-in user defined by secure cookie named "user".
+    Content-type is always text/json.
+    
+    GET: answers the settings JSON of the current user (initially it's "{}").
+
+    POST: stores the posted settings JSON for the current user (it must be a valid JSON).
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
@@ -118,6 +143,11 @@ class UserSettingsHandler(tornado.web.RequestHandler):
 
 class ListCapabilitiesHandler(tornado.web.RequestHandler):
     """
+    Lists the capabilites, registered in the Supervisor. Response is in mplane JSON format.
+
+    GET: capabilites can be filtered by GET parameters named label, and names of parameters of the capability. Response is in mplane JSON format.
+
+    POST is not supported.
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
@@ -170,6 +200,14 @@ class ListCapabilitiesHandler(tornado.web.RequestHandler):
 
 class ListResultsHandler(tornado.web.RequestHandler):
     """
+    Lists the results from Supervisor.
+    
+    GET: lists results from the supervisor in a JSON array, format is as follows:
+      [ { result:'measure', label:'CAPABILITY_LABEL',  when:'WHEN_OF_RESULT', token:'TOKEN_OF_RESULT',
+          parameters: { specificationParam1:"value1", specificationParam2:"value2", ... }, ... ]
+      Filtering can be done by GET parameters called label, and names of parameters of the capability.
+
+    POST: not supported
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
@@ -228,6 +266,12 @@ class ListResultsHandler(tornado.web.RequestHandler):
 
 class ListPendingsHandler(tornado.web.RequestHandler):
     """
+    Lists all the pending measurement (specifications and receipts) from supervisor.
+    
+    GET compose mplane json representations of pending specifications and receipts, in the following format:
+        { DN1: [ receipt1, receipt2 ], DN2: [ specification1, receipt3, ... ], ... }
+    
+    POST is not supported.
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
@@ -265,6 +309,26 @@ class ListPendingsHandler(tornado.web.RequestHandler):
 
 class GetResultHandler(tornado.web.RequestHandler):
     """
+    GET: Get result for specified token.
+    
+    POST: Get results for a filter like a specification.
+        Posted JSON is like
+            { capability:ping-detail-ip4, parameters:{"source.ip4":"192.168.96.1", "destination.ip4":"217.20.130.99" },
+            "resultName":"delay.twoway.icmp.us", from: 1421539200000, to: 1421625600000 }
+
+            - timestamps are in ms
+            - capability is the label of the capability
+            - no component DN is defined, results of different components can be merged
+            - resultName: only one result column is required -> one line will be drawn from the response.
+          
+        The response is like as follows:
+
+        { "result":"measure", "version":0, "registry": "http://ict-mplane.eu/registry/core", "label": ping-detail-ip4, "when": "2015-01-18 17:25:50.785761 ... 2015-01-18 17:28:00.785367",
+            "parameters":{"source.ip4":"192.168.96.1", "destination.ip4":"217.20.130.99" }, "results": ["time", "delay.twoway.icmp.us"],
+            "resultvalues": [["2015-01-18 17:25:50.785761", 20], ["2015-01-18 17:25:51.785761", 37], ["2015-01-18 17:28:00.785761", 31], ...] }
+
+            - when: shows times between results are found
+            - resultvalues: it has always 2 columns, first is time, second is requested by client in  "resultName"
     """
     def initialize(self, supervisor):
         self._supervisor = supervisor
@@ -295,7 +359,8 @@ class GetResultHandler(tornado.web.RequestHandler):
         queryJson = json.loads( self.request.body.decode("utf-8") )
         fromTS = datetime.datetime.fromtimestamp( queryJson["from"] / 1000 )
         toTS = datetime.datetime.fromtimestamp( queryJson["to"] / 1000 )        
-
+        print( 'query time: ' + str(fromTS) + " - " + str(toTS))
+        
         selectedResults = []
         for dn in self._supervisor._results.keys():
             for res in self._supervisor._results[dn]:
@@ -304,6 +369,8 @@ class GetResultHandler(tornado.web.RequestHandler):
                     if str(res.get_parameter_value(paramname)) != queryJson["parameters"][paramname]:
                         skip = True
                 (resstart,resend) = res.when().datetimes()
+                print( '   result time: ' + str(resstart) + " - " + str(resend) + ": " + str(resend < fromTS or resstart > toTS))
+
                 skip = skip or resend < fromTS or resstart > toTS
                 if not skip:
                     selectedResults.append(res)
@@ -313,8 +380,6 @@ class GetResultHandler(tornado.web.RequestHandler):
             self.finish()
             return;
         
-        sorted( selectedResults, key=lambda res: res.when()._a )    
-        
         resultvalues = []
         response = { "result":"measure", "version":0, "registry": "http://ict-mplane.eu/registry/core", 
             "label": queryJson["capability"], "when": str(mplane.model.When(a=fromTS, b=toTS)), "parameters": queryJson["parameters"],
@@ -323,13 +388,17 @@ class GetResultHandler(tornado.web.RequestHandler):
         for res in selectedResults:
             resultvalues.extend( res._result_rows() )
 
+        sorted( resultvalues, key=lambda resultrow: resultrow[0] )
+
         self.write( json.dumps(response) )
         self.finish()
 
 class RunCapabilityHandler(tornado.web.RequestHandler):
-    """    
-      URI should be gui/run/capability?DN - where DN is the distinguished name of probe to run capability 
-      Specification JSON should be posted.  
+    """
+      It runs a capability.    
+      
+      POST: URI should be gui/run/capability?DN=Probe.Distinguished.Name 
+      Posted data is a fulfilled capability, not a specification. Fulfilled means field when has a concrete value, and every parameter has a value as well.
     """
 
     def initialize(self, supervisor):

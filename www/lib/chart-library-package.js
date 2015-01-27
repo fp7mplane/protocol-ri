@@ -18,8 +18,8 @@
 		  name : 'chart-library',
 		  namespace : 'NV.chart.library',
 		  path : 'chart-library',
-		  date : new Date('2015','01','16','11','32','30'), // 2015/01/16 11:32:30
-		  version : new Ext.Version('1.0.0.81'),
+		  date : new Date('2015','01','21','11','25','07'), // 2015/01/21 11:25:07
+		  version : new Ext.Version('1.0.0.85'),
 		  description : 'Chart Library'
 		};
 	
@@ -62,8 +62,10 @@ Ext.define('NV.chart.library.Chart', {
 		header: false,
 		portletContentObject : undefined,
 		jsonStore : undefined,
-		store:undefined
+		store:undefined,
 
+		decimals:2,
+		autoRound:true
 	},
 
 	constructor : function(config){
@@ -300,15 +302,10 @@ Ext.define('NV.chart.library.Chart', {
 					obj.key = values[i][0];
 					obj.value0 = values[i][j];
 				}else{
-					try{
-						var temp =  Math.round(values[i][j]*100)/100;
-						if(!isNaN(temp) && values[i][j]!=null){
-							obj["value"+j] = temp;
-						}
-						else{
-							obj["value"+j] = values[i][j];
-						}
-					}catch(e){
+					if(this.autoRound){
+						var round = this.decimals==0?1:this.decimals*10;
+						obj["value"+j] = Math.round(values[i][j]*round)/round;
+					}else{
 						obj["value"+j] = values[i][j];
 					}
 					
@@ -334,9 +331,10 @@ Ext.define('NV.chart.library.Chart', {
 					obj.key = new Date(values[i][j]);
 					obj.value0 = values[i][j];
 				}else{
-					try{
-						obj["value"+j] = Math.round(values[i][j]*100)/100;
-					}catch(e){
+					if(this.autoRound){
+						var round = this.decimals==0?1:this.decimals*10;
+						obj["value"+j] = Math.round(values[i][j]*round)/round;
+					}else{
 						obj["value"+j] = values[i][j];
 					}
 				}
@@ -584,7 +582,8 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 		seriesMap : undefined,
 		technicalseries : undefined,
 		resolutionBySize:true,
-		cursor:false
+		cursor:false,
+		enableSave:false
 		
 	},
 
@@ -633,7 +632,7 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 		
 		this.chartConfig.dataProvider = []; 
 		this.chartConfig.categoryField = "key"; 
-		this.chartConfig.usePrefixes = true;	//a tengelyeken rövidíti pl az 1000-et K-ra
+		this.chartConfig.usePrefixes = true;	//a tengelyeken rövidíti a számokat pl az 1000-et K-ra
 
 		this.chartConfig.marginTop = 10; // nincsenek ilyen paraméterek
 		this.chartConfig.marginLeft = 10;
@@ -663,7 +662,7 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 		this.chartConfig.columnSpacing = 0.5;
 		this.chartConfig.columnWidth = 0.2;
 		
-		//create the axis objects
+		//create the amchart axis objects
 		this.chartConfig.valueAxes = [];
 		for(var i in this.axisMap){
 			if(this.axisMap[i].type == 'Category' || this.axisMap[i].type == 'Time'){
@@ -673,15 +672,8 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 			}
 			
 		}
-/*		
-		this.chartConfig.graphs = [];
-		for(var i in this.seriesMap){
-			
-			this.chartConfig.graphs.push(this.seriesMap[i].createAmchartObject());
-		}
-	*/	
+		//create the amchart series objects
 		this.createSeriesConfig();
-//		this.initPlus();
 
 		// LEGEND
 		if (this.legend) {
@@ -756,62 +748,45 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 		}
 		this.defaultPeriod = 'ss';
 
+		//create the chart cursor object, if is neccesary
 		if (this.hasCursor) {
 		//	var newPeriod = this.getPreferedPeriod();
-			this.chartCursor = new AmCharts.ChartCursor();
+			this.chartConfig.chartCursor = {};
 			
 			
-			this.chartCursor.cursorPosition = "middle";
-			this.chartCursor.bulletsEnable = false;
-			this.chartCursor.bulletSize = 2;
+			this.chartConfig.chartCursor.cursorPosition = "middle";
+			this.chartConfig.chartCursor.bulletsEnable = false;
+			this.chartConfig.chartCursor.bulletSize = 2;
 			if (this.zoom) {
-				this.chartCursor.zoomable = true;
+				this.chartConfig.chartCursor.zoomable = true;
 			} else {
-				this.chartCursor.zoomable = false;
+				this.chartConfig.chartCursor.zoomable = false;
 			}
-			this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
+			this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
 
 			if (this.defaultPeriod.match('hh')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
 			} else if (this.defaultPeriod.match('DD')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD';
 			} else if (this.defaultPeriod.match('ss')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
 			}
 		
 		}
 
 		//export
-		/*
-		 this.chart.exportConfig = {
-		        menuTop: "21px",
-		        menuBottom: "auto",
-		        menuRight: "21px",
-		        backgroundColor: "#efefef",
-
-		        menuItemStyle: {
-		            backgroundColor: '#FFFFFF',
-		            rollOverBackgroundColor: '#DDDDDD'
-		        },
-
-		        menuItems: [{
-		            textAlign: 'center',
-		            icon: 'resource/amchart/image/export.png',
-		          /*  items: [{
-		                title: 'JPG',
-		                format: 'jpg'
-		            }, {
-		                title: 'PNG',
-		                format: 'png'
-		            }, {
-		                title: 'SVG',
-		                format: 'svg'
-		            }, {
-		                title: 'PDF',
-		                format: 'pdf'
-		            }]
-		        }]
-		    };*/
+		if(this.enableSave){
+			this.chartConfig.exportConfig = {
+					"menuTop":"0px",
+				      "menuRight":"0px",
+				      "menuItems": [{
+				      "icon": 'resource/amchart/image/export.png',
+				      "format": 'png'	  
+				      }]  
+					
+			    };
+		}
+		 
 		
 
 	},
@@ -829,11 +804,15 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 			}, this);
 		}
 		
-		if(this.chartCursor){
+	/*	if(this.chartCursor){
 			this.chart.addChartCursor(this.chartCursor);
-		}
+		}*/
 		
-//		this.createSeriesConfig();
+	/*	if(this.zoom && this.zoomScrollbarVisible){
+			this.addScrollBar();
+			this.hasCursor = true;
+		}
+*/
 		this.addActionsToChart();
 		
 	},
@@ -911,14 +890,17 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 	
 	createSeriesConfig : function() {
 		
-		try {
-			var size = this.chart.graphs.length;
-			for ( var i = 0; i < size; i++) {
-				this.chart.removeGraph(this.chart.graphs[0]);
-			}
-		} catch (e) {
+		if(this.chart){
+			try {
+				var size = this.chart.graphs.length;
+				for ( var i = 0; i < size; i++) {
+					this.chart.removeGraph(this.chart.graphs[0]);
+				}
+			} catch (e) {
 
+			}
 		}
+		
 
 		this.chartConfig.graphs = [];
 		for(var i in this.seriesMap){	
@@ -940,34 +922,38 @@ Ext.define('NV.chart.library.amchart.AmComboChart', {
 		if(this.chart){
 			this.chart.destroy();
 			this.chart.dataProvider = this.store;
-		}else{
-			this.chartConfig.dataProvider = this.store;
 		}
+		this.chartConfig.dataProvider = this.store;
+		
 		
 		var newPeriod = this.getPreferedPeriod();
-
-		if (newPeriod != this.defaultPeriod) {
-			this.defaultPeriod = newPeriod;
-			this.chartConfig.categoryAxis.minPeriod = this.defaultPeriod;
-			if(this.chart){
-				this.chart.categoryAxis.minPeriod = this.defaultPeriod;
-			}
-			
+		this.defaultPeriod = newPeriod;
+		this.chartConfig.categoryAxis.minPeriod = this.defaultPeriod;
+		if(this.chart){
+			this.chart.categoryAxis.minPeriod = this.defaultPeriod;
 		}
+			
+		
 		if (this.hasCursor) {
 		
 			if (this.defaultPeriod.match('hh')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
 			} else if (this.defaultPeriod.match('DD')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD';
 			} else if (this.defaultPeriod.match('ss')) {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
+				this.chartConfig.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
+			}
+			if(this.chart){
+				this.chart.chartCursor, categoryBalloonDateFormat = this.chartConfig.chartCursor.categoryBalloonDateFormat;
 			}
 		
 		}
 
 		try {
-			this.chart.validateData();
+			if(this.chart){
+				this.chart.validateData();
+			}
+			
 		} catch (e) {
 
 		}
@@ -1620,12 +1606,7 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
     },   
     
    createSeriesObjects: function(){
-		//create the series objects
-/*		this.seriesMap = {};
-		for(var i=0; i<this.series.length; i++){
-			var s =  Ext.create('NV.chart.library.utils.DynamicSeries', Ext.apply(this.series[i],{chart:this, id:this.series[i].seriesId}));
-			this.seriesMap[this.series[i].seriesId] = s;
-		}*/
+
 	},
    
 	createSeriesConfig : function(titles, colors){
@@ -1683,37 +1664,10 @@ Ext.define('NV.chart.library.amchart.AmRefreshSeriesChart', {
    
 	refreshChartStore: function(titles, colors){
 		
-    	
-    	var newPeriod = this.getPreferedPeriod();
-    	this.createSeriesConfig(titles, colors);
-    	this.chartConfig.dataProvider = this.store;
-    	if(newPeriod!=this.defaultPeriod){
-    		this.defaultPeriod = newPeriod;
-    		this.chart.categoryAxis.minPeriod = this.defaultPeriod;
-    	}
-  
-    	if (this.hasCursor) {
-			this.chartCursor = new AmCharts.ChartCursor();
-			this.chartCursor.cursorPosition = "middle";
-			this.chartCursor.bulletsEnable = false;
-			this.chartCursor.bulletSize = 1;
-			if (this.zoomable) {
-				this.chartCursor.zoomable = true;
-			} else {
-				this.chartCursor.zoomable = false;
-			}
-			this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
-
-			if (this.defaultPeriod == 'hh') {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN';
-			} else if (this.defaultPeriod == 'DD') {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD';
-			} else if (this.defaultPeriod == 'ss') {
-				this.chartCursor.categoryBalloonDateFormat = 'MM DD JJ:NN:SS';
-			}
-			
-		}    
+		this.createSeriesConfig(titles, colors);
+		this.callParent();
 		this.drawChart();
+    	
     }
 });
 
@@ -3155,7 +3109,7 @@ Ext.define('NV.chart.library.utils.Axis',{
 		offset:undefined,
 		line:undefined,
 		format:undefined,
-		autoGridCount:false,
+		autoGridCount:true,
 		
 		chart:undefined
 	},
@@ -3229,7 +3183,7 @@ Ext.define('NV.chart.library.utils.Axis',{
 					format : 'YYYY'
 				} ];
 				axis.parseDates = true;
-				axis.equalSpacing = true;
+				axis.equalSpacing = false;
 	//			axis.minPeriod = this.defaultPeriod;
 				axis.boldPeriodBeginning = true;
 				axis.startOnAxis = true;
@@ -3556,7 +3510,7 @@ Ext.define('NV.chart.library.utils.Series',{
 		graph.valueField = "value" + this.field.value;
 	
 
-		graph.connect = false;
+		graph.connect = true;
 		graph.hidden = !this.visible;
 		graph.type = this.type;
 		
@@ -3585,9 +3539,9 @@ Ext.define('NV.chart.library.utils.Series',{
 			}			
 			
 		} else if (this.type == "line") {			
-			graph.fillAlphas = 0;
+	//		graph.fillAlphas = 0;
 		} else if (this.type == "area" || this.type == "step") {	
-			graph.fillAlphas = 0.8;
+	//		graph.fillAlphas = 0.8;
 			if(this.type=="area"){
 				graph.type = "line";
 			}
