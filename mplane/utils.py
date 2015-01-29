@@ -48,7 +48,6 @@ def check_file(filename):
     """      
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
-        exit(1)
         
 def normalize_path(path):
     """
