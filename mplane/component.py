@@ -71,7 +71,7 @@ class ListenerHttpComponent(BaseComponent):
         super(ListenerHttpComponent, self).__init__(config)
         
         application = tornado.web.Application([
-            (r"/", MessagePostHandler, dict(scheduler=self.scheduler, tlsState=self.tls)),
+            (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
         ])

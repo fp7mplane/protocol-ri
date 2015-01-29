@@ -38,7 +38,6 @@ import ssl
 import functools
 import tornado.httpserver
 from socket import socket
-import configparser
 import mplane.utils
 
 DUMMY_DN = "Dummy.Distinguished.Name"

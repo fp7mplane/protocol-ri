@@ -23,22 +23,25 @@
 
 import mplane.model
 import mplane.utils
-import sys
 
 import html.parser
 import urllib3
-import os.path
+from threading import Thread
 
 import tornado.web
 import tornado.httpserver
 import tornado.ioloop
 
-from datetime import datetime, timedelta
-
 CAPABILITY_PATH_ELEM = "capability"
 
 FORGED_DN_HEADER = "Forged-MPlane-Identity"
 DEFAULT_IDENTITY = "default"
+
+DEFAULT_PORT = 8888
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_REGISTRATION_PATH = "register/capability"
+DEFAULT_SPECIFICATION_PATH = "show/specification"
+DEFAULT_RESULT_PATH = "register/result"
 
 class BaseClient(object):
     """
@@ -217,7 +220,7 @@ class BaseClient(object):
 
         Internal use only; use handle_message instead.
 
-        """        
+        """
         try:
             receipt = self._receipts[msg.get_token()]
             self._remove_receipt(receipt)
@@ -252,7 +255,7 @@ class BaseClient(object):
             return self._receipts[token_or_label]
         else:
             raise KeyError("no such token or label "+token_or_label)
-       
+
     def _handle_exception(self, msg):
         # FIXME what do we do with these?
         pass
@@ -359,7 +362,7 @@ class CrawlParser(html.parser.HTMLParser):
         if tag == "a" and "href" in attrs:
             self.urls.append(attrs["href"])
 
-class HttpClient(BaseClient):
+class HttpInitiatorClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
     Supports client-initiated workflows. Intended for building 
@@ -373,7 +376,7 @@ class HttpClient(BaseClient):
         default URL an a given TLS state
         """
         super().__init__(tls_state)
-        
+
         self._default_url = default_url
 
         # specification serial number
@@ -389,7 +392,7 @@ class HttpClient(BaseClient):
     def send_message(self, msg, dst_url=None):
         """
         send a message, store any result in client state.
-        
+
         """
         # figure out where to send the message
         if not dst_url:
@@ -397,13 +400,13 @@ class HttpClient(BaseClient):
 
         if isinstance(dst_url, str):
             dst_url = urllib3.util.parse_url(dst_url)
-            
+
         pool = self._tls_state.pool_for(dst_url.scheme, dst_url.host, dst_url.port)
 
         headers = {"Content-Type": "application/x-mplane+json"}
         if self._tls_state.forged_identity():
             headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
-        
+
         res = pool.urlopen('POST', dst_url.path, 
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
@@ -454,21 +457,21 @@ class HttpClient(BaseClient):
         connect to the given URL, retrieve and process the 
         capabilities/withdrawals found there
         """
-        
+
         # detect loops in capability links
         if url in urlchain:
             return
-            
+
         if isinstance(url, str):
             url = urllib3.util.parse_url(url)
-        
+
         if pool is None:
             if url.host is not None:
                 pool = self._tls_state.pool_for(url.scheme, url.host, url.port)
             else:
                 print("ConnectionPool not defined")
                 exit(1)
-        
+
         res = pool.request('GET', url.path)
 
         if res.status == 200:
@@ -485,7 +488,6 @@ class HttpClient(BaseClient):
                 for capurl in parser.urls:
                     self.retrieve_capabilities(url=capurl, 
                                                urlchain=urlchain + [url], pool=pool)
-                            
 
 class HttpListenerClient(BaseClient):
     """
@@ -494,27 +496,61 @@ class HttpListenerClient(BaseClient):
     supervisors.
 
     """
-    def __init__(self, tls_state=None, listen_addr=None, path=None):
+    def __init__(self, config, tls_state=None):
         super().__init__(tls_state)
+
+        listen_host = DEFAULT_HOST
+        if "listen-host" in config["client"]:
+            listen_host = config["client"]["listen-host"]
+
+        listen_port = DEFAULT_PORT
+        if "listen-port" in config["client"]:
+            listen_port = config.getint("client", "listen-port")
+
+        registration_path = DEFAULT_REGISTRATION_PATH
+        if "registration-path" in config["client"]:
+            registration_path = config["client"]["registration-path"]
+
+        specification_path = DEFAULT_SPECIFICATION_PATH
+        if "registration-path" in config["client"]:
+            specification_path = config["client"]["specification-path"]
+
+        result_path = DEFAULT_RESULT_PATH
+        if "result-path" in config["client"]:
+            result_path = config["client"]["result-path"]
 
         # Outgoing messages per component identifier
         self._outgoing = {}
+
+        # specification serial number
+        # used to create labels programmatically
+        self._ssn = 0
 
         # Capability 
         self._callback_capability = {}
 
         # Create a request handler pointing at this client
         self._tornado_application = tornado.web.Application([
-            (r"/", ListenerClientHandler, {'listenerclient': self})])
+            (r"/" + registration_path, RegistrationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (r"/" + registration_path + "/", RegistrationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (r"/" + specification_path, SpecificationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (r"/" + specification_path + "/", SpecificationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (r"/" + result_path, ResultHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (r"/" + result_path + "/", ResultHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+        ])
+        http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
-    def listen_on(self, host, port):
+        # run the server
+        http_server.listen(listen_port, listen_host)
+        t = Thread(target=self.listen_in_background)
+        t.setDaemon(True)
+        t.start()
+
+    def listen_in_background(self):
         """
-        start a thread to listen on a given host and port. 
-        This will asynchronously serve components accessing the client.
+        The server listens for requests in background, while
+        the supervisor console remains accessible
         """
-        # FIXME this is straight from the example code, 
-        # having more control over this might be nice.
-        tornado.httpserver.HTTPServer(self._tornado_application)
         tornado.ioloop.IOLoop.instance().start()
 
     def _push_outgoing(self, identity, msg):
@@ -537,8 +573,10 @@ class HttpListenerClient(BaseClient):
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         identity = self.identity_for(cap.get_token())
 
-        # prepare a callback spec if we need to
-        callback_cap = self._callback_capability[identity] 
+        callback_cap = None
+        if identity in self._callback_capability:
+            # prepare a callback spec if we need to
+            callback_cap = self._callback_capability[identity]
         if callback_cap and callback_when:
             callback_spec = mplane.model.Specification(capability=callback_cap)
             callback_spec.set_when(callback_when)
@@ -553,35 +591,124 @@ class HttpListenerClient(BaseClient):
         """
         Override Client's add_capability, check for callback control
         """
-        if msg.get_verb() == mplane.model.VERB_CALLBACK:
+        if msg.verb() == mplane.model.VERB_CALLBACK:
             # FIXME this is kind of dodgy; we should do better checks to
             # make sure this is a real callback capability
             self._callback_capability[identity] = msg
         else:
             # not a callback control cap, just add the capability
-            super().add_capability(msg, identity)
+            super()._add_capability(msg, identity)
 
-class ListenerClientHandler(tornado.web.RequestHandler):
-    def initialize(self, listenerclient):
-        self._client = client
+class MPlaneHandler(tornado.web.RequestHandler):
+    """
+    Abstract tornado RequestHandler that allows a
+    handler to respond with an mPlane Message.
+
+    """
+
+    def _respond_message(self, msg):
+        """
+        Returns an HTTP response containing a JSON message
+
+        """
+        self.set_status(200)
+        self.set_header("Content-Type", "application/x-mplane+json")
+        self.write(mplane.model.unparse_json(msg))
+        self.finish()
+
+    def _respond_plain_text(self, code, text = None):
+        """
+        Returns an HTTP response containing a plain text message
+
+        """
+        self.set_status(code)
+        if text is not None:
+            self.set_header("Content-Type", "text/plain")
+            self.write(text)
+        self.finish()
+
+    def _respond_json_text(self, code, text = None):
+        """
+        Returns an HTTP response containing a plain text message
+
+        """
+        self.set_status(code)
+        if text is not None:
+            self.set_header("Content-Type", "application/x-mplane+json")
+            self.write(text)
+        self.finish()
+
+class RegistrationHandler(MPlaneHandler):
+    """
+    Handles the probes that want to register to this supervisor
+    Each capability is registered indipendently
+
+    """
+    def initialize(self, listenerclient, tlsState):
+        self._listenerclient = listenerclient
+        self._tls = tlsState
+
 
     def post(self):
         # unwrap json message from body
         if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
+            env = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
-            # FIXME how do we tell tornado we don't want to handle this?
-            raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
+            self._respond_plain_text(400, "Invalid format")
+            return
 
-        # figure out who is posting this
-        if False:
-            # FIXME get the identity from the DN here
-            pass
-        elif FORGED_DN_HEADER in self.request.headers:
-            identity = self.request.headers[FORGED_DN_HEADER]
+        self._listenerclient.handle_message(env,
+                            self._tls.extract_peer_identity(self.request))
+
+        # reply to the component
+        response = ""
+        for new_cap in env.messages():
+            if isinstance(new_cap, mplane.model.Capability):
+                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"ok\"},"
+            else:
+                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
+        response = "{" + response[:-1].replace("\n", "") + "}"
+        self._respond_json_text(200, response)
+        return
+
+class SpecificationHandler(MPlaneHandler):
+    """
+    Exposes the specifications, that will be periodically pulled by the
+    components
+
+    """
+    def initialize(self, listenerclient, tlsState):
+        self._listenerclient = listenerclient
+        self._tls = tlsState
+
+    def get(self):
+        identity = self._tls.extract_peer_identity(self.request)
+        specs = self._listenerclient._outgoing.pop(identity, [])
+        env = mplane.model.Envelope()
+        for spec in specs:
+            env.append_message(spec)
+            mplane.utils.print_then_prompt("Specification " + spec.get_label() + " successfully pulled by " + identity)
+        self._respond_json_text(200, mplane.model.unparse_json(env))
+
+class ResultHandler(MPlaneHandler):
+    """
+    Receives results of specifications
+
+    """
+
+    def initialize(self, listenerclient, tlsState):
+        self._listenerclient = listenerclient
+        self._tls = tlsState
+
+    def post(self):
+        # unwrap json message from body
+        if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
+            env = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
-            identity = DEFAULT_IDENTITY
+            self._respond_plain_text(400, "Invalid format")
+            return
 
-        # now handle the message
-        self._client.handle_message(msg, identity)
-
+        self._listenerclient.handle_message(env,
+                            self._tls.extract_peer_identity(self.request))
+        self._respond_plain_text(200)
+        return
