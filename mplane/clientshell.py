@@ -29,7 +29,6 @@ import mplane.tls
 import sys
 import cmd
 import traceback
-import readline
 import argparse
 import configparser
 
@@ -39,9 +38,10 @@ class ClientShell(cmd.Cmd):
             'Type help or ? to list commands. ^D to exit.\n'
     prompt = '|mplane| '
 
-    def __init__(self, tls_state=None, config_file=None):
+    def __init__(self, config):
+
         super().__init__()
-        self._client = mplane.client.HttpClient(tls_state = tls_state)
+        tls_state = mplane.tls.TlsState(config)
         self._defaults = {}
         self._when = None
 
@@ -50,20 +50,20 @@ class ClientShell(cmd.Cmd):
         # don't print tracebacks by default
         self._print_tracebacks = False
 
-        # preload defaults
-        if config_file:
-            self._read_config(config_file)
+        if config["client"]["workflow"] == "component-initiated":
+            self.workflow = "component-initiated"
+            self._client = mplane.client.HttpListenerClient(config=config,
+                                                            tls_state=tls_state)
+        elif config["client"]["workflow"] == "client-initiated":
+            self.workflow = "client-initiated"
+            self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
+        else:
+            raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
 
-    def _read_config(self, config_file):
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(mplane.utils.search_path(config_file))
-
-        if "ClientShell" in config.sections:
-            if "default-url" in config["ClientShell"]:
-                self.do_seturl(config["ClientShell"]["default-url"])
-            if "capability-url" in config["ClientShell"]:
-                self.do_getcap(config["ClientShell"]["capability-url"])
+        if "default-url" in config["client"]:
+            self.do_seturl(config["client"]["default-url"])
+        if "capability-url" in config["client"]:
+            self.do_getcap(config["client"]["capability-url"])
 
     def do_seturl(self, arg):
         """
@@ -80,7 +80,11 @@ class ClientShell(cmd.Cmd):
             print("Usage: seturl [url]")
             return
 
-        self._client.set_default_url(url)
+        if self.workflow == "client-initiated":
+            self._client.set_default_url(url)
+        else:
+            print("This command can only be used in client-initiated workflows")
+            return
 
     def do_getcap(self, arg):
         """
@@ -95,8 +99,12 @@ class ClientShell(cmd.Cmd):
             print("Usage: getcap [url]")
             return
 
-        self._client.retrieve_capabilities(url)
-        print("ok")
+        if self.workflow == "client-initiated":
+            self._client.retrieve_capabilities(url)
+            print("ok")
+        else:
+            print("This command can only be used in client-initiated workflows")
+            return
 
     def do_listcap(self, arg):
         """
@@ -333,22 +341,30 @@ class ClientShell(cmd.Cmd):
         if self._print_tracebacks:
             traceback.print_tb(sys.exc_info()[2])
         print("You can try to continue, but client state may be inconsistent.")
-        
-def parse_args():
-    parser = argparse.ArgumentParser(description="mPlane generic testing client")
-    parser.add_argument('--config', metavar="config-file",
-                        help="Configuration file")
-    return parser.parse_args()
-    
+
 if __name__ == "__main__":
     # boot the model
     mplane.model.initialize_registry()
 
     # look for TLS configuration
-    args = parse_args()
+    parser = argparse.ArgumentParser(description="mPlane generic testing client")
+    parser.add_argument('--config', metavar="config-file",
+                        help="Configuration file")
+    args = parser.parse_args()
+
+    # check if conf file parameter has been inserted in the command line
+    if not args.config:
+        print('\nERROR: missing --config\n')
+        parser.print_help()
+        exit(1)
+
+    # Read the configuration file
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(mplane.utils.search_path(args.config))
 
     # create a shell
-    cs = ClientShell(tls_state=mplane.tls.TlsState(args.config))
+    cs = ClientShell(config)
 
     while not cs.exited:
         try:
