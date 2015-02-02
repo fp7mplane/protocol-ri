@@ -256,9 +256,9 @@ class BaseClient(object):
         else:
             raise KeyError("no such token or label "+token_or_label)
 
-    def _handle_exception(self, msg):
+    def _handle_exception(self, msg, identity):
         # FIXME what do we do with these?
-        pass
+        print("Exception received: " + msg.__repr__())
 
     def handle_message(self, msg, identity=None):
         """

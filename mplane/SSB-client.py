@@ -351,7 +351,7 @@ class ClientShell(cmd.Cmd):
         spec.set_when(self._when)
 
         # Fill in single values
-        spec.set_single_values()
+        #spec.set_single_values()
 
         # Fill in parameter values
         for pname in spec.parameter_names():
