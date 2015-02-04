@@ -211,7 +211,9 @@ class MultiJob(object):
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self.results = mplane.model.Envelope(token=specification.get_token())
+        self.results = mplane.model.Envelope(token=specification.get_token(), 
+                                             label=specification.get_label(), 
+                                             when=specification.when())
         self._subspec_iterator = specification.subspec_iterator()
         self._max_results = int(max_results)
         self._callback = callback
@@ -347,7 +349,7 @@ class Scheduler(object):
                 self._max_results = 0
             else:
                 # get max results to store
-                self._max_results = config["component"]["scheduler_max_results"]
+                self._max_results = config.getint("component", "scheduler_max_results")
         else:
             self._max_results = 0
             self.azn = mplane.azn.Authorization()

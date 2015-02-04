@@ -2820,13 +2820,15 @@ class Envelope(object):
 
     """
 
-    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None):
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None, label=None, when=None):
         super().__init__()
 
         self._version = MPLANE_VERSION
         self._messages = []
         self._content_type = content_type
         self._token = token
+        self._label = label
+        self._when = when
 
         if dictval is not None:
             self._from_dict(dictval)
@@ -2863,7 +2865,18 @@ class Envelope(object):
         d = {}
         d[self.kind_str()] = self._content_type
         d[KEY_VERSION] = self._version
+
         d[KEY_CONTENTS] = [m.to_dict(token_only=token_only) for m in self.messages()]
+
+        if self._token is not None:
+            d[KEY_TOKEN] = self._token
+
+        if self._when is not None:
+            d[KEY_WHEN] = str(self._when)
+
+        if self._label is not None:
+            d[KEY_LABEL] = self._label
+
         return d
 
     def _from_dict(self, d):
@@ -2873,16 +2886,32 @@ class Envelope(object):
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
 
+        if KEY_TOKEN in d:
+          self._token = d[KEY_TOKEN]
+
+        if KEY_WHEN in d:
+          self._when = When(d[KEY_WHEN])
+
+        if KEY_LABEL in d:
+          self._label = d[KEY_LABEL]
+
         for md in d[KEY_CONTENTS]:
             self.append_message(message_from_dict(md))
 
+    def get_label(self):
+        """ Returns the label or None if no label has been set """
+        return self._label
+
     def get_token(self, lim=None):
-        """ Returns the token or None if no taken as been set """
+        """ Returns the token or None if no token has been set """
         if self._token is not None and lim is not None and len(self._token) > lim:
           return self._token[:lim]
         else:
           return self._token
 
+    def when(self):
+        """ Returns the envelope's temporal scope. (If it's a bunch of multijob results """
+        return self._when
 #######################################################################
 # Utility methods
 #######################################################################
@@ -2931,7 +2960,14 @@ def parse_yaml(ystr):
 def unparse_yaml(msg):
     return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
 
-def render_text(msg):    
+def render_text(message):
+    if isinstance(message, Envelope):
+        for msg in message.messages():
+            print(render(msg))
+    else:
+        print(render(message))
+
+def render(msg):
     d = msg.to_dict()
     out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
@@ -2957,7 +2993,3 @@ def render_text(msg):
             out += "        %s\n" % (element)
 
     return out
-
-
-
-
