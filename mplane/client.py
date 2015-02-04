@@ -279,8 +279,11 @@ class BaseClient(object):
         elif isinstance(msg, mplane.model.Exception):
             self._handle_exception(msg, identity)
         elif isinstance(msg, mplane.model.Envelope):
-            for imsg in msg.messages():
-                self.handle_message(imsg, identity)
+            if msg.get_token() in self._receipts:
+                self._handle_result(msg, identity)
+            else:
+                for imsg in msg.messages():
+                    self.handle_message(imsg, identity)
         else:
             raise ValueError("Internal error: unknown message "+repr(msg))
 

@@ -285,13 +285,10 @@ class InitiatorHttpComponent(BaseComponent):
                 # hand spec to scheduler
                 reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec)
                 
-                # return error if spec is not authorized
-                if isinstance(reply, mplane.model.Exception):
-                    # send result to the Client/Supervisor
-                    res = self.pool.urlopen('POST', self.result_path, 
-                            body=mplane.model.unparse_json(reply).encode("utf-8"), 
-                            headers={"content-type": "application/x-mplane+json"})
-                    return
+                # send receipt to the Client/Supervisor
+                res = self.pool.urlopen('POST', self.result_path, 
+                        body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                        headers={"content-type": "application/x-mplane+json"})
                 
                 # enqueue job
                 job = self.scheduler.job_for_message(reply)
@@ -315,23 +312,26 @@ class InitiatorHttpComponent(BaseComponent):
         
         # check if job is completed
         while job.finished() is not True:
+            reply = job.get_reply()
             if job.failed():
-                reply = job.get_reply()
                 break
             sleep(1)
-        if isinstance (reply, mplane.model.Receipt):
-            reply = job.get_reply()
-        
         # send result to the Supervisor
         res = self.pool.urlopen('POST', self.result_path, 
                 body=mplane.model.unparse_json(reply).encode("utf-8"), 
                 headers={"content-type": "application/x-mplane+json"})
                 
         # handle response
-        if res.status == 200:
-            print("Result for " + reply.get_label() + " successfully returned!")
+        if isinstance(reply, mplane.model.Envelope):
+            for msg in reply.messages():
+                label = msg.get_label()
+                break
         else:
-            print("Error returning Result for " + reply.get_label())
+            label = reply.get_label()
+        if res.status == 200:
+            print("Result for " + label + " successfully returned!")
+        else:
+            print("Error returning Result for " + label)
             print("Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
 
