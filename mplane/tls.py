@@ -66,14 +66,22 @@ class TlsState:
         which can be used to connect to the URL.
         """
         
-        if scheme == "http":
-            return urllib3.HTTPConnectionPool(host, port) 
+        if scheme is None:
+            if self._keyfile:
+                return urllib3.HTTPSConnectionPool(host, port,
+                                                    key_file=self._keyfile,
+                                                    cert_file=self._certfile,
+                                                    ca_certs=self._cafile)
+            else:
+                return urllib3.HTTPConnectionPool(host, port)
+        elif scheme == "http":
+            return urllib3.HTTPConnectionPool(host, port)
         elif scheme == "https":
             if self._keyfile:
-                return urllib3.HTTPSConnectionPool(host, port, 
-                                                    key_file=self._keyfile, 
-                                                    cert_file=self._certfile, 
-                                                    ca_certs=self._cafile) 
+                return urllib3.HTTPSConnectionPool(host, port,
+                                                    key_file=self._keyfile,
+                                                    cert_file=self._certfile,
+                                                    ca_certs=self._cafile)
             else:
                 raise ValueError("SSL requested without providing certificate")
                 exit(1)
