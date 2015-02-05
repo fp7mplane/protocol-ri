@@ -73,6 +73,10 @@ class Service(object):
         """Returns the capability belonging to this service"""
         return self._capability
 
+    def set_capability_link(self, link):
+        """Sets the link section in the capability schema"""
+        self._capability.set_link(link)
+
     def __repr__(self):
         return "<Service for "+repr(self._capability)+">"
 
@@ -169,7 +173,11 @@ class Job(object):
         return self.exception is not None
 
     def finished(self):
-        """Return True if the job is complete."""
+        """
+        Return False if the job is not complete
+        and if there are results pending.
+        Otherwise return True
+        """
         return self.result is not None
 
     def get_reply(self):
