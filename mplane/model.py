@@ -2828,7 +2828,12 @@ class Envelope(object):
         self._content_type = content_type
         self._token = token
         self._label = label
-        self._when = when
+        self._when = None
+        if when:
+            (start, end) = when.datetimes()
+            self._when = When(a=start,
+                              b=end,
+                              period=when.period())
 
         if dictval is not None:
             self._from_dict(dictval)
@@ -2910,7 +2915,7 @@ class Envelope(object):
           return self._token
 
     def when(self):
-        """ Returns the envelope's temporal scope. (If it's a bunch of multijob results """
+        """ Returns the envelope's temporal scope. (If it's a bunch of multijob results) """
         return self._when
 #######################################################################
 # Utility methods
