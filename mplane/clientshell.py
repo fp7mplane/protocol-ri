@@ -320,9 +320,14 @@ class ClientShell(cmd.Cmd):
         Usage: showmeas [label-or-token] 
 
         """
-        res = self._client.result_for(arg)
-        text = mplane.model.render_text(res)
-        print(text)
+        try:
+            meas = arg.split()[0]
+        except:
+            print("Usage: showmeas [label-or-token]")
+            return
+
+        res = self._client.result_for(meas)
+        mplane.model.render_text(res)
 
     # def complete_showcap(self, text, line, start_index, end_index):
     #     """Tab-complete known receipt and result labels and tokens in any position"""

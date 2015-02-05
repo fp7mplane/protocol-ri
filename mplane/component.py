@@ -41,6 +41,7 @@ import threading
 
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
+SPECIFICATION_PATH_ELEM = "/"
 
 class BaseComponent(object):
     
@@ -50,6 +51,7 @@ class BaseComponent(object):
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():
+            service.set_capability_link(SPECIFICATION_PATH_ELEM)
             self.scheduler.add_service(service)
     
     def _services(self):
@@ -244,7 +246,6 @@ class InitiatorHttpComponent(BaseComponent):
                     body=mplane.model.unparse_json(env).encode("utf-8"), 
                     headers={"content-type": "application/x-mplane+json"})
                 connected = True
-                
             except:
                 print("Supervisor (or client) unreachable. Retrying connection in 5 seconds")
                 sleep(5)
@@ -316,7 +317,7 @@ class InitiatorHttpComponent(BaseComponent):
             if job.failed():
                 break
             sleep(1)
-        # send result to the Supervisor
+        # send result to the Client/Supervisor
         res = self.pool.urlopen('POST', self.result_path, 
                 body=mplane.model.unparse_json(reply).encode("utf-8"), 
                 headers={"content-type": "application/x-mplane+json"})
