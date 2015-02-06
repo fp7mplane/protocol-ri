@@ -93,11 +93,11 @@ def test_AuthorizationOff():
 
 ''' TLS module tests '''
 
-cert = utils.search_path(path.join(conf_dir, "component-1.crt"))
-key = utils.search_path(path.join(conf_dir, "component-1-plaintext.key"))
+cert = utils.search_path(path.join(conf_dir, "Component-SSB.crt"))
+key = utils.search_path(path.join(conf_dir, "Component-SSB-plaintext.key"))
 ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
 
-identity = "org.mplane.Test.Components.Component-1"
+identity = "org.mplane.SSB.Components.Component-1"
 forged_identity = "org.example.test"
 
 host = "127.0.0.1"
@@ -169,13 +169,13 @@ import urllib3
 import time
 import ssl
 
-s_cert = utils.search_path(path.join(conf_dir, "client-1.crt"))
-s_key = utils.search_path(path.join(conf_dir, "client-1-plaintext.key"))
+s_cert = utils.search_path(path.join(conf_dir, "Supervisor-SSB.crt"))
+s_key = utils.search_path(path.join(conf_dir, "Supervisor-SSB-plaintext.key"))
 s_ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
 url = urllib3.util.url.parse_url(
-    "https://Client-1.Clients.Test.mplane.org:8888")
+    "https://127.0.0.1:8888")
 
-s_identity = "org.mplane.Test.Clients.Client-1"
+s_identity = "org.mplane.SSB.Supervisors.Supervisor-1"
 
 
 class getToken(tornado.web.RequestHandler):
