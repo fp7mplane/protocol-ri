@@ -270,12 +270,15 @@ class ClientShell(cmd.Cmd):
         # Prompt for missing capabilities (saving these in defaults)
         params = {}
         for pname in cap.parameter_names():
-            print("pname = " + str(pname))
-            print("self.defaults = " + str(self._defaults))
             while pname not in self._defaults or \
                   not cap.can_set_parameter_value(pname, self._defaults[pname]):
-                sys.stdout.write(pname + " = ")
-                self._defaults[pname] = input()
+                single_val = cap.get_single_parameter_value(pname)
+                if single_val is not None:
+                    self._defaults[pname] = str(single_val)
+                    sys.stdout.write(pname + " = " + str(single_val) + "\n")
+                else:
+                    sys.stdout.write(pname + " = ")
+                    self._defaults[pname] = input()
             params[pname] = self._defaults[pname]
 
         # Now invoke it

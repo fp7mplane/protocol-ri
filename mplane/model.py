@@ -1869,6 +1869,17 @@ class Parameter(Element):
         """
         return self._constraint.single_value() is not None
 
+    def get_single_value(self):
+        """
+        If this parameter's Constraint only allows a single value, returns it
+
+        """
+        single_val = self._constraint.single_value()
+        if single_val is not None:
+            return single_val
+        else:
+            return None
+
     def set_single_value(self):
         """
         If this Parameter's Constraint allows only a single value, and this
@@ -2090,7 +2101,7 @@ class Statement(object):
         for each parameter with a value.
         """
         d = {}
-        for k in parameter_names:
+        for k in self.parameter_names():
             v = self.get_parameter_value(k)
             if v:
                 d[k] = v
@@ -2118,10 +2129,12 @@ class Statement(object):
         elem = self._params[elem_name]
         return elem.can_set_value(value)
 
-    def is_single_parameter_value(self, param_name):
-        """Determines whether a given parameter is single-valued."""
-        return self._params[elem_name].is_singl(value)
-
+    def get_single_parameter_value(self, elem_name):
+        """
+        If a given parameter is single-valued returns
+        that value, otherwise returns None
+        """
+        return self._params[elem_name].get_single_value()
 
     def add_metadata(self, elem_name, val):
         """Programatically adds a metadata element to this Statement."""
