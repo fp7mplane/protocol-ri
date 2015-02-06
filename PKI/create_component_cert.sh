@@ -2,14 +2,14 @@ export MPLANE_DIR=$(pwd)
 export MPLANE_PKI_DIR=$MPLANE_DIR/ca
 
 echo "
-IMPORTANT: Before doing this, set the DNS name (SAN) and DN name you want for your supervisor, in etc/supervisor.conf 
+IMPORTANT: Before doing this, set the DNS name (SAN) and DN name you want for your component, in etc/component.conf 
 "
 
 echo "Enter certificate name: "
 read name
 
 echo "Creating TLS certificate request....."
-openssl req -new -config $MPLANE_DIR/etc/CI-supervisor.conf -out $MPLANE_PKI_DIR/certs/${name}.csr -keyout $MPLANE_PKI_DIR/certs/${name}.key
+openssl req -new -config $MPLANE_DIR/etc/component.conf -out $MPLANE_PKI_DIR/certs/${name}.csr -keyout $MPLANE_PKI_DIR/certs/${name}.key
 
 echo "Creating TLS certificate....."
 
