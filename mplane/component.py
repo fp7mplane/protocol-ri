@@ -37,10 +37,10 @@ import argparse
 from time import sleep
 import urllib3
 import json
-import threading
 
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
+SPECIFICATION_PATH_ELEM = "/"
 
 class BaseComponent(object):
     
@@ -50,6 +50,7 @@ class BaseComponent(object):
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():
+            service.set_capability_link(SPECIFICATION_PATH_ELEM)
             self.scheduler.add_service(service)
     
     def _services(self):
@@ -244,9 +245,8 @@ class InitiatorHttpComponent(BaseComponent):
                     body=mplane.model.unparse_json(env).encode("utf-8"), 
                     headers={"content-type": "application/x-mplane+json"})
                 connected = True
-                
             except:
-                print("Supervisor (or client) unreachable. Retrying connection in 5 seconds")
+                print("Client/Supervisor unreachable. Retrying connection in 5 seconds")
                 sleep(5)
                 
         # handle response message
@@ -260,7 +260,7 @@ class InitiatorHttpComponent(BaseComponent):
                     print(key + ": Failed (" + body[key]['reason'] + ")")
             print("")
         else:
-            print("Error registering capabilities, Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+            print("Error registering capabilities, Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
             exit(1)
     
     def check_for_specs(self):
@@ -283,56 +283,49 @@ class InitiatorHttpComponent(BaseComponent):
                     break
 
                 # hand spec to scheduler
-                reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec)
+                reply = self.scheduler.process_message(self.tls.extract_local_identity(), spec, callback=self.return_results)
                 
-                # return error if spec is not authorized
-                if isinstance(reply, mplane.model.Exception):
-                    # send result to the Client/Supervisor
-                    res = self.pool.urlopen('POST', self.result_path, 
-                            body=mplane.model.unparse_json(reply).encode("utf-8"), 
-                            headers={"content-type": "application/x-mplane+json"})
-                    return
-                
-                # enqueue job
-                job = self.scheduler.job_for_message(reply)
-                
-                # launch a thread to monitor the status of the running measurement
-                t = threading.Thread(target=self.return_results, args=[job])
-                t.start()
+                # send receipt to the Client/Supervisor
+                res = self.pool.urlopen('POST', self.result_path, 
+                        body=mplane.model.unparse_json(reply).encode("utf-8"), 
+                        headers={"content-type": "application/x-mplane+json"})
                 
         # not registered on supervisor, need to re-register
         elif res.status == 428:
-            print("\nRe-registering capabilities on Supervisor")
+            print("\nRe-registering capabilities on Client/Supervisor")
             self.register_to_supervisor()
         pass
     
-    def return_results(self, job):
+    def return_results(self, receipt):
         """
-        Monitors a job, and as soon as it is complete sends it to the Supervisor
+        Checks if a job is complete, and in case sends it to the Client/Supervisor
         
         """
+        job = self.scheduler.job_for_message(receipt)
         reply = job.get_reply()
         
         # check if job is completed
-        while job.finished() is not True:
-            if job.failed():
-                reply = job.get_reply()
-                break
-            sleep(1)
-        if isinstance (reply, mplane.model.Receipt):
-            reply = job.get_reply()
-        
-        # send result to the Supervisor
+        if (job.finished() is not True and
+            job.failed() is not True):
+            return
+
+        # send result to the Client/Supervisor
         res = self.pool.urlopen('POST', self.result_path, 
                 body=mplane.model.unparse_json(reply).encode("utf-8"), 
                 headers={"content-type": "application/x-mplane+json"})
                 
         # handle response
-        if res.status == 200:
-            print("Result for " + reply.get_label() + " successfully returned!")
+        if isinstance(reply, mplane.model.Envelope):
+            for msg in reply.messages():
+                label = msg.get_label()
+                break
         else:
-            print("Error returning Result for " + reply.get_label())
-            print("Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
+            label = reply.get_label()
+        if res.status == 200:
+            print("Result for " + label + " successfully returned!")
+        else:
+            print("Error returning Result for " + label)
+            print("Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
 
 if __name__ == "__main__":

@@ -270,8 +270,11 @@ class ClientShell(cmd.Cmd):
         # Prompt for missing capabilities (saving these in defaults)
         params = {}
         for pname in cap.parameter_names():
+            print("pname = " + str(pname))
+            print("self.defaults = " + str(self._defaults))
             while pname not in self._defaults or \
                   not cap.can_set_parameter_value(pname, self._defaults[pname]):
+                sys.stdout.write(pname + " = ")
                 self._defaults[pname] = input()
             params[pname] = self._defaults[pname]
 
@@ -317,9 +320,14 @@ class ClientShell(cmd.Cmd):
         Usage: showmeas [label-or-token] 
 
         """
-        res = self._client.result_for(arg)
-        text = mplane.model.render_text(res)
-        print(text)
+        try:
+            meas = arg.split()[0]
+        except:
+            print("Usage: showmeas [label-or-token]")
+            return
+
+        res = self._client.result_for(meas)
+        mplane.model.render_text(res)
 
     # def complete_showcap(self, text, line, start_index, end_index):
     #     """Tab-complete known receipt and result labels and tokens in any position"""
