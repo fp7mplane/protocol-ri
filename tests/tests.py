@@ -126,10 +126,16 @@ def test_TLSState_pool_for():
     import urllib3
     http_pool = tls_with_file.pool_for("http", host, port)
     assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
- 
     https_pool = tls_with_file.pool_for("https", host, port)
     assert_true(isinstance(https_pool, urllib3.HTTPSConnectionPool))
-    
+
+
+def test_TLSState_pool_for_no_scheme():
+    https_pool = tls_with_file.pool_for(None, host, port)
+    assert_true(isinstance(https_pool, urllib3.HTTPSConnectionPool))
+    http_pool = tls_with_file_no_tls.pool_for(None, host, port)
+    assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
+ 
 
 @raises(ValueError)
 def test_TLSState_pool_for_fallback():
@@ -150,6 +156,7 @@ def test_TLSState_pool_for_unsupported_scheme():
 
 def test_TLSState_forged_identity():
     assert_equal(tls_with_file.forged_identity(), None)
+    assert_equal(tls_with_file_no_tls.forged_identity(), forged_identity)
 
 
 def test_TLSState_get_ssl_options():
@@ -159,6 +166,7 @@ def test_TLSState_get_ssl_options():
                   ca_certs=ca_chain,
                   cert_reqs=ssl.CERT_REQUIRED)
     assert_equal(tls_with_file.get_ssl_options(), output)
+    assert_equal(tls_with_file_no_tls.get_ssl_options(), None)
 
 
 import tornado.httpserver
