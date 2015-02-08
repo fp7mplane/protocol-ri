@@ -169,6 +169,16 @@ def test_TLSState_get_ssl_options():
     assert_equal(tls_with_file_no_tls.get_ssl_options(), None)
 
 
+def test_TLSState_extract_local_identity():
+    local_identity = tls_with_file.extract_local_identity()
+    assert_equal(local_identity, identity)
+    local_identity = tls_with_file_no_tls.extract_local_identity()
+    assert_equal(local_identity, tls.DUMMY_DN)
+    local_identity = tls_with_file_no_tls.extract_local_identity(
+        forged_identity)
+    assert_equal(local_identity, forged_identity)
+
+
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
