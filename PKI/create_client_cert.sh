@@ -9,11 +9,11 @@ echo "Enter certificate name: "
 read name
 
 echo "Creating TLS certificate request....."
-openssl req -new -config $MPLANE_DIR/etc/CI-client.conf -out $MPLANE_PKI_DIR/certs/${name}.csr -keyout $MPLANE_PKI_DIR/certs/${name}.key
+openssl req -new -config $MPLANE_DIR/etc/client.conf -out $MPLANE_PKI_DIR/certs/${name}.csr -keyout $MPLANE_PKI_DIR/certs/${name}.key
 
 echo "Creating TLS certificate....."
 
-openssl ca -config $MPLANE_DIR/etc/root-ca.conf -in $MPLANE_PKI_DIR/certs/${name}.csr -out $MPLANE_PKI_DIR/certs/${name}.crt
+openssl ca -config $MPLANE_DIR/etc/root-ca.conf -in $MPLANE_PKI_DIR/certs/${name}.csr -out $MPLANE_PKI_DIR/certs/${name}.crt -extensions server_ext
 
 echo "Creating plaintext key....."
 
