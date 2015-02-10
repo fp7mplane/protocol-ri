@@ -272,7 +272,13 @@ class ClientShell(cmd.Cmd):
         for pname in cap.parameter_names():
             while pname not in self._defaults or \
                   not cap.can_set_parameter_value(pname, self._defaults[pname]):
-                self._defaults[pname] = input()
+                single_val = cap.get_single_parameter_value(pname)
+                if single_val is not None:
+                    self._defaults[pname] = str(single_val)
+                    sys.stdout.write(pname + " = " + str(single_val) + "\n")
+                else:
+                    sys.stdout.write(pname + " = ")
+                    self._defaults[pname] = input()
             params[pname] = self._defaults[pname]
 
         # Now invoke it
@@ -317,9 +323,14 @@ class ClientShell(cmd.Cmd):
         Usage: showmeas [label-or-token] 
 
         """
-        res = self._client.result_for(arg)
-        text = mplane.model.render_text(res)
-        print(text)
+        try:
+            meas = arg.split()[0]
+        except:
+            print("Usage: showmeas [label-or-token]")
+            return
+
+        res = self._client.result_for(meas)
+        mplane.model.render_text(res)
 
     # def complete_showcap(self, text, line, start_index, end_index):
     #     """Tab-complete known receipt and result labels and tokens in any position"""

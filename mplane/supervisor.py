@@ -255,7 +255,7 @@ class SupervisorShell(cmd.Cmd):
         i = 1
         for key in self._supervisor._capabilities:
             for cap in self._supervisor._capabilities[key]:
-                print(str(i) + " - " + cap.get_label() + " fsdfswfdrom " + self._supervisor._dn_to_ip[key])
+                print(str(i) + " - " + cap.get_label() + " from " + self._supervisor._dn_to_ip[key])
                 i = i + 1
 
     def do_showcap(self, arg):
@@ -350,7 +350,7 @@ class SupervisorShell(cmd.Cmd):
         spec.set_when(self._when)
 
         # Fill in single values
-        spec.set_single_values()
+        #spec.set_single_values()
 
         # Fill in parameter values
         for pname in spec.parameter_names():

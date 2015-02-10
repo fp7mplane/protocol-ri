@@ -23,6 +23,7 @@
 
 import mplane.model
 import mplane.utils
+from datetime import datetime, timezone
 
 import html.parser
 import urllib3
@@ -222,8 +223,16 @@ class BaseClient(object):
 
         """
         try:
-            receipt = self._receipts[msg.get_token()]
-            self._remove_receipt(receipt)
+            if isinstance(msg, mplane.model.Envelope):
+                # if the result is an envelope containing multijob
+                # results, keep the receipt until the multijob ends
+                (start, end) = msg.when().datetimes()
+                if end < datetime.utcnow():
+                    receipt = self._receipts[msg.get_token()]
+                    self._remove_receipt(receipt)
+            else:
+                receipt = self._receipts[msg.get_token()]
+                self._remove_receipt(receipt)
         except KeyError:
             pass
         self._results[msg.get_token()] = msg
@@ -245,20 +254,20 @@ class BaseClient(object):
         return the receipt for the token otherwise.
         """
         # first look in state
-        if token_or_label in self._result_labels:
-            return self._result_labels[token_or_label]
-        elif token_or_label in self._results:
-            return self._results[token_or_label]
-        elif token_or_label in self._receipt_labels:
+        if token_or_label in self._receipt_labels:
             return self._receipt_labels[token_or_label]
         elif token_or_label in self._receipts:
             return self._receipts[token_or_label]
+        elif token_or_label in self._result_labels:
+            return self._result_labels[token_or_label]
+        elif token_or_label in self._results:
+            return self._results[token_or_label]
         else:
             raise KeyError("no such token or label "+token_or_label)
 
-    def _handle_exception(self, msg):
+    def _handle_exception(self, msg, identity):
         # FIXME what do we do with these?
-        pass
+        print("Exception received: " + msg.__repr__())
 
     def handle_message(self, msg, identity=None):
         """
@@ -279,8 +288,11 @@ class BaseClient(object):
         elif isinstance(msg, mplane.model.Exception):
             self._handle_exception(msg, identity)
         elif isinstance(msg, mplane.model.Envelope):
-            for imsg in msg.messages():
-                self.handle_message(imsg, identity)
+            if msg.get_token() in self._receipts:
+                self._handle_result(msg, identity)
+            else:
+                for imsg in msg.messages():
+                    self.handle_message(imsg, identity)
         else:
             raise ValueError("Internal error: unknown message "+repr(msg))
 
@@ -407,7 +419,12 @@ class HttpInitiatorClient(BaseClient):
         if self._tls_state.forged_identity():
             headers[FORGED_DN_HEADER] = self._tls_state.forged_identity()
 
-        res = pool.urlopen('POST', dst_url.path, 
+        if dst_url.path is not None:
+            path = dst_url.path
+        else:
+            path = "/"
+
+        res = pool.urlopen('POST', path,
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
         if (res.status == 200 and 
@@ -426,8 +443,20 @@ class HttpInitiatorClient(BaseClient):
         """
         # go get a raw receipt or result
         rr = super().result_for(token_or_label)
-        if isinstance(rr, mplane.model.Result):
-            return rr
+
+        # check if it's a Job or Multijob result
+        if (isinstance(rr, mplane.model.Result) or
+            isinstance(rr, mplane.model.Envelope)):
+
+            # If it's a Multijob result, there may be a receipt
+            # to retrieve further data.
+            # In that case, ignore the current result and
+            # retrieve up-to-date results from the component
+            if (rr.get_token() not in self.receipt_tokens() and
+                rr.get_label() not in self.receipt_labels()):
+                return rr
+            else:
+                rr = self._receipts[rr.get_token()]
 
         # if we're here, we have a receipt. try to redeem it.
         self.send_message(mplane.model.Redemption(receipt=rr))
@@ -450,7 +479,11 @@ class HttpInitiatorClient(BaseClient):
         """
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         spec.validate()
-        self.send_message(spec, dst_url=cap.get_link())
+        dst_url = urllib3.util.Url(scheme=self._default_url.scheme,
+                                   host=self._default_url.host,
+                                   port=self._default_url.port,
+                                   path=cap.get_link())
+        self.send_message(spec, dst_url)
 
     def retrieve_capabilities(self, url, urlchain=[], pool=None):
         """
@@ -462,6 +495,9 @@ class HttpInitiatorClient(BaseClient):
         if url in urlchain:
             return
 
+        if not self._default_url:
+            self.set_default_url(url)
+
         if isinstance(url, str):
             url = urllib3.util.parse_url(url)
 
@@ -472,7 +508,11 @@ class HttpInitiatorClient(BaseClient):
                 print("ConnectionPool not defined")
                 exit(1)
 
-        res = pool.request('GET', url.path)
+        if url.path is not None:
+            path = url.path
+        else:
+            path = "/"
+        res = pool.request('GET', path)
 
         if res.status == 200:
             ctype = res.getheader("Content-Type")
