@@ -335,6 +335,8 @@ RANGE_SEP = " ... "
 DURATION_SEP = " + "
 PERIOD_SEP = " / "
 SET_SEP = ","
+MV_BEGIN = "["
+MV_END = "]"
 ANCHOR_SEP = "#"
 INNER_WHEN_SEP_START = " { "
 INNER_WHEN_SEP_END = " } "
@@ -1695,6 +1697,9 @@ def element(name, reguri=None):
 # Constraints
 #######################################################################
 
+def _val_is_multiple(val):
+    return hasattr(val, "__iter__") and not isinstance(val, str)
+
 class _Constraint(object):
     """
     Represents a set of acceptable values for an element.
@@ -1705,20 +1710,30 @@ class _Constraint(object):
     Constraint classes through Parameters.
 
     """
-    def __init__(self, prim):
+    def __init__(self, prim, multival=False):
         super().__init__()
         self._prim = prim
+        self.multival = multival
 
     def __str__(self):
         """Represents this Constraint as a string"""
-        return CONSTRAINT_ALL
+        if self.multival:
+            return MV_BEGIN + CONSTRAINT_ALL + MV_END
+        else:
+            return CONSTRAINT_ALL
 
     def __repr__(self):
-        return "mplane.model.constraint_all"
+        if self.multival:
+            return "mplane.model.constraint_all_multiple"
+        else:
+            return "mplane.model.constraint_all"
 
     def met_by(self, val):
         """Determines if this constraint is met by a given value."""
-        return True
+        if self.multival:
+            return True
+        else:
+            return not _val_is_multiple(val)
 
     def single_value(self):
         """
@@ -1730,12 +1745,13 @@ class _Constraint(object):
         return None
 
 constraint_all = _Constraint(None)
+constraint_all_multiple = _Constraint(None, True)
 
 class _RangeConstraint(_Constraint):
     """Represents acceptable values for an element as an inclusive range"""
 
-    def __init__(self, prim, sval=None, a=None, b=None):
-        super().__init__(prim)
+    def __init__(self, prim, sval=None, a=None, b=None, multival=False):
+        super().__init__(prim, multival)
         if sval is not None:
             (astr, bstr) = sval.split(RANGE_SEP)
             self.a = prim.parse(astr)
@@ -1751,9 +1767,12 @@ class _RangeConstraint(_Constraint):
             (self.a, self.b) = (self.b, self.a)
 
     def __str__(self):
-        return self._prim.unparse(self.a) + \
-               RANGE_SEP + \
-               self._prim.unparse(self.b)
+        out = self._prim.unparse(self.a) + \
+              RANGE_SEP + \
+              self._prim.unparse(self.b)
+        if self.multival:
+            out = MV_BEGIN + out + MV_END
+        return out
 
     def __repr__(self):
         return "mplane.model.RangeConstraint("+repr(self._prim)+\
@@ -1761,7 +1780,16 @@ class _RangeConstraint(_Constraint):
 
     def met_by(self, val):
         """Determines if the value is within the range"""
-        return (val >= self.a) and (val <= self.b)
+        if _val_is_multiple(val):
+            if not self.multival:
+                return False
+            else:
+                for v in val:
+                    if val < self.a or val > self.b:
+                        return False
+                return True
+        else:
+            return (val >= self.a) and (val <= self.b)
 
     def single_value(self):
         """If this constraint only allows a single value, return it. Otherwise, return None."""
@@ -1772,8 +1800,8 @@ class _RangeConstraint(_Constraint):
 
 class _SetConstraint(_Constraint):
     """Represents acceptable values as a discrete set."""
-    def __init__(self, prim, sval=None, vs=None):
-        super().__init__(prim)
+    def __init__(self, prim, sval=None, vs=None, multival=False):
+        super().__init__(prim, multival)
         if sval is not None:
             self.vs = set(map(self._prim.parse, sval.split(SET_SEP)))
         elif vs is not None:
@@ -1782,7 +1810,10 @@ class _SetConstraint(_Constraint):
             self.vs = set()
 
     def __str__(self):
-        return SET_SEP.join(map(self._prim.unparse, self.vs))
+        out = SET_SEP.join(map(self._prim.unparse, self.vs))
+        if self.multival:
+            out = MV_BEGIN + out + MV_END
+        return out
 
     def __repr__(self):
         return "mplane.model.SetConstraint("+repr(self._prim)+\
@@ -1790,7 +1821,16 @@ class _SetConstraint(_Constraint):
 
     def met_by(self, val):
         """Determines if the value is a mamber of the set"""
-        return val in self.vs
+        if _val_is_multiple(val):
+            if not self.multival:
+                return False
+            else:
+                for v in val:
+                    if v not in self.vs:
+                        return False
+                return True
+        else:
+            return val in self.vs
 
     def single_value(self):
         """If this constraint only allows a single value, return it. Otherwise, return None."""
@@ -1798,6 +1838,14 @@ class _SetConstraint(_Constraint):
             return list(self.vs)[0]
         else:
             return None
+
+class _NetworkConstraint(_Constraint):
+  """
+  Represents acceptable values as a network address with a prefix length. 
+  Not yet implemented.
+
+  """
+  pass
 
 def parse_constraint(prim, sval):
     """
