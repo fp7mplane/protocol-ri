@@ -1249,8 +1249,9 @@ def test_registry():
     assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
 
     # registry with a parent
-    test_registry = Registry("../tests/registry_with_parent.json")
-    assert repr(test_registry["testName"]) == "<Element ../tests/registry_with_parent.json#testName mplane.model.prim_time >"
+
+    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "registry_with_parent.json"))
+    assert repr(test_registry["testName"]) == "<Element tests/registry_with_parent.json#testName mplane.model.prim_time >"
     assert test_registry["testName"].name() == "testName"
     assert test_registry["testName"].primitive_name() == "time"
     assert test_registry["testName"].desc() == "testDesc"
@@ -1260,7 +1261,7 @@ def test_registry():
     assert test_registry["start"].primitive_name() == "time"
     assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
     # overwritten element
-    assert repr(test_registry["end"]) == "<Element ../tests/registry_with_parent.json#end mplane.model.prim_time >"
+    assert repr(test_registry["end"]) == "<Element tests/registry_with_parent.json#end mplane.model.prim_time >"
     assert test_registry["end"].name() == "end"
     assert test_registry["end"].primitive_name() == "time"
     assert test_registry["end"].desc() == "overwritten end"
