@@ -21,6 +21,7 @@ This document differs from the revision of the protocol documented in the mPlane
 - Addition of augmented registry information.
 - Addition of tokens to envelopes.
 - Clarification that interrupts are intended to return pending results.
+- Addition of multiple value constraints
 
 # mPlane Architecture
 
@@ -498,9 +499,16 @@ Four kinds of constraints are currently supported for mPlane parameters:
 - Single value constraint: only a single value is allowed. This is intended for use for capabilities which are conceivably configurable, but for which a given component only supports a single value for a given parameter due to its own out-of-band configuration or the permissions of the client for which the capability is valid. For example, the source address of an active measurement of a single-homed probe might be given as '`source.ip4: 192.0.2.19`'.
 - Set constraint: multiple values are allowed, and are explicitly listed, separated by the '`,`' character. For example, a multi-homed probe allowing two potential source addresses on two different networks might be given as '`source.ip4: 192.0.2.19, 192.0.3.21`'.
 - Range constraint: multiple values are allowed, between two ordered values, separated by the special string '`...`'. Range constraints are inclusive. A measurement allowing a restricted range of source ports might be expressed as '`source.port: 32768 ... 65535`'
-- Prefix constraint: multiple values are allowed within a single network, as specified by a network address and a prefix. A prefix constraint may be satisfied by any network of host address completely contained within the prefix. An example allowing probing of any host within a given /24 might be '`destination.ip4: 192.0.2.0/24`'.
+- Prefix constraint: multiple values are allowed within a single network, as specified by a network address and a prefix. A prefix constraint may be satisfied by any network of host address completely contained within the prefix. An example allowing probing of any host within a given /24 might be '`destination.ip4: 192.0.2.0/24`'. 
 
 Parameter and constraint values must be a representation of an instance of the primitive type of the associated element.
+
+#### Multivalue Parameters
+
+Some types of measurement may benefit from taking multiple values for a parameter in the specification.
+Multivalue parameters are noted in the capability by enclosing the constraint in square brackets; e.g. an unconstrained multivalue is denoted `'[*]'`. 
+
+This feature is presently experimental, and only implemented in the `sdk-multival` branch of the git repository.
 
 ### Metadata
 

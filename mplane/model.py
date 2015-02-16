@@ -1698,7 +1698,7 @@ def element(name, reguri=None):
 #######################################################################
 
 def _val_is_multiple(val):
-    return hasattr(val, "__iter__") and not isinstance(val, str)
+    return isinstance(val, (list, tuple))
 
 class _Constraint(object):
     """
@@ -1785,7 +1785,7 @@ class _RangeConstraint(_Constraint):
                 return False
             else:
                 for v in val:
-                    if val < self.a or val > self.b:
+                    if v < self.a or v > self.b:
                         return False
                 return True
         else:
@@ -1854,16 +1854,28 @@ def parse_constraint(prim, sval):
     appropriate constraint class.
 
     """
-    if sval == CONSTRAINT_ALL:
-        return constraint_all
-    elif sval.find(RANGE_SEP) > 0:
-        return _RangeConstraint(prim=prim, sval=sval)
+    if sval[0] == MV_BEGIN and sval[-1] == MV_END:
+        multival = True
+        sval = sval[1:-1]
     else:
-        return _SetConstraint(prim=prim, sval=sval)
+        multival = False
+
+    if sval == CONSTRAINT_ALL:
+        if multival:
+            return constraint_all_multiple
+        else:
+            return constraint_all
+    elif sval.find(RANGE_SEP) > 0:
+        return _RangeConstraint(prim=prim, sval=sval, multival=multival)
+    else:
+        return _SetConstraint(prim=prim, sval=sval, multival=multival)
 
 def test_constraints():
     assert constraint_all.met_by("whatever")
     assert constraint_all.met_by(None)
+
+    assert not constraint_all.met_by(["whatever", "something else"])
+    assert constraint_all_multiple.met_by(["whatever", "something else"])
 
     rc = parse_constraint(prim_natural,"0 ... 99")
     assert not rc.met_by(-1)
@@ -1873,9 +1885,14 @@ def test_constraints():
     assert not rc.met_by(100)
     assert str(rc) == "0 ... 99"
 
+    mrc = parse_constraint(prim_natural,"[0 ... 99]")
+    assert mrc.met_by((0,33,66,99))
+    assert not mrc.met_by((33,66,99,121))
+
     sc = parse_constraint(prim_address,"10.0.27.100,10.0.28.103")
     assert sc.met_by(ip_address('10.0.28.103'))
     assert not sc.met_by(ip_address('10.0.27.103'))
+
 
 #######################################################################
 # Statements
