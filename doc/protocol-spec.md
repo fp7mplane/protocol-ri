@@ -72,11 +72,11 @@ For exploratory analysis of large amounts of data at a repository, it is presume
 
 ## Workflows
 
-A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail. In the figure below, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability).
+A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail. In the figure below, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability). Messages at the top of the diagram are sent by components, at the bottom by clients.
 
 ![Potential sequences of messages in the mPlane protocol](./message-paths.png)
 
-Separate from the sequence of messages, the mPlane protocol supports two workflow patterns:
+Separate from the sequence of messages, the mPlane protocol supports two workflow patterns, referring to how connections are established:
 
   - __Client-initiated__ in which clients connect directly to components at known, stable, routable URLs. Client-initiated workflows are intended for use between clients and supervisors, for access to repositories, and for access to probes embedded within a network infrastructure.
 
@@ -100,11 +100,21 @@ When the client wishes to run a measurement, it sends a specification matching t
 
 As not all interaction among components in an mPlane infrastructure must be mediated by the supervisor, for more detailed queries of the repository, the client may directly access the repository via a backchannel.
 
-## Additional Architectural Principles
+## Architectural Requirements, Principles, and Rationale
 
-The mPlane protocol has been developed on the background of a two key principles not immediately apparent in a static analysis of the arrangement of entities in the architecture.
+Each of the properties of the mPlane architecture and protocol follows from requirements which themselves were derived from an analysis of a set of specific use cases defined in (mPlane Deliverable 1.1)[https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables/324mplane-d11.pdf], though the aim was to define an architecture applicable to a wider set of situations than these specific use cases.
 
-First, given the heterogeneity of the measurement tools and techniques applied, and the
+First, the architecture in its simplest form consists of only two entities and one relationship: n clients connect to m components via the mPlane protocol. Anything which can speak the mPlane protocol and exposes capabilites thereby is a component; anything which can understand these capabilities and sent specifications to invoke them is a client. Everything a component can do, from the point of view of mPlane, is entirely described by its capabilities. Capabilities are even used to expose optional internal features of the protocol itself, and provide a method for built-in protocol extensibility.
+
+*[**Editor's Note**: work continues from here]*
+
+![The simplest form of the mPlane architecture](./extremely-simple-architecture.png)
+
+![Simple mPlane architecture with a supervisor](./simple-architecture.png)
+
+![Federation between supervisors](./federation-architecture.png)
+
+Second, given the heterogeneity of the measurement tools and techniques applied, and the
 heterogeneity of component management, especially in large-scale measurement 
 infrastructures, reliably stateful management and control would imply 
 significant overhead at the supervisors and/or significant measurement control 
@@ -573,6 +583,10 @@ The interpretation of the semantics of an entire message is application-specific
 A message's identity is composed of its schema, together with its temporal scope, metadata, parameter values, and indirect export properties. Concretely, the full content of the `registry`, `when`, `parameters`, `metadata`, `results`, and `export` sections taken together comprise the message's identity. 
 
 One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked must be taken as part of the message's identity as well. Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens. 
+
+## Designing Measurement Schemas
+
+*[**Editor's Note**: We need a place to answer the reviewer comment that we still haven't shown how traceroute works, and to more explicitly point out that the meaning of a schema must be taken over all parameters and results. ]*
 
 # Representations and Session Protocols
 

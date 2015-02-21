@@ -29,9 +29,17 @@ from mplane import utils
 import configparser
 from os import path
 
+import tornado.httpserver
+import tornado.ioloop
+import tornado.web
+import threading
+import urllib3
+import time
+import ssl
+
+
 
 ''' HELPERS '''
-
 
 # FIXME: the following helper should be moved in mplane.utils module.
 def get_config(config_file):
@@ -43,31 +51,16 @@ def get_config(config_file):
     config.read(utils.search_path(config_file))
     return config
 
+###
+### azn.py tests 
+###
 
-''' Authorization Module Tests '''
-
-
-def setup():
-    print("Starting tests...")
-
-
-''' Set up test fixtures '''
-
-conf_dir = path.dirname(__file__)
+conf_dir = path.abspath(path.join(path.dirname(__file__),"..","testdata"))
 conf_file = 'component-test.conf'
 config_path = path.join(conf_dir, conf_file)
 config_path_no_tls = path.join(conf_dir, "component-test-no-tls.conf")
-
-# build up the capabilities' label
-
-model.initialize_registry()
-cap = model.Capability(label="test-log_tcp_complete-core")
-
-# set the identity
-
 id_true_role = "org.mplane.Test.Clients.Client-1"
 id_false_role = "Dummy"
-
 
 def test_Authorization():
     res_none = azn.Authorization(None)
@@ -79,6 +72,8 @@ def test_Authorization():
 
 
 def test_AuthorizationOn():
+    model.initialize_registry()
+    cap = model.Capability(label="test-log_tcp_complete-core")
     res = azn.AuthorizationOn(config_path)
     assert_true(isinstance(res, azn.AuthorizationOn))
     assert_true(res.check(cap, id_true_role))
@@ -86,12 +81,15 @@ def test_AuthorizationOn():
 
 
 def test_AuthorizationOff():
+    model.initialize_registry()
+    cap = model.Capability(label="test-log_tcp_complete-core")
     res = azn.AuthorizationOff()
     assert_true(isinstance(res, azn.AuthorizationOff))
     assert_true(res.check(cap, id_true_role))
 
-
-''' TLS module tests '''
+###
+### tls.py tests
+###
 
 cert = utils.search_path(path.join(conf_dir, "Component-SSB.crt"))
 key = utils.search_path(path.join(conf_dir, "Component-SSB-plaintext.key"))
@@ -123,7 +121,6 @@ def test_TLSState_init():
 
 
 def test_TLSState_pool_for():
-    import urllib3
     http_pool = tls_with_file.pool_for("http", host, port)
     assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
     https_pool = tls_with_file.pool_for("https", host, port)
@@ -179,19 +176,10 @@ def test_TLSState_extract_local_identity():
     assert_equal(local_identity, forged_identity)
 
 
-import tornado.httpserver
-import tornado.ioloop
-import tornado.web
-import threading
-import urllib3
-import time
-import ssl
-
 s_cert = utils.search_path(path.join(conf_dir, "Supervisor-SSB.crt"))
 s_key = utils.search_path(path.join(conf_dir, "Supervisor-SSB-plaintext.key"))
 s_ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
-url = urllib3.util.url.parse_url(
-    "https://127.0.0.1:8888")
+url = urllib3.util.url.parse_url("https://127.0.0.1:8888")
 
 s_identity = "org.mplane.SSB.Supervisors.Supervisor-1"
 
@@ -200,40 +188,32 @@ class getToken(tornado.web.RequestHandler):
     def get(self):
         self.write("It works!")
 
-application = tornado.web.Application([
-    (r'/', getToken),
-], debug=True)
+def runTornado():
+    application = tornado.web.Application([
+        (r'/', getToken),
+    ], debug=True)
 
-http_server = tornado.httpserver.HTTPServer(application,
+    http_server = tornado.httpserver.HTTPServer(application,
                                             ssl_options={
                                                 "certfile": s_cert,
                                                 "keyfile": s_key,
                                                 "ca_certs": s_ca_chain,
                                                 "cert_reqs": ssl.CERT_REQUIRED
-                                            })
+                                            })    
 
-
-def startTornado():
     http_server.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
-
 
 def stopTornado():
     tornado.ioloop.IOLoop.instance().stop()
 
+def test_peer_identity():
+    threading.Thread(target=runTornado).start()
+    print("\nWaiting for Tornado to start...")
+    time.sleep(0.5)   
 
-threading.Thread(target=startTornado).start()
-
-
-def test_extract_peer_identity():
     assert_equal(tls_with_file.extract_peer_identity(url), s_identity)
-
-
-def test_extract_peer_identity_no_tls():
     assert_equal(tls_with_file_no_tls.extract_peer_identity(url), tls.DUMMY_DN)
-
-
-def test_extract_peer_identity_invalid():
     try:
         tls_with_file.extract_peer_identity('break me!')
     except ValueError as e:
@@ -241,3 +221,4 @@ def test_extract_peer_identity_invalid():
         stopTornado()
         print("\nWaiting for Tornado to stop...")
         time.sleep(0.5)
+
