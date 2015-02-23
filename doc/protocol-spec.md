@@ -9,8 +9,7 @@ This document defines the present revision of the mPlane architecture for
 coordination of heterogeneous network measurement components: probes and
 repositories that measure, analyze, and store network measurements,
 data derived from measurements, and other ancillary data about elements
-of the network. The architecture is defined in terms of a single protocol, 
-described in this document. 
+of the network. The architecture is defined in terms of relationships between components and clients which communicate using the mPlane protocol, which is defined in this document.
 
 This document is the work of the mPlane consortium, specifically B. Trammell, M. Kühlewind, M. Mellia, A. Finamore, S. Pentassuglia, G. De Rosa, F. Invernizzi, M. Milanesio, D. Rossi, S. Niccolini, I. Leontiadis, T. Szemethy, B. Szabó, R. Winter, M. Faath, B. Donnet, and D. Papadimitriou. It reflects Version 1 of the mPlane protocol.
 
@@ -21,6 +20,7 @@ This document differs from the revision of the protocol documented in the mPlane
 - Addition of augmented registry information.
 - Addition of tokens to envelopes.
 - Clarification that interrupts are intended to return pending results.
+- Reorganization of architecture section for clarity.
 
 # mPlane Architecture
 
@@ -39,7 +39,11 @@ within this document, advertises its capabilities and accepts specifications whi
 
 Conversely, a __client__ is any entity which implements the mPlane protocol, receives capabilities published by one or more components, and sends specifications to those component(s) to perform  measurements and analysis. 
 
-Every interaction in the mPlane protocol takes place between a component and a client.
+Every interaction in the mPlane protocol takes place between a component and a client. Indeed, the simplest instantiation of the mPlane architecture consists of one or more clients taking capabilities from one or more components, and sending specifications to invoke those capabilities, as shown in the diagram below.
+
+![The simplest form of the mPlane architecture](./extremely-simple-architecture.png)
+
+Indeed, an mPlane domain may consist of as little as a single client and a single component. In this arrangement, mPlane provides a measurement-oriented RPC mechanism.
 
 ### Probes and Repositories
 
@@ -51,12 +55,16 @@ Note that this categorization is very rough: what a component can do is complete
 
 An entity which implements both the client and component interfaces can be used to build and federate domains of mPlane components. This __supervisor__ is responsible for collecting capabilities from a set of components, and providing
 capabilities based on these to its clients. Application-specific algortihms at the supervisor aggregate the lower-level capabilities provided by these components into
-higher-level capabilities exposed to its clients. 
+higher-level capabilities exposed to its clients. This arrangement is shown in the figure below.
+
+![Simple mPlane architecture with a supervisor](./simple-architecture.png)
 
 The set of components which respond to specifications from a single supervisor
-is referred to as an mPlane __domain__; domain membership is also determined by the issuer of the certificates identifying the clients, components, and supervisor, as detailed [below](#access-control-in-https). Since a supervisor allows the aggregation of control, in the general case it implements access control based on the identity information provided by the session protocol (HTTPS, WSS, or SSH). And since the logic for aggregating control and data for a given application is very specific to that application, there is no _generic_ supervisor implementation provided with the mPlane Reference Implementation.
+is referred to as an mPlane __domain__. Domain membership is also determined by the issuer of the certificates identifying the clients, components, and supervisor, as detailed [below](#access-control-in-https). Since a supervisor allows the aggregation of control, in the general case it implements access control based on the identity information provided by the session protocol (HTTPS, WSS, or SSH). And since the logic for aggregating control and data for a given application is very specific to that application, there is no _generic_ supervisor implementation provided with the mPlane Reference Implementation.
 
-Interdomain measurement is supported by federation among supervisors: a local supervisor delegates measurements in a remote domain to that domain's supervisor. 
+Within a given domain, each client and component connects to only one supervisor. Underlying measurement components and clients may indeed participate in multiple domains, but these are separate entities from the point of view of the platform. Interdomain measurement is supported by federation among supervisors: a local supervisor delegates measurements in a remote domain to that domain's supervisor, as shown in the figure below.
+
+![Federation between supervisors](./federation-architecture.png)
 
 ## Reasoner
 
@@ -70,19 +78,19 @@ For measurements generating large amounts of data (e.g. passive observations of 
 
 For exploratory analysis of large amounts of data at a repository, it is presumed that clients will have additional backchannel __direct access__ beyond those interactions mediated by mPlane. For instance, a repository backed by a relational database could have a web-based graphical user interface that interacts directly with the database.
 
-## Workflows
+## Message Sequences
 
-A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail. In the figure below, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability). Messages at the top of the diagram are sent by components, at the bottom by clients.
+A __workflow__ is a sequence of messages exchanged between clients and components to perform measurements. In the nominal sequence, a capability leads to a specification leads to a result, where results may be transmitted by some other protocol. All the paths through the sequence of messages are shown in the diagram below; message types are described in the following section in detail. In the figure below, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability). Messages at the top of the diagram are sent by components, at the bottom by clients.
 
 ![Potential sequences of messages in the mPlane protocol](./message-paths.png)
 
-Separate from the sequence of messages, the mPlane protocol supports two workflow patterns, referring to how connections are established:
+Separate from the sequence of messages, the mPlane protocol supports two connection establishment patterns:
 
   - __Client-initiated__ in which clients connect directly to components at known, stable, routable URLs. Client-initiated workflows are intended for use between clients and supervisors, for access to repositories, and for access to probes embedded within a network infrastructure.
 
   - __Component-initiated__ in which components initiate connections to clients. Component-initiated workflows are intended for use between components without stable routable addresses and supervisors, e.g. for small probes on embedded devices, mobile devices, or software probes embedded in browsers on personal computers behind network-address translators (NATs) or firewalls which prevent a client from establishing a connection to them.
 
-Within a given mPlane domain, these workflow patterns can be combined (along with indirect export and direct access) to facilitate complex interactions among clients and components according to the requirements imposed by the application and the deployment of components in the network.
+Within a given mPlane domain, these patterns can be combined (along with indirect export and direct access) to facilitate complex interactions among clients and components according to the requirements imposed by the application and the deployment of components in the network.
 
 ## An Example mPlane Domain
 
@@ -98,52 +106,37 @@ When the supervisor receives these capabilities, its composition logic derives t
 
 When the client wishes to run a measurement, it sends a specification matching the first capability to the supervisor, whose decomposition logic splits it into three specifications: one each to the probes to run the measurements, and one to the repository to query the resulting aggregated data. The repository then sends the result of the third specification back to the supervisor, which relays it to the client.
 
-As not all interaction among components in an mPlane infrastructure must be mediated by the supervisor, for more detailed queries of the repository, the client may directly access the repository via a backchannel.
+Not all interaction among components in an mPlane infrastructure must be mediated by the supervisor. For more detailed queries of the repository, the client may directly access the repository via a backchannel.
 
-## Architectural Requirements, Principles, and Rationale
-
-Each of the properties of the mPlane architecture and protocol follows from requirements which themselves were derived from an analysis of a set of specific use cases defined in (mPlane Deliverable 1.1)[https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables/324mplane-d11.pdf], though the aim was to define an architecture applicable to a wider set of situations than these specific use cases.
-
-First, the architecture in its simplest form consists of only two entities and one relationship: n clients connect to m components via the mPlane protocol. Anything which can speak the mPlane protocol and exposes capabilites thereby is a component; anything which can understand these capabilities and sent specifications to invoke them is a client. Everything a component can do, from the point of view of mPlane, is entirely described by its capabilities. Capabilities are even used to expose optional internal features of the protocol itself, and provide a method for built-in protocol extensibility.
-
-*[**Editor's Note**: work continues from here]*
-
-![The simplest form of the mPlane architecture](./extremely-simple-architecture.png)
-
-![Simple mPlane architecture with a supervisor](./simple-architecture.png)
-
-![Federation between supervisors](./federation-architecture.png)
-
-Second, given the heterogeneity of the measurement tools and techniques applied, and the
-heterogeneity of component management, especially in large-scale measurement 
-infrastructures, reliably stateful management and control would imply 
-significant overhead at the supervisors and/or significant measurement control 
-overhead on the wire to maintain connectivity among components and to resynchronize 
-the system after a partial disconnection event or component failure.
-
-A key architectural principle is therefore __state distribution__: by
-explicitly acknowledging that each control interaction is best-effort in any
-case, and keeping explicit information about each measurement in all messages
-relevant to that measurement, the state of the measurements is in effect
-distributed among all components, and resynchronization happens implicitly as
-part of message exchange. The failure of a component during a large scale
-measurement can therefore be detected and corrected afterwards. Concretely, this 
-implies that each capability, specification, and result must contain enough 
-information to intepret in isolation.
-
-This emphasis on distributed state and heterogeneity, along with the
-flexibility of the representation and session protocol used by the
-platform, makes the mPlane protocol applicable to a wide range of scales,
-from resource- and connectivity-limited probes such as smartphones and
-customer-premises equipment (CPE) like home routers up to large-scale backbone
-measurement devices and repositories backed by database and compute clusters.
-
-The other key principle is __type primacy__. Each capability, specification, and result contains a _schema_, comprising the set of parameters required to execute a measurement or query and the set of columns that result. From the point of view of mPlane, the schema _completely_ describes the measurement. This implies that when exposing a measurement using mPlane, the developer of a component must build each capabilities it advertises such that the semantics of the measurement are captured by the set of columns in its schema. It also implies that the key to measurement interoperability in mPlane is the definition of a common element __registry__.
+## Architectural Principles and Rationale
 
 The mPlane protocol is, in essence, a self-describing, error- and delay-tolerant remote
 procedure call protocol: each capability exposes an entry point in the API
 provided by the component; each specification embodies an API call; and each result
-returns the results of an API call. 
+returns the results of an API call. Each of the properties of the mPlane architecture and protocol follows from requirements which themselves were derived from an analysis of a set of specific use cases defined in (mPlane Deliverable 1.1)[https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables/324mplane-d11.pdf], though the aim was to define an architecture applicable to a wider set of situations than these specific use cases.
+
+First, given the heterogeneity of the measurement tools and techniques applied, it is necessary for the protocol to be as *flexible* and *extensible* as possible. Therefore, the architecture in its simplest form consists of only two entities and one relationship: *n* clients connect to *m* components via the mPlane protocol. Anything which can speak the mPlane protocol and exposes capabilites thereby is a component; anything which can understand these capabilities and send specifications to invoke them is a client. Everything a component can do, from the point of view of mPlane, is entirely described by its capabilities. Capabilities are even used to expose optional internal features of the protocol itself, and provide a method for built-in protocol extensibility.
+
+Second, given the flexibility required above, the key to measurement interoperability is the comparison of data types. Each capability, specification, and result contains a _schema_, comprising the set of parameters required to execute a measurement or query and the set of columns that result. From the point of view of mPlane, the schema _completely_ describes the measurement. This implies that when exposing a measurement using mPlane, the developer of a component must build each capabilities it advertises such that the semantics of the measurement are captured by the set of columns in its schema. The elements from which schemas can be built are captured in a type _registry_. The mPlane platform provides a core registry for common measurement use cases within the project, and the registry facility is itself fully extensible as well, for supporting new applications without requiring central coordination beyond the domain or set of domains running the application.
+
+Third, the exchange of messages in the protocol was chosen to support *iterative* measurement in which the aggregated, high-level results of a measurement are used as input to a decision process to select the next measurement. Specifically, the protocol blends control messages (capabilities and specifications) and data messages (results) into a single workflow; this is shown in the diagram below.
+
+![Iterative measurement in mPlane](./iterative-measurement.png)
+
+Fourth, we have a requirement to support large-scale measurement infrastructures with thousands of similar components, including
+from resource- and connectivity-limited probes such as smartphones and
+customer-premises equipment (CPE) like home routers. These may be connected to a supervisor only intermittently. Reliably stateful management and control in this environment would involve significant overhead to synchronize state and maintain connectivity, and would require complex arrangements to resynchronize the components in a domain after a partial disconnection event or component failure. By
+explicitly acknowledging that each control interaction is best-effort in any
+case, and keeping explicit information about each measurement in all messages
+relevant to that measurement, the state of the measurements is in effect
+distributed among all components, and resynchronization happens implicitly as
+part of message exchange. The failure of a component during a large-scale
+measurement be detected and corrected after the fact. This led to a design in which each capability, specification, and result contains enough 
+information to intepret in isolation.
+
+## From Architecture to Protocol Specification
+
+The remainder of this document builds the protocol specification based on this architecture from the bottom up. First, we define the protocol's information model from the element registry through the types of mPlane messages and the sections they are composed of. We then define a concrete representation of this information model using Javascript Object Notation (JSON, [RFC 7159](http://tools.ietf.org/html/7159)), and define bindings to HTTP over TLS as a session protocol. Finally, we show how to construct workflows using the protocol to build up complex measurement infrastructures, and detail the responsibilities of an mPlane supervisor.
 
 # Protocol Information Model
 
@@ -220,11 +213,13 @@ The mPlane protocol supports the following primitive types for elements in the t
 
 ### Augmented Registry Information
 
-Additional keys beyond __prim__, __desc__, and __name__ may appear in an mPlane registry to augment information about each element; these are not presently used by the reference implementation's information model but may be used by software built around
+Additional keys beyond __prim__, __desc__, and __name__ may appear in an mPlane registry to augment information about each element; these are not presently used by the reference implementation's information model but may be used by software built around the SDK.
 
 Elements in the core registry at `http://ict-mplane.eu/registry/core` may contain the following augmented registry keys:
 
 - __units__: If applicable, units in which the element is expressed; equal to the units part of a structured name if present.
+- __ipfix-eid__: The element ID of the equivalent IPFIX ([RFC 7011](http://tools.ietf.org/html/7011) Information Element.
+- __ipfix-pen__: The SMI Private Enterprise Number of the equivalent IPFIX Information Element, if any.
 
 ## Message Types
 
@@ -707,6 +702,8 @@ Results are merely specifications with result values filled in and an absolute t
 }
 ```
 
+*[**Editor's Note**: Add a traceroute example.]*
+
 ## mPlane over HTTPS
 
 The default session protocol for mPlane messages is HTTP over TLS with mandatory mutual authentication. This grants confidentiality and integrity to the exchange of mPlane messages through a link security approach, and is transparent to the client. HTTP over TLS was chosen in part because of its ubiquitous implementation on many platforms.
@@ -887,7 +884,7 @@ Exceptions *should* always be sent in reply to messages sent to
 components or clients which cannot be handled due to a syntactic or semantic 
 error in the message itself.
 
-# The Role of the Supervisor
+## The Role of the Supervisor
 
 From the point of view of the mPlane protocol, a supervisor is merely a combined component and client. The logic binding client and component interfaces within the supervisor is application-specific, as it involves the following operations according to the semantics of each application:
 
@@ -909,20 +906,18 @@ The client then initiates a measurement by POSTing a specification to the superv
 
 This simple example illustrates the three main responsibilities of the supervisor, which are described in more detail below.
 
-## Component Registration
+### Component Registration
 
 In order to be able to use components to perform measurements, the supervisor must __register__ the components associated with it. For client-initiated workflows -- large repositories and the address of the components is often a configuration parameter of the supervisor. Capabilities describing the available measurements and queries at large-scale components can even be part of the supervisor's externally managed static configuration, or can be dynamically retrieved and updated from the components or from a capability discovery server.
 
 For component-initiated workflows, components connect to the supervisor and POST capabilities and withdrawals, which requires the supervisor to maintain a set of capabilities associated with a set of components currently part of the mPlane infrastructure it supervises.
 
-## Client Authentication
+### Client Authentication
 
 For many components -- probes and simple repositories -- very simple authentication often suffices, such that any client with a certificate with an issuer recognized as valid is acceptable, and all capabilities are available to. Larger repositories often need finer grained control, mapping specific peer certificates to identities internal to the repository's access control system (e.g. database users).
 
 In an mPlane infrastructure, it is therefore the supervisor's responsbility to map client identities to the set of capabilities each client is authorized to access. This mapping is part of the supervisor's configuration.
 
-## Capability Composition and Specification Decomposition
+### Capability Composition and Specification Decomposition
 
 The most dominant responsibility of the supervisor is _composing_ capabilities from its subordinate components into aggregate capabilities, and _decomposing_ specifications from clients to more-specific specifications to pass to each component. This operation is always application-specific, as the semantics of the composition and decomposition operations depend on the capabilities available from the components, the granularity of the capabilities to be provided to the clients. It is for this reason that the mPlane reference implementation does not provide a generic supervisor.
-
-# An example mPlane infrastructure
