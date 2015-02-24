@@ -101,7 +101,7 @@ class HttpSupervisor(object):
         parse_args()
                 
         application = tornado.web.Application([
-        
+
                 # Handlers of mPlane Supervisor functionality
                 (r"/" + REGISTRATION_PATH, mplane.sv_handlers.RegistrationHandler, {'supervisor': self}),
                 (r"/" + REGISTRATION_PATH + "/", mplane.sv_handlers.RegistrationHandler, {'supervisor': self}),
@@ -128,26 +128,30 @@ class HttpSupervisor(object):
                 (r"/gui", mplane.sv_gui_handlers.ForwardHandler, {'forwardUrl': '/gui/static/login.html'})
 
             ], cookie_secret="123456789-TODO-REPLACE", static_path=r"www/", static_url_prefix=r"/" + sv_gui_handlers.GUI_STATIC_PATH + "/")
-            
+
         # check if security is enabled, if so read certificate files
         self._sec = not args.DISABLE_SSL
         self.ac = mplane.sec.Authorization(self._sec)
         if self._sec == True:
-            self.base_url = "https://" + args.LISTEN_IP4 + ":" + str(args.LISTEN_PORT) + "/"
+            #self.base_url = "https://" + args.LISTEN_IP4 + ":" + str(args.LISTEN_PORT) + "/"
             cert = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "cert"))
             key = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "key"))
             ca = mplane.utils.normalize_path(mplane.utils.read_setting(args.CERTFILE, "ca-chain"))
             mplane.utils.check_file(cert)
             mplane.utils.check_file(key)
             mplane.utils.check_file(ca)
-            
-            http_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
-        else:
-            self.base_url = "http://" + args.LISTEN_IP4 + ":" + str(args.LISTEN_PORT) + "/"
-            http_server = tornado.httpserver.HTTPServer(application)
+
+            https_server = tornado.httpserver.HTTPServer(application, ssl_options=dict(certfile=cert, keyfile=key, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca))
+            https_server.listen(18443, args.LISTEN_IP4)
+
+
+        #self.base_url = "http://" + args.LISTEN_IP4 + ":" + str(args.LISTEN_PORT) + "/"
+        http_server = tornado.httpserver.HTTPServer(application)
+        http_server.listen(18080, args.LISTEN_IP4)
+        
          
         # run the server   
-        http_server.listen(args.LISTEN_PORT, args.LISTEN_IP4)
+        
         t = Thread(target=listen_in_background)
         t.setDaemon(True)
         t.start()
