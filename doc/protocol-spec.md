@@ -891,8 +891,13 @@ Any component may signal an error to its client or supervisor at any time by
 sending an exception message. While the taxonomy of error messages is at
 this time left up to each individual component, given the weakly imperative
 nature of the mPlane protocol, exceptions should be used
-sparingly, and only to notify components and clients of errors which may
-require external human intervention to correct.
+sparingly, and only to notify components and clients of errors with the
+mPlane infrastructure itself.
+
+It is generally presumed that diagnostic information about errors which may
+require external human intervention to correct will be logged at each
+component; the mPlane exception facility is not intended as a replacement
+for logging facilities such as syslog.
 
 Specifically, components in component-initiated workflows
 should not use the exception mechanism for common error conditions (e.g.,
