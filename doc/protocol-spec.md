@@ -24,7 +24,7 @@ This document differs from the revision of the protocol documented in the mPlane
 
 # mPlane Architecture
 
-## Introduction to the Architecture
+## Introduction
 
 mPlane is built around an architecture in which **components** provide network measurement services and access to stored measurement data which they advertise via **capabilities** completely describing these services and data. A **client** makes use of these capabilities by sending **specifications** that respond to them back to the components. Components may then either return **results** directly to the clients or sent to some third party via **indirect export** using an external protocol. The capabilities, specifications, and results are carried over the mPlane **protocol**, defined in detail in this document. An mPlane measurement infrastructure is built up from these basic blocks.
 
@@ -46,7 +46,7 @@ First, given the heterogeneity of the measurement tools and techniques applied, 
 
 ### Schema-centric measurement definition
 
-Second, given the flexibility required above, the key to measurement interoperability is the comparison of data types. Each capability, specification, and result contains a _schema_, comprising the set of parameters required to execute a measurement or query and the set of columns that result. From the point of view of mPlane, the schema _completely_ describes the measurement. This implies that when exposing a measurement using mPlane, the developer of a component must build each capabilities it advertises such that the semantics of the measurement are captured by the set of columns in its schema; for practical guidance on this principle, see {{defining-measurement-schemas}} and {{defining-repository-schemas}}. The elements from which schemas can be built are captured in a type _registry_. The mPlane platform provides a core registry for common measurement use cases within the project, and the registry facility is itself fully extensible as well, for supporting new applications without requiring central coordination beyond the domain or set of domains running the application.
+Second, given the flexibility required above, the key to measurement interoperability is the comparison of data types. Each capability, specification, and result contains a _schema_, comprising the set of parameters required to execute a measurement or query and the set of columns that result. From the point of view of mPlane, the schema _completely_ describes the measurement. This implies that when exposing a measurement using mPlane, the developer of a component must build each capabilities it advertises such that the semantics of the measurement are captured by the set of columns in its schema. The elements from which schemas can be built are captured in a type _registry_. The mPlane platform provides a core registry for common measurement use cases within the project, and the registry facility is itself fully extensible as well, for supporting new applications without requiring central coordination beyond the domain or set of domains running the application.
 
 ### Iterative measurement support
 
@@ -157,13 +157,18 @@ After enough measurements are completed, the supervisor then queries the reposit
 
 Note that not all interaction among components in an mPlane infrastructure must be mediated by the supervisor. This is particularly true of large-scale repositories, where (e.g.) visualization of large amounts of data may be done by accessing the repository's data directly using an external protocol, or by having the repository produce visualizations directly and providing these via HTTP.
 
+## Integrating Measurement Tools into mPlane
+
+mPlane's flexibility and the self-description of measurements provided by the capability-specification-result cycle was designed to allow a wide variety of existing measurement tools, both probes and repositories, to be integrated into an mPlane domain. In both cases, the key to integration is to define a capability for each of the measurements the tool can perform or the queries the repository needs to make available within an mPlane domain. Each capability has a set of parameters -- information required to run the measurement or the query -- and a set of result columns -- information which the measurement or query returns.
+The parameters and result columns make up the measurement's schema, and are chosen from an extensible registry of elements. Practical details are given in the section [Desigining Measurement and Repository Schemas]{#designing-measurement-and-repository-schemas}.
+
 ## From Architecture to Protocol Specification
 
 The remainder of this document builds the protocol specification based on this architecture from the bottom up. First, we define the protocol's information model from the element registry through the types of mPlane messages and the sections they are composed of. We then define a concrete representation of this information model using Javascript Object Notation (JSON, [RFC 7159](http://tools.ietf.org/html/7159)), and define bindings to HTTP over TLS as a session protocol. Finally, we show how to construct workflows using the protocol to build up complex measurement infrastructures, and detail the responsibilities of an mPlane supervisor.
 
 # Protocol Information Model
 
-The mPlane protocol is message-oriented, built on the representation- and session-protocol-independent exchange of messages between clients and components. This section describes the information model from the bottom up, starting from the element registry which defines the elements from which capabilities can be built, then detailing each type of message, and the sections that make these messages up.
+The mPlane protocol is message-oriented, built on the representation- and session-protocol-independent exchange of messages between clients and components. This section describes the information model, starting from the element registry which defines the elements from which capabilities can be built, then detailing each type of message, and the sections that make these messages up. It then provides advice on using the information model to model measurements and queries.
 
 ## Element Registry
 
@@ -219,8 +224,6 @@ To ease understanding of mPlane type registries, element names are _structured_ 
   - `count`: count of values aggregated
 
 When mapping mPlane structured names into contexts in which dots have special meaning (e.g. SQL column names or variable names in many programming languages), the dots may be replaced by underscores ('_'). When using external type registries (e.g. the IPFIX Information Element Registry), element names are not necessarily structured.
-
-We anticipate the future development of an `mplane-1` revision of the registry format which directly supports simpler expression of structured names.
 
 ### Primitive Types
 
@@ -354,7 +357,7 @@ Roughly speaking, probes implement `measure` capabilities, and repositories
 implement `query` and `collect` capabilities. Of course, any single component
 can implement capabilities with any number of different verbs.
 
-Within the Reference Implementation, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
+Within the SDK, the primary difference between `measure` and `query` is that the temporal scope of a `measure` specification is taken to refer to when the measurement should be scheduled, while the temporal scope of a  `query` specification is taken to refer to the time window (in the past) of a query.
 
 Envelopes have no verb; instead, the value of the `envelope` key is the kind of messages the envelope contains, or `message` if the envelope contains a mixture of different unspecified kinds of messages.
 
@@ -602,9 +605,15 @@ A message's identity is composed of its schema, together with its temporal scope
 
 One convenience feature complicates this somewhat: when the temporal scope is not absolute, multiple specifications may have the same literal temporal scope but refer to different measurements. In this case, the current time at the client or component when a message is invoked must be taken as part of the message's identity as well. Implementations may use hashes over the values of the message's identity sections to uniquely identify messages; e.g. to generate message tokens.
 
-## Designing Measurement Schemas
+## Designing Measurement and Repository Schemas
 
-*[**Editor's Note**: We need a place to answer the reviewer comment that we still haven't shown how traceroute works, and to more explicitly point out that the meaning of a schema must be taken over all parameters and results. ]*
+As noted, the key to integrating a measurement tool into an mPlane infrastructure is properly defining the schemas for the measurements and queries it performs, then defining those schemas in terms of mPlane capabilities. Specifications and results follow naturally from capabilities, and the mPlane SDK allows Python methods to be bound to capabilities in order to execute them. A schema should be defined such that the set of parameters, the set of result columns, and the verb together naturally and uniquely define the measurement or the query being performed. For simple metrics, this is achieved by encoding the entire meaning of the  metric in its name. For example, `delay.twoway.icmp.us` as a result column together with `source.ip4` and `destination.ip4` as parameters uniquely defines a single ping measurement, measured via ICMP, expressed in microseconds. Aggregate measurements are defined by returning metrics with aggregations: `delay.twoway.icmp.min.us`, `delay.twoway.icmp.max.us`, `delay.twoway.icmp.mean.us`, and `delay.twoway.icmp.count.us` as result columns represent aggregate ping measurements with multiple samples.
+
+Note that mPlane results may contain multiple rows. In this case, the parameter values in the result, taken from the specification, apply to all rows. In this case, the rows are generally differentiated by the values in one or more result columns; for example, the `time` element can be used to represent time series, or the `hops.ip` different elements along a path between source and destination, as in a traceroute measurement.
+
+For measurements taken instantaneously, the verb `measure` should be used; for direct queries from repositories, the verb `query` should be used. Other actions that cannot be differentiated by schema alone should be differentiated by a custom verb.
+
+When integrating a repository into an mPlane infrastructure, only a subset of the queries the repository can perform will generally be exposed via the mPlane interface. Consider a generic repository which provides an SQL interface for querying data; wrapping the entire set of possible queries in specific capabilities would be impossible, while providing direct access to the underlying SQL (for instance, by creating a custom registry with a `query.sql` string element to be used as a parameter) would make it impossible to differentiate capabilities by schema (thereby making the interoperability benefits of mPlane integration pointless). Instead, specific queries to be used by clients in concert with capabilities provided by other components are each wrapped within a separate capability, analogous to stored procedure programming in many database engines. Of course, clients which do speak the precise dialect of SQL necessary can integrate directly with the repository separate from the capabilities provided over mPlane.
 
 # Representations and Session Protocols
 
@@ -687,11 +696,11 @@ A specification is merely a capability with filled-in parameters, e.g.:
   "specification":  "measure",
   "version":        0,
   "registry":       "http://ict-mplane.eu/registry/core",
-  "label":          "ping-aggregate",
+  "label":          "ping-aggregate-three-thirtythree",
   "token":          "0f31c9033f8fce0c9be41d4942c276e4",
   "when":           "now + 30s / 1s",
   "parameters": {"source.ip4":      "192.0.2.19",
-                 "destination.ip4": "192.0.2.33"},
+                 "destination.ip4": "192.0.3.33"},
   "results":    ["delay.twoway.icmp.us.min",
                  "delay.twoway.icmp.us.mean",
                  "delay.twoway.icmp.us.50pct",
@@ -707,11 +716,11 @@ Results are merely specifications with result values filled in and an absolute t
   "result":         "measure",
   "version":        0,
   "registry":       "http://ict-mplane.eu/registry/core",
-  "label":          "ping-aggregate",
+  "label":          "ping-aggregate-three-thirtythree",
   "token":          "0f31c9033f8fce0c9be41d4942c276e4",
   "when":           "2014-08-25 14:51:02.623 ... 2014-08-25 14:51:32.701 / 1s",
   "parameters": {"source.ip4":      "192.0.2.19",
-                 "destination.ip4": "192.0.2.33"},
+                 "destination.ip4": "192.0.3.33"},
   "results":    ["delay.twoway.icmp.us.min",
                  "delay.twoway.icmp.us.mean",
                  "delay.twoway.icmp.us.50pct",
@@ -725,7 +734,74 @@ Results are merely specifications with result values filled in and an absolute t
 }
 ```
 
-*[**Editor's Note**: Add a traceroute example.]*
+More complex measurements can be modeled by mapping them back to tables with multiple rows. For example, a traceroute capability would be defined as follows:
+
+```
+{
+  "capability": "measure",
+  "version":    0,
+  "registry":   "http://ict-mplane.eu/registry/core",
+  "label":      "traceroute",
+  "when":       "now ... future / 1s",
+  "parameters": {"source.ip4":      "192.0.2.19",
+                 "destination.ip4": "*",
+                 "hops.ip.max": "0..32"},
+  "results":    ["time",
+                 "intermediate.ip4",
+                 "hops.ip",
+                 "delay.twoway.icmp.us"]
+}
+```
+
+with a corresponding specification:
+
+```
+{
+  "specification": "measure",
+  "version":    0,
+  "registry":   "http://ict-mplane.eu/registry/core",
+  "label":      "traceroute-three-thirtythree",
+  "token":      "2f4123588b276470b3641297ae85376a",
+  "when":       "now",
+  "parameters": {"source.ip4":      "192.0.2.19",
+                 "destination.ip4": "192.0.3.33",
+                 "hops.ip.max": 32},
+  "results":    ["time",
+                 "intermediate.ip4",
+                 "hops.ip",
+                 "delay.twoway.icmp.us"]
+}
+```
+
+and an example result:
+
+```
+{
+  "result": "measure",
+  "version":    0,
+  "registry":   "http://ict-mplane.eu/registry/core",
+  "label":      "traceroute-three-thirtythree",
+  "token":      "2f4123588b276470b3641297ae85376a,
+  "when":       "2014-08-25 14:53:11.019 ... 2014-08-25 14:53:12.765",
+  "parameters": {"source.ip4":      "192.0.2.19",
+                 "destination.ip4": "192.0.3.33",
+                 "hops.ip.max": 32},
+  "results":    ["time",
+                 "intermediate.ip4",
+                 "hops.ip",
+                 "delay.twoway.icmp.us"],
+  "resultvalues": [ [ "2014-08-25 14:53:11.019", "192.0.2.1",       1, 162 ],
+                    [ "2014-08-25 14:53:11.220", "217.147.223.101", 2, 15074 ],
+                    [ "2014-08-25 14:53:11.570", "77.109.135.193",  3, 30093 ],
+                    [ "2014-08-25 14:53:12.091", "77.109.135.34",   4, 34979 ],
+                    [ "2014-08-25 14:53:12.310", "192.0.3.1",       5, 36120 ],
+                    [ "2014-08-25 14:53:12.765", "192.0.3.33",      6, 36202 ]
+                  ]
+
+}
+```
+
+*[**Editor's Note**: ping repository example with query]*
 
 ## mPlane over HTTPS
 
@@ -753,11 +829,13 @@ In an mPlane domain containing a supervisor, each component trusts its supevisor
 
 ### Paths in mPlane URLs
 
-*[**Editor's Note**: Add text here on how mPlane components and clients can encode additional information in URLs via the link section. Note ease of implementation for many web application frameworks of using different paths for different types of messages. There are some additional conventions used for mPlane over HTTPS. If a client or component has a URL it should use that for all interactions with its peer. However, if a client can only discover a component's address, it should `GET /capabilities` to get that component's capabilities. If a client posts a specification for a capability that does not contain a link to a component, and only has that component's address, it should `POST` the specification to `/specification`. If a component wants to return results to a client and only has the client's address, and the corresponding specification does not have a link, it should `POST` the result to `/result`.]*
+In general, when connecting to a component for the first time, a client or supervisor will have been configured with a URL from which to retrieve capabilities. Conversely, when connecting to a client or supervisor for the first time, a component will have discovered or been configured with a URL to which to post capabilities. From there, every capability retrieved by a client should have a link section to which to POST specifications, and every specification retrieved by a component should have a link section to which to POST results.
+
+However, in cases in which only an address (and not a full URL) is discoverable, given the ease of differentiating message handing in many web application frameworks by URL, mPlane HTTP clients and components can use the following convention: If a client can only discover a component's address, it should `GET /capabilities` to get that component's capabilities. If a client posts a specification for a capability that does not contain a link to a component, and only has that component's address, it should `POST` the specification to `/specification`. If a component wants to return results to a client and only has the client's address, and the corresponding specification does not have a link, it should `POST` the result to `/result`.
 
 ## mPlane over WebSockets over TLS
 
-Though not presently implemented by the reference implementation, the mPlane protocol specification is designed such that it can also use the WebSockets protocol as specified in [RFC 6455](http://tools.ietf.org/html/6455). Once an WebSockets connection is established, mPlane messages can be exchanged bidirectionally over the channel. A client may establish a connection to a component, or a component to a client, as required for a given application.
+Though not presently implemented by the reference implementation, the mPlane protocol specification is designed such that it can also use the WebSockets protocol as specified in [RFC 6455](http://tools.ietf.org/html/6455) as a session layer. Once an WebSockets connection is established, mPlane messages can be exchanged bidirectionally over the channel. A client may establish a connection to a component, or a component to a client, as required for a given application.
 
 Access control in WebSockets is performed as in the HTTPS case: both clients and components are identified by certificates, identities derived from certificate DN, and domain membership is defined by certificate issuer.
 
@@ -769,11 +847,11 @@ Though not presently implemented by the reference implementation, the mPlane pro
 
 When using SSH as a session layer, clients and components are identified by SSH keys. SSH keys are not very human-readable identifiers, and as such must be mapped to identifiers at each component, client, and supervisor, on which roles can be assigned and access control decisions made. Additionally, SSH keys are not signed by an issuer, so there is no PKI-based definition of membership within a domain as with HTTPS. The need to specifically manage keys for every client and component, and the mappings to identities used in RBAC, will tend to limit the use of SSH to small domains.
 
-Implementation and further specification of SSH as a session layer is a matter for future work.
+Implementation and further specification of SSH as a session layer is a matter for future work. SSH was originally chosen as a possible session protocol for small domains, in order to save the overhead of building a PKI; however, implementation experience has shown that managing SSH keys manually has little administrative overhead advantage over using a small PKI with an algorithmic mapping from subject distinguished names to access control identities.
 
-# Workflows
+# Workflows in HTTPS
 
-As noted above, mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__, and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS.
+As noted above, mPlane protocol supports three patterns of workflow: __client-initiated__, __component-initiated__, and __indirect export__. These workflow patterns can be combined into complex interactions among clients and components in an mPlane infrastructure. In the subsections below, we illustrate these workflows as they operate over HTTPS. Operation over WSS or SSH is much simpler: since the session protocol in these cases provides a bidirectional channel for message exchange, so the message sender and message exchange initiator are independent from the connection initiator, and callback control and capability discovery as described here are unnecessary.
 
 In this section, the following symbols have the following meanings:
 
@@ -913,7 +991,7 @@ Exceptions *should* always be sent in reply to messages sent to
 components or clients which cannot be handled due to a syntactic or semantic
 error in the message itself.
 
-## The Role of the Supervisor
+# The Role of the Supervisor
 
 From the point of view of the mPlane protocol, a supervisor is merely a combined component and client. The logic binding client and component interfaces within the supervisor is application-specific, as it involves the following operations according to the semantics of each application:
 
