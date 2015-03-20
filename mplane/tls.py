@@ -153,6 +153,7 @@ class TlsState:
                                     ca_certs=self._cafile)
                 c.connect((url_or_req.host, url_or_req.port))
                 cert = c.getpeercert()
+                c.close()
             elif isinstance(url_or_req, tornado.httpserver.HTTPRequest):
                 cert = url_or_req.get_ssl_certificate()
             else:
