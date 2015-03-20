@@ -1008,6 +1008,10 @@
     {
       "name": "System_version",
       "prim": "string"
+    },
+    {
+      "name": "probe.DN",
+      "prim": "string"
     }
   ]
 }

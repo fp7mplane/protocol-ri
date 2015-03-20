@@ -23,11 +23,12 @@
 
 import mplane.model
 import mplane.utils
-from datetime import datetime, timezone
+from datetime import datetime
 
 import html.parser
 import urllib3
 from threading import Thread
+import queue
 
 import tornado.web
 import tornado.httpserver
@@ -52,7 +53,7 @@ class BaseClient(object):
 
     """
 
-    def __init__(self, tls_state):
+    def __init__(self, tls_state, supervisor=False, exporter=None):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
@@ -60,7 +61,10 @@ class BaseClient(object):
         self._receipts = {}
         self._receipt_labels = {}
         self._results = {}
-        self._result_labels = {}       
+        self._result_labels = {}
+        self._supervisor = supervisor
+        if self._supervisor:
+            self._exporter = exporter
 
     def _add_capability(self, msg, identity):
         """
@@ -203,17 +207,18 @@ class BaseClient(object):
     def _remove_receipt(self, msg):
         token = msg.get_token()
         if token in self._receipts:
-            label = self._receipts[token].get_label()
+            receipt = self._receipts[token]
             del self._receipts[token]
+            label = receipt.get_label()
             if label and label in self._receipt_labels:
                 del self._receipt_labels[label]
 
     def _handle_result(self, msg, identity):
         # FIXME check the result identity 
         # against where we sent the specification to
-        self._add_result(msg)
+        self._add_result(msg, identity)
 
-    def _add_result(self, msg):
+    def _add_result(self, msg, identity=None):
         """
         Add a result to internal state. The result will supercede any receipt
         stored for the same token, and will be recallable by token, and, 
@@ -222,12 +227,16 @@ class BaseClient(object):
         Internal use only; use handle_message instead.
 
         """
+        receipt = None
         try:
             if isinstance(msg, mplane.model.Envelope):
                 # if the result is an envelope containing multijob
                 # results, keep the receipt until the multijob ends
                 (start, end) = msg.when().datetimes()
                 if end < datetime.utcnow():
+                    if self._supervisor:
+                        self._exporter.put_nowait([msg, identity])
+
                     receipt = self._receipts[msg.get_token()]
                     self._remove_receipt(receipt)
             else:
@@ -237,8 +246,12 @@ class BaseClient(object):
             pass
         self._results[msg.get_token()] = msg
 
-        if msg.get_label():
-            self._result_labels[msg.get_label()] = msg
+        if not isinstance(msg, mplane.model.Exception):
+            if msg.get_label():
+                self._result_labels[msg.get_label()] = msg
+        else:
+            if receipt is not None:
+                self._result_labels[receipt.get_label()] = msg
 
     def _remove_result(self, msg):
         token = msg.get_token()
@@ -266,8 +279,7 @@ class BaseClient(object):
             raise KeyError("no such token or label "+token_or_label)
 
     def _handle_exception(self, msg, identity):
-        # FIXME what do we do with these?
-        print("Exception received: " + msg.__repr__())
+        self._add_result(msg)
 
     def handle_message(self, msg, identity=None):
         """
@@ -276,6 +288,10 @@ class BaseClient(object):
         to inject messages into a client's state.
 
         """
+
+        if (self._supervisor and
+            not isinstance(msg, mplane.model.Envelope)):
+            self._exporter.put_nowait([msg, identity])
 
         if isinstance(msg, mplane.model.Capability):
             self._add_capability(msg, identity)
@@ -382,12 +398,14 @@ class HttpInitiatorClient(BaseClient):
 
     """
 
-    def __init__(self, tls_state, default_url=None):
+    def __init__(self, tls_state, default_url=None,
+                 supervisor=False, exporter=None):
         """
         initialize a client with a given 
         default URL an a given TLS state
         """
-        super().__init__(tls_state)
+        super().__init__(tls_state, supervisor=supervisor,
+                        exporter=exporter)
 
         self._default_url = default_url
 
@@ -429,8 +447,8 @@ class HttpInitiatorClient(BaseClient):
                            headers=headers)
         if (res.status == 200 and 
             res.getheader("Content-Type") == "application/x-mplane+json"):
-            # FIXME handle identity completely here, look at how SSB client does this
-            self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")))
+            component_identity = self._tls_state.extract_peer_identity(dst_url)
+            self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")), component_identity)
         else:
             # Didn't get an mPlane reply. What now?
             pass
@@ -457,6 +475,8 @@ class HttpInitiatorClient(BaseClient):
                 return rr
             else:
                 rr = self._receipts[rr.get_token()]
+        elif isinstance(rr, mplane.model.Exception):
+            return rr
 
         # if we're here, we have a receipt. try to redeem it.
         self.send_message(mplane.model.Redemption(receipt=rr))
@@ -484,8 +504,9 @@ class HttpInitiatorClient(BaseClient):
                                    port=self._default_url.port,
                                    path=cap.get_link())
         self.send_message(spec, dst_url)
+        return spec
 
-    def retrieve_capabilities(self, url, urlchain=[], pool=None):
+    def retrieve_capabilities(self, url, urlchain=[], pool=None, identity=None):
         """
         connect to the given URL, retrieve and process the 
         capabilities/withdrawals found there
@@ -500,6 +521,9 @@ class HttpInitiatorClient(BaseClient):
 
         if isinstance(url, str):
             url = urllib3.util.parse_url(url)
+
+        if identity is None:
+            identity = self._tls_state.extract_peer_identity(url)
 
         if pool is None:
             if url.host is not None:
@@ -519,7 +543,7 @@ class HttpInitiatorClient(BaseClient):
             if ctype == "application/x-mplane+json":
                 # Probably an envelope. Process the message.
                 self.handle_message(
-                    mplane.model.parse_json(res.data.decode("utf-8")))
+                    mplane.model.parse_json(res.data.decode("utf-8")), identity)
             elif ctype == "text/html":
                 # Treat as a list of links to capability messages.
                 parser = CrawlParser(strict=False)
@@ -527,7 +551,8 @@ class HttpInitiatorClient(BaseClient):
                 parser.close()
                 for capurl in parser.urls:
                     self.retrieve_capabilities(url=capurl, 
-                                               urlchain=urlchain + [url], pool=pool)
+                                               urlchain=urlchain + [url],
+                                               pool=pool, identity=identity)
 
 class HttpListenerClient(BaseClient):
     """
@@ -536,8 +561,10 @@ class HttpListenerClient(BaseClient):
     supervisors.
 
     """
-    def __init__(self, config, tls_state=None):
-        super().__init__(tls_state)
+    def __init__(self, config, tls_state=None,
+                 supervisor=False, exporter=None, io_loop=None):
+        super().__init__(tls_state, supervisor=supervisor,
+                        exporter=exporter)
 
         listen_host = DEFAULT_HOST
         if "listen-host" in config["client"]:
@@ -582,16 +609,20 @@ class HttpListenerClient(BaseClient):
 
         # run the server
         http_server.listen(listen_port, listen_host)
-        t = Thread(target=self.listen_in_background)
-        t.setDaemon(True)
-        t.start()
+        if io_loop is not None:
+            cli_t = Thread(target=self.listen_in_background(io_loop))
+        else:
+            cli_t = Thread(target=self.listen_in_background)
+        cli_t.daemon = True
+        cli_t.start()
 
-    def listen_in_background(self):
+    def listen_in_background(self, io_loop=None):
         """
         The server listens for requests in background, while
         the supervisor console remains accessible
         """
-        tornado.ioloop.IOLoop.instance().start()
+        if io_loop is None:
+            tornado.ioloop.IOLoop.instance().start()
 
     def _push_outgoing(self, identity, msg):
         if identity not in self._outgoing:
@@ -626,6 +657,7 @@ class HttpListenerClient(BaseClient):
             self._push_outgoing(identity, envelope)
         else:
             self._push_outgoing(identity, spec)
+        return spec
 
     def _add_capability(self, msg, identity):
         """
@@ -727,7 +759,7 @@ class SpecificationHandler(MPlaneHandler):
         env = mplane.model.Envelope()
         for spec in specs:
             env.append_message(spec)
-            mplane.utils.print_then_prompt("Specification " + spec.get_label() + " successfully pulled by " + identity)
+            print("Specification " + spec.get_label() + " successfully pulled by " + identity)
         self._respond_json_text(200, mplane.model.unparse_json(env))
 
 class ResultHandler(MPlaneHandler):

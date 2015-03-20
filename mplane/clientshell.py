@@ -29,8 +29,10 @@ import mplane.tls
 import sys
 import cmd
 import traceback
+import urllib3
 import argparse
 import configparser
+from time import sleep
 
 class ClientShell(cmd.Cmd):
 
@@ -95,12 +97,23 @@ class ClientShell(cmd.Cmd):
         """
         try:
             url = arg.split()[0]
+            url = urllib3.util.parse_url(url)
+            if url.host is None or url.port is None:
+                print("Bad format for url")
+                return
         except:
             print("Usage: getcap [url]")
             return
 
         if self.workflow == "client-initiated":
-            self._client.retrieve_capabilities(url)
+            while True:
+                try:
+                    self._client.retrieve_capabilities(url)
+                    break
+                except:
+                    print("Url unreachable. Retrying in 5 seconds")
+                sleep(5)
+
             print("ok")
         else:
             print("This command can only be used in client-initiated workflows")
@@ -298,22 +311,27 @@ class ClientShell(cmd.Cmd):
         """
         for label in self._client.receipt_labels():
             rec = self._client.result_for(label)
-            print("Receipt %s (token %s): %s" %
-                  (label, rec.get_token(), rec.when()))
+            if isinstance(rec, mplane.model.Receipt):
+                print("Receipt %s (token %s): %s" %
+                      (label, rec.get_token(), rec.when()))
 
         for token in self._client.receipt_tokens():
             rec = self._client.result_for(token)
-            if rec.get_label() is None:
-                print("Receipt (token %s): %s" % (token, rec.when())) 
+            if isinstance(rec, mplane.model.Receipt):
+                if rec.get_label() is None:
+                    print("Receipt (token %s): %s" % (token, rec.when()))
 
         for label in self._client.result_labels():
             res = self._client.result_for(label)
-            print("Result  %s (token %s): %s" %
-                  (label, res.get_token(), res.when()))
+            if not isinstance(res, mplane.model.Exception):
+                print("Result  %s (token %s): %s" %
+                      (label, res.get_token(), res.when()))
 
         for token in self._client.result_tokens():
             res = self._client.result_for(token)
-            if res.get_label() is None:
+            if isinstance(res, mplane.model.Exception):
+                print(res.__repr__())
+            elif res.get_label() is None:
                 print("Result  (token %s): %s" % (token, res.when()))
 
     def do_showmeas(self, arg):

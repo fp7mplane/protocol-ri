@@ -2343,6 +2343,9 @@ class Statement(object):
         else:
           return self._token
 
+    def set_token(self, token):
+        self._token = token
+
     def _default_token(self):
       return self._mpcv_hash()
 
@@ -2752,6 +2755,9 @@ class Exception(BareNotification):
         """
         return self._token
 
+    def set_token(self, token):
+        self._token = token
+
     def to_dict(self, token_only=False):
         d = collections.OrderedDict()
         d[KIND_EXCEPTION] = self._token
@@ -2969,6 +2975,9 @@ class Envelope(object):
           return self._token[:lim]
         else:
           return self._token
+
+    def set_token(self, token):
+        self._token = token
 
     def when(self):
         """ Returns the envelope's temporal scope. (If it's a bunch of multijob results) """
