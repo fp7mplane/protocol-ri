@@ -28,12 +28,10 @@ results within the mPlane reference component.
 
 """
 
-from datetime import datetime, timedelta
-from copy import deepcopy
+from datetime import datetime
 import threading
 import mplane.model
 import mplane.azn
-import configparser
 
 class Service(object):
     """
@@ -384,7 +382,6 @@ class Scheduler(object):
                 job = self.jobs[job_key]
                 reply = job.get_reply()
                 if job.finished():
-                    print("dropped")
                     self.jobs.pop(job_key, None)
             else:
                 reply = mplane.model.Exception(token=job_key,
@@ -417,7 +414,7 @@ class Scheduler(object):
         """
         return self._capability_cache[key]
 
-    def submit_job(self, user, specification, session=None, identity=None, callback=None):
+    def submit_job(self, user, specification, session=None, callback=None):
         """
         Search the available Services for one which can 
         service the given Specification, then create and schedule 
@@ -427,10 +424,13 @@ class Scheduler(object):
         # linearly search the available services
         for service in self.services:
             if specification.fulfills(service.capability()):
-                if self.azn.check(service.capability(), identity):
+                if self.azn.check(service.capability(), user):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
-                    if specification.when().is_repeated():
+                    if (specification.when().is_repeated() and
+                        # the service is not a RelayService from supervisor.py,
+                        # handle it as a normal multijob
+                        not hasattr(service, 'relay')):
                         new_job = MultiJob(service=service,
                                            specification=specification,
                                            session=session,
