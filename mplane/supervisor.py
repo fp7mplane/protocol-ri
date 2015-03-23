@@ -44,7 +44,7 @@ class RelayService(mplane.scheduler.Service):
         self._client = client
         self._lock = lock
         self._messages = messages
-        cap.add_metadata("probe.DN", identity)
+        # cap.add_metadata("probe.DN", identity)
         super(RelayService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
