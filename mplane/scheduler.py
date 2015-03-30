@@ -376,13 +376,23 @@ class Scheduler(object):
         reply = None
         if isinstance(msg, mplane.model.Specification):
             reply = self.submit_job(user, specification=msg, session=session, callback=callback)
-        elif isinstance (msg, mplane.model.Redemption):
+        elif isinstance(msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
                 job = self.jobs[job_key]
                 reply = job.get_reply()
                 if job.finished():
                     self.jobs.pop(job_key, None)
+            else:
+                reply = mplane.model.Exception(token=job_key,
+                errmsg="Unknown job")
+        elif isinstance(msg, mplane.model.Interrupt):
+            job_key = msg.get_token()
+            if job_key in self.jobs:
+                job = self.jobs[job_key]
+                print("Interrupting " + job.specification.get_label())
+                job.interrupt()
+                reply = job.get_reply()
             else:
                 reply = mplane.model.Exception(token=job_key,
                 errmsg="Unknown job")

@@ -58,6 +58,7 @@ class BaseClient(object):
         self._capabilities = {}
         self._capability_labels = {}
         self._capability_identities = {}
+        self._receipt_identities = {}
         self._receipts = {}
         self._receipt_labels = {}
         self._results = {}
@@ -126,17 +127,23 @@ class BaseClient(object):
         else:
             raise KeyError("no capability for token or label "+token_or_label)
 
-    def identity_for(self, token_or_label):
+    def identity_for(self, token_or_label, receipt=False):
         """
-        Retrieve an identity given a capability token or label.
+        Retrieve an identity given a capability token or label, or a receipt token.
 
         """
-        if token_or_label in self._capability_identities:
-            return self._capability_identities[token_or_label]
-        elif token_or_label in self._capability_labels:
-            return self._capability_identities[self._capability_labels[token_or_label].get_token()]
+        if not receipt:
+            if token_or_label in self._capability_identities:
+                return self._capability_identities[token_or_label]
+            elif token_or_label in self._capability_labels:
+                return self._capability_identities[self._capability_labels[token_or_label].get_token()]
+            else:
+                raise KeyError("no identity for capability token or label "+token_or_label)
         else:
-            raise KeyError("no identity for capability token or label "+token_or_label)
+            if token_or_label in self._receipt_identities:
+                return self._receipt_identities[token_or_label]
+            else:
+                raise KeyError("no identity for receipt token " + token_or_label)
 
     def capabilities_matching_schema(self, schema_capability):
         """
@@ -190,9 +197,9 @@ class BaseClient(object):
         return (cap, spec)
 
     def _handle_receipt(self, msg, identity):
-        self._add_receipt(msg)
+        self._add_receipt(msg, identity)
 
-    def _add_receipt(self, msg):
+    def _add_receipt(self, msg, identity):
         """
         Add a receipt to internal state. The receipt will be recallable 
         by token, and, if present, by label.
@@ -200,6 +207,7 @@ class BaseClient(object):
         Internal use only; use handle_message instead.
 
         """
+        self._receipt_identities[msg.get_token()] = identity
         self._receipts[msg.get_token()] = msg
         if msg.get_label():
             self._receipt_labels[msg.get_label()] = msg
@@ -506,6 +514,16 @@ class HttpInitiatorClient(BaseClient):
         self.send_message(spec, dst_url)
         return spec
 
+    def interrupt_capability(self, cap_tol):
+        # get the receipt
+        rr = super().result_for(cap_tol)
+        interrupt = mplane.model.Interrupt(specification=rr)
+        dst_url = urllib3.util.Url(scheme=self._default_url.scheme,
+                                   host=self._default_url.host,
+                                   port=self._default_url.port,
+                                   path=self._default_url.path)
+        self.send_message(interrupt, dst_url)
+
     def retrieve_capabilities(self, url, urlchain=[], pool=None, identity=None):
         """
         connect to the given URL, retrieve and process the 
@@ -659,6 +677,13 @@ class HttpListenerClient(BaseClient):
             self._push_outgoing(identity, spec)
         return spec
 
+    def interrupt_capability(self, cap_tol):
+        # get the receipt
+        rr = super().result_for(cap_tol)
+        identity = self.identity_for(rr.get_token(), receipt=True)
+        interrupt = mplane.model.Interrupt(specification=rr)
+        self._push_outgoing(identity, interrupt)
+
     def _add_capability(self, msg, identity):
         """
         Override Client's add_capability, check for callback control
@@ -759,7 +784,10 @@ class SpecificationHandler(MPlaneHandler):
         env = mplane.model.Envelope()
         for spec in specs:
             env.append_message(spec)
-            print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+            if isinstance(spec, mplane.model.Specification):
+                print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+            else:
+                print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
         self._respond_json_text(200, mplane.model.unparse_json(env))
 
 class ResultHandler(MPlaneHandler):

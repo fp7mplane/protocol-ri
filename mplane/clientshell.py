@@ -32,7 +32,6 @@ import traceback
 import urllib3
 import argparse
 import configparser
-import readline
 from time import sleep
 
 class ClientShell(cmd.Cmd):
@@ -96,17 +95,17 @@ class ClientShell(cmd.Cmd):
         Usage: getcap [url]
 
         """
-        try:
-            url = arg.split()[0]
-            url = urllib3.util.parse_url(url)
-            if url.host is None or url.port is None:
-                print("Bad format for url")
-                return
-        except:
-            print("Usage: getcap [url]")
-            return
-
         if self.workflow == "client-initiated":
+            try:
+                url = arg.split()[0]
+                url = urllib3.util.parse_url(url)
+                if url.host is None or url.port is None:
+                    print("Bad format for url")
+                    return
+            except:
+                print("Usage: getcap [url]")
+                return
+
             while True:
                 try:
                     self._client.retrieve_capabilities(url)
@@ -376,6 +375,40 @@ class ClientShell(cmd.Cmd):
                 print(res.__repr__())
             elif res.get_label() is None:
                 print("Result  (token %s): %s" % (token, res.when()))
+
+    def do_stopmeas(self, arg):
+        """
+        Interrupts the measurement identified by label and/or token
+
+        Usage: stopmeas [label-or-token] 
+
+        """
+        try:
+            meas_tol = arg.split()[0]
+        except:
+            print("Usage: stopmeas [label-or-token]")
+            return
+
+        self._client.interrupt_capability(meas_tol)
+
+    def complete_stopmeas(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+
+        matches = []
+        beginning = line[len("stopmeas "):]
+        for label in self._client.receipt_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.receipt_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        for label in self._client.result_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.result_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        return matches
 
     def do_showmeas(self, arg):
         """

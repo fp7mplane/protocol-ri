@@ -53,10 +53,12 @@ class RelayService(mplane.scheduler.Service):
         trunc_label = spec.get_label()[:trunc_pos.start()]
         fwd_spec = self._client.invoke_capability(trunc_label, spec.when(), spec.parameter_values())
         result = None
-        wait = spec.when().duration().total_seconds()
+        pending = False
         while result is None:
-            sleep(wait)
-            wait = 2
+            if check_interrupt() and not pending:
+                self._client.interrupt_capability(fwd_spec.get_token())
+                pending = True
+            sleep(1)
             with self._lock:
                 if self._identity in self._messages:
                     for msg in self._messages[self._identity]:
