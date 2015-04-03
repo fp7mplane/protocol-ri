@@ -150,7 +150,7 @@ class Job(object):
             return
 
         # start interrupt timer
-        if end_delay is not None:
+        if end_delay is not None and not hasattr(self.service, 'relay'):
             threading.Timer(end_delay, self.interrupt).start()
             print("Will interrupt "+repr(self)+" after "+str(end_delay)+" sec")
 
