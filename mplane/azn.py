@@ -22,23 +22,15 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# FIXME grab most of this from sec.py, which then goes away.
-
-import mplane.model
-import configparser
-
 # Factory function to create Authorization ON or OFF object
-def Authorization(config_file = None):
-    if config_file is None:
+def Authorization(config=None):
+    if config is None:
         return AuthorizationOff()
     else:
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(config_file)
         if "TLS" not in config.sections():
             return AuthorizationOff()
         else:
-            return AuthorizationOn(config_file)
+            return AuthorizationOn(config)
         
 class AuthorizationOff(object):
         
@@ -49,10 +41,7 @@ always_authorized = AuthorizationOff()
 
 class AuthorizationOn(object):
     
-    def __init__(self, config_file):
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(config_file)
+    def __init__(self, config):
         self.id_role = self._load_roles(config["Roles"])
         self.cap_role = self._load_roles(config["Authorizations"])
 
@@ -70,13 +59,13 @@ class AuthorizationOn(object):
         capability by this set of authorization rules, false otherwise.
 
         """
-        
         # Remove the suffix serial number from the specification label
         # in order to make controls on the original label
+        cap_label = None
         for label in self.cap_role:
             if label in cap._label:
                 cap_label = label
-                
+
         if ((cap_label in self.cap_role) and (identity in self.id_role)): # Deny unless explicitly allowed in .conf files
             intersection = self.cap_role[cap_label] & self.id_role[identity]
             if len(intersection) > 0:
