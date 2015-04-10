@@ -29,8 +29,10 @@ import mplane.tls
 import sys
 import cmd
 import traceback
+import urllib3
 import argparse
 import configparser
+from time import sleep
 
 class ClientShell(cmd.Cmd):
 
@@ -93,14 +95,25 @@ class ClientShell(cmd.Cmd):
         Usage: getcap [url]
 
         """
-        try:
-            url = arg.split()[0]
-        except:
-            print("Usage: getcap [url]")
-            return
-
         if self.workflow == "client-initiated":
-            self._client.retrieve_capabilities(url)
+            try:
+                url = arg.split()[0]
+                url = urllib3.util.parse_url(url)
+                if url.host is None or url.port is None:
+                    print("Bad format for url")
+                    return
+            except:
+                print("Usage: getcap [url]")
+                return
+
+            while True:
+                try:
+                    self._client.retrieve_capabilities(url)
+                    break
+                except:
+                    print("Url unreachable. Retrying in 5 seconds")
+                sleep(5)
+
             print("ok")
         else:
             print("This command can only be used in client-initiated workflows")
@@ -114,11 +127,11 @@ class ClientShell(cmd.Cmd):
         Usage: listcap 
 
         """
-        for label in self._client.capability_labels():
+        for label in sorted(self._client.capability_labels()):
             print("Capability %s (token %s)" %
                   (label, self._client.capability_for(label).get_token()))
 
-        for token in self._client.capability_tokens():
+        for token in sorted(self._client.capability_tokens()):
             cap = self._client.capability_for(token)
             if cap.get_label() is None:
                 print("Capability (token %s)" % (token))
@@ -130,11 +143,25 @@ class ClientShell(cmd.Cmd):
         Usage: showcap [label-or-token] 
 
         """
-        print(mplane.model.render_text(self._client.capability_for(arg)))
+        try:
+            print(mplane.model.render_text(self._client.capability_for(arg)))
+        except:
+            print("Usage: showcap [label-or-token]")
+            return
 
-    # def complete_showcap(self, text, line, start_index, end_index):
-    #     """Tab-complete known capability labels and tokens"""
-    #     pass
+    def complete_showcap(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+
+        matches = []
+        beginning = line[len("showcap "):]
+        for label in self._client.capability_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+
+        for token in self._client.capability_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        return matches
 
     def do_when(self, arg):
         """
@@ -171,9 +198,15 @@ class ClientShell(cmd.Cmd):
         except:
             print("Couldn't set default "+arg)
 
-    # def complete_set(self, text, line, start_index, end_index):
-    #     """Tab-complete the set of names in the registry in first position"""
-    #     pass
+    def complete_set(self, text, line, start_index, end_index):
+        """Tab-complete the set of names in the registry in first position"""
+
+        matches = []
+        beginning = line[len("set "):]
+        for key in self._defaults:
+            if key.startswith(beginning):
+                matches.append(key[len(beginning) - len(text):])
+        return matches
 
     def do_unset(self, arg):
         """
@@ -197,9 +230,15 @@ class ClientShell(cmd.Cmd):
 
         print("ok")
 
-    # def complete_unset(self, text, line, start_index, end_index):
-    #     """Tab-complete the set of defaults in any position"""
-    #     pass
+    def complete_unset(self, text, line, start_index, end_index):
+        """Tab-complete the set of defaults in any position"""
+
+        matches = []
+        beginning = line[len("unset "):]
+        for key in self._defaults:
+            if key.startswith(beginning):
+                matches.append(key[len(beginning) - len(text):])
+        return matches
 
     def do_show(self, arg):
         """
@@ -222,9 +261,15 @@ class ClientShell(cmd.Cmd):
             for key, val in self._defaults.items():
                 print(key + " = " + val)
 
-    # def complete_show(self, text, line, start_index, end_index):
-    #     """Tab-complete the set of defaults in any position"""
-    #     pass
+    def complete_show(self, text, line, start_index, end_index):
+        """Tab-complete the set of defaults in any position"""
+
+        matches = []
+        beginning = line[len("show "):]
+        for key in self._defaults:
+            if key.startswith(beginning):
+                matches.append(key[len(beginning) - len(text):])
+        return matches
 
     def do_runcap(self, arg):
         """
@@ -269,7 +314,7 @@ class ClientShell(cmd.Cmd):
 
         # Prompt for missing capabilities (saving these in defaults)
         params = {}
-        for pname in cap.parameter_names():
+        for pname in sorted(cap.parameter_names()):
             while pname not in self._defaults or \
                   not cap.can_set_parameter_value(pname, self._defaults[pname]):
                 single_val = cap.get_single_parameter_value(pname)
@@ -285,9 +330,19 @@ class ClientShell(cmd.Cmd):
         self._client.invoke_capability(cap.get_token(), self._when, params, relabel)
         print("ok")
 
-    # def complete_showcap(self, text, line, start_index, end_index):
-    #     """Tab-complete known capability labels and tokens in first position"""
-    #     pass
+    def complete_runcap(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+
+        matches = []
+        beginning = line[len("runcap "):]
+        for label in self._client.capability_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+
+        for token in self._client.capability_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        return matches
 
     def do_listmeas(self, arg):
         """
@@ -298,23 +353,62 @@ class ClientShell(cmd.Cmd):
         """
         for label in self._client.receipt_labels():
             rec = self._client.result_for(label)
-            print("Receipt %s (token %s): %s" %
-                  (label, rec.get_token(), rec.when()))
+            if isinstance(rec, mplane.model.Receipt):
+                print("Receipt %s (token %s): %s" %
+                      (label, rec.get_token(), rec.when()))
 
         for token in self._client.receipt_tokens():
             rec = self._client.result_for(token)
-            if rec.get_label() is None:
-                print("Receipt (token %s): %s" % (token, rec.when())) 
+            if isinstance(rec, mplane.model.Receipt):
+                if rec.get_label() is None:
+                    print("Receipt (token %s): %s" % (token, rec.when()))
 
         for label in self._client.result_labels():
             res = self._client.result_for(label)
-            print("Result  %s (token %s): %s" %
-                  (label, res.get_token(), res.when()))
+            if not isinstance(res, mplane.model.Exception):
+                print("Result  %s (token %s): %s" %
+                      (label, res.get_token(), res.when()))
 
         for token in self._client.result_tokens():
             res = self._client.result_for(token)
-            if res.get_label() is None:
+            if isinstance(res, mplane.model.Exception):
+                print(res.__repr__())
+            elif res.get_label() is None:
                 print("Result  (token %s): %s" % (token, res.when()))
+
+    def do_stopmeas(self, arg):
+        """
+        Interrupts the measurement identified by label and/or token
+
+        Usage: stopmeas [label-or-token] 
+
+        """
+        try:
+            meas_tol = arg.split()[0]
+        except:
+            print("Usage: stopmeas [label-or-token]")
+            return
+
+        self._client.interrupt_capability(meas_tol)
+
+    def complete_stopmeas(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+
+        matches = []
+        beginning = line[len("stopmeas "):]
+        for label in self._client.receipt_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.receipt_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        for label in self._client.result_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.result_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        return matches
 
     def do_showmeas(self, arg):
         """
@@ -332,9 +426,24 @@ class ClientShell(cmd.Cmd):
         res = self._client.result_for(meas)
         mplane.model.render_text(res)
 
-    # def complete_showcap(self, text, line, start_index, end_index):
-    #     """Tab-complete known receipt and result labels and tokens in any position"""
-    #     pass
+    def complete_showmeas(self, text, line, start_index, end_index):
+        """Tab-complete known capability labels and tokens in first position"""
+
+        matches = []
+        beginning = line[len("showmeas "):]
+        for label in self._client.receipt_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.receipt_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        for label in self._client.result_labels():
+            if label.startswith(beginning):
+                matches.append(label[len(beginning) - len(text):])
+        for token in self._client.result_tokens():
+            if token.startswith(beginning):
+                matches.append(token[len(beginning) - len(text):])
+        return matches
 
     def do_tbenable(self, arg):
         """Enable tracebacks on uncaught exceptions"""

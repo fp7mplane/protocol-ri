@@ -28,12 +28,10 @@ results within the mPlane reference component.
 
 """
 
-from datetime import datetime, timedelta
-from copy import deepcopy
+from datetime import datetime
 import threading
 import mplane.model
 import mplane.azn
-import configparser
 
 class Service(object):
     """
@@ -152,7 +150,7 @@ class Job(object):
             return
 
         # start interrupt timer
-        if end_delay is not None:
+        if end_delay is not None and not hasattr(self.service, 'relay'):
             threading.Timer(end_delay, self.interrupt).start()
             print("Will interrupt "+repr(self)+" after "+str(end_delay)+" sec")
 
@@ -378,14 +376,23 @@ class Scheduler(object):
         reply = None
         if isinstance(msg, mplane.model.Specification):
             reply = self.submit_job(user, specification=msg, session=session, callback=callback)
-        elif isinstance (msg, mplane.model.Redemption):
+        elif isinstance(msg, mplane.model.Redemption):
             job_key = msg.get_token()
             if job_key in self.jobs:
                 job = self.jobs[job_key]
                 reply = job.get_reply()
                 if job.finished():
-                    print("dropped")
                     self.jobs.pop(job_key, None)
+            else:
+                reply = mplane.model.Exception(token=job_key,
+                errmsg="Unknown job")
+        elif isinstance(msg, mplane.model.Interrupt):
+            job_key = msg.get_token()
+            if job_key in self.jobs:
+                job = self.jobs[job_key]
+                print("Interrupting " + job.specification.get_label())
+                job.interrupt()
+                reply = job.get_reply()
             else:
                 reply = mplane.model.Exception(token=job_key,
                 errmsg="Unknown job")
@@ -417,7 +424,7 @@ class Scheduler(object):
         """
         return self._capability_cache[key]
 
-    def submit_job(self, user, specification, session=None, identity=None, callback=None):
+    def submit_job(self, user, specification, session=None, callback=None):
         """
         Search the available Services for one which can 
         service the given Specification, then create and schedule 
@@ -427,10 +434,13 @@ class Scheduler(object):
         # linearly search the available services
         for service in self.services:
             if specification.fulfills(service.capability()):
-                if self.azn.check(service.capability(), identity):
+                if self.azn.check(service.capability(), user):
                     # Found. Create a new job.
                     print(repr(service)+" matches "+repr(specification))
-                    if specification.when().is_repeated():
+                    if (specification.when().is_repeated() and
+                        # the service is not a RelayService from supervisor.py,
+                        # handle it as a normal multijob
+                        not hasattr(service, 'relay')):
                         new_job = MultiJob(service=service,
                                            specification=specification,
                                            session=session,

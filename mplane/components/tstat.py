@@ -210,7 +210,10 @@ class tStatService(mplane.scheduler.Service):
         wait_time = spec._when.timer_delays()
         wait_seconds = wait_time[1]
         if wait_seconds != None:
-            sleep(wait_seconds)
+            for i in range(0, round(wait_seconds)):
+                sleep(1)
+                if check_interrupt():
+                    break
         end_time = datetime.utcnow()
 
         # terminate measurement changing the tstat conf file
