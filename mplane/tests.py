@@ -65,16 +65,16 @@ id_false_role = "Dummy"
 def test_Authorization():
     res_none = azn.Authorization(None)
     assert_true(isinstance(res_none, azn.AuthorizationOff))
-    res_auth = azn.Authorization(config_path)
+    res_auth = azn.Authorization(get_config(config_path))
     assert_true(isinstance(res_auth, azn.AuthorizationOn))
-    res_no_tls = azn.Authorization(config_path_no_tls)
+    res_no_tls = azn.Authorization(get_config(config_path_no_tls))
     assert_true(isinstance(res_no_tls, azn.AuthorizationOff))
 
 
 def test_AuthorizationOn():
     model.initialize_registry()
     cap = model.Capability(label="test-log_tcp_complete-core")
-    res = azn.AuthorizationOn(config_path)
+    res = azn.AuthorizationOn(get_config(config_path))
     assert_true(isinstance(res, azn.AuthorizationOn))
     assert_true(res.check(cap, id_true_role))
     assert_false(res.check(cap, id_false_role))
