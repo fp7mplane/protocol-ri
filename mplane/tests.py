@@ -52,7 +52,7 @@ def get_config(config_file):
     return config
 
 ###
-### azn.py tests 
+### azn.py tests
 ###
 
 conf_dir = path.abspath(path.join(path.dirname(__file__),"..","testdata"))
@@ -132,7 +132,7 @@ def test_TLSState_pool_for_no_scheme():
     assert_true(isinstance(https_pool, urllib3.HTTPSConnectionPool))
     http_pool = tls_with_file_no_tls.pool_for(None, host, port)
     assert_true(isinstance(http_pool, urllib3.HTTPConnectionPool))
- 
+
 
 @raises(ValueError)
 def test_TLSState_pool_for_fallback():
@@ -199,7 +199,7 @@ def runTornado():
                                                 "keyfile": s_key,
                                                 "ca_certs": s_ca_chain,
                                                 "cert_reqs": ssl.CERT_REQUIRED
-                                            })    
+                                            })
 
     http_server.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
@@ -210,7 +210,7 @@ def stopTornado():
 def test_peer_identity():
     threading.Thread(target=runTornado).start()
     print("\nWaiting for Tornado to start...")
-    time.sleep(0.5)   
+    time.sleep(0.5)
 
     assert_equal(tls_with_file.extract_peer_identity(url), s_identity)
     assert_equal(tls_with_file_no_tls.extract_peer_identity(url), tls.DUMMY_DN)
@@ -222,3 +222,70 @@ def test_peer_identity():
         print("\nWaiting for Tornado to stop...")
         time.sleep(0.5)
 
+#
+# utils tests
+#
+
+utils_conf_file = 'utils-test.conf'
+utils_test_path = path.join(conf_dir, utils_conf_file)
+
+def test_read_setting():
+    res = utils.read_setting(utils_test_path, 'true_param')
+    assert_true(res)
+    res = utils.read_setting(utils_test_path, 'false_param')
+    assert_false(res)
+    res = utils.read_setting(utils_test_path, 'other_param')
+    assert_equal(res, 'other')
+    res = utils.read_setting(utils_test_path, 'missing_param')
+    assert_equal(res, None)
+
+
+@raises(ValueError)
+def test_search_path():
+    root_path = '/var'
+    assert_equal(utils.search_path(root_path), root_path)
+    existing_input_path = 'mplane'
+    output_path = path.abspath('mplane')
+    assert_equal(utils.search_path(existing_input_path), output_path)
+    unexisting_input_path = 'missing'
+    assert_equal(utils.search_path(unexisting_input_path), '')
+
+
+@raises(ValueError)
+def test_check_file():
+    utils.check_file('missing')
+
+
+def test_normalize_path():
+    another_root_path = '/conf'
+    assert_equal(utils.normalize_path(another_root_path), another_root_path)
+    another_existing_input_path = 'conf'
+    another_output_path = path.abspath('conf')
+    assert_equal(utils.normalize_path(another_existing_input_path),
+                 another_output_path)
+
+def test_add_value_to():
+    d = {1: ['one']}
+    utils.add_value_to(d, 1, 'One')
+    assert_equal(d, {1: ['one', 'One']})
+    utils.add_value_to(d, 2, 'two')
+    assert_equal(d, {1: ['one', 'One'], 2: ['two']})
+
+
+def test_split_stmt_list():
+    model.initialize_registry()
+    cap = model.Capability()
+    cap.set_when("now ... future / 1s")
+    cap.add_parameter("source.ip4", "10.0.27.2")
+    cap.add_parameter("destination.ip4")
+    cap.add_result_column("delay.twoway.icmp.us.min")
+    cap.add_result_column("delay.twoway.icmp.us.max")
+    cap.add_result_column("delay.twoway.icmp.us.mean")
+    cap.add_result_column("delay.twoway.icmp.count")
+    cap.add_result_column("packets.lost")
+    capjson = model.unparse_json(cap)
+    res = utils.split_stmt_list('['+capjson+']')
+    caps = []
+    caps.append(cap)
+    # using repr as no __eq__ methos is implemented fot capability objects
+    assert_equal(repr(res[0]), repr(caps[0]))
