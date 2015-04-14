@@ -1237,40 +1237,6 @@ def test_tscope():
     assert wrep_subspec.follows(When("2009-03-02 00:00:00 ... 2009-03-02 15:00:00"), tzero=parse_time("2009-03-02 00:00:03"))
     assert wrep_subspec.timer_delays(tzero=parse_time("2009-03-01 23:00:00")) == (3600, 3605)
 
-
-def test_registry():
-    # default registry trough the Registry-Object
-    base_registry = Registry()
-    assert repr(base_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
-    assert base_registry["start"].name() == "start"
-    assert base_registry["start"].primitive_name() == "time"
-    assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
-
-    # registry with a parent
-
-    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "registry_with_parent.json"))
-    assert repr(test_registry["testName"]) == "<Element tests/registry_with_parent.json#testName mplane.model.prim_time >"
-    assert test_registry["testName"].name() == "testName"
-    assert test_registry["testName"].primitive_name() == "time"
-    assert test_registry["testName"].desc() == "testDesc"
-    # element from the parent registry
-    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
-    assert test_registry["start"].name() == "start"
-    assert test_registry["start"].primitive_name() == "time"
-    assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
-    # overwritten element
-    assert repr(test_registry["end"]) == "<Element tests/registry_with_parent.json#end mplane.model.prim_time >"
-    assert test_registry["end"].name() == "end"
-    assert test_registry["end"].primitive_name() == "time"
-    assert test_registry["end"].desc() == "overwritten end"
-
-    # default registry through the element-method
-    initialize_registry()
-    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
-    assert element("start").name() == "start"
-    assert element("start").primitive_name() == "time"
-    assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
-
 #######################################################################
 # Primitive Types
 #######################################################################
@@ -1621,6 +1587,10 @@ class Registry(object):
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
 
+    def _include_registry(self, other_registry):
+        for elem in other_registry._elements():
+            self._add_element(elem)
+
     def _parse_json_bytestream(self, stream):
         # Turn the stream into a dict
         s = stream.read()
@@ -1645,7 +1615,7 @@ class Registry(object):
         # now parse includes depth-first
         if KEY_REGINCLUDE in d:
             for incuri in d[KEY_REGINCLUDE]:
-                self._parse_from_uri(incuri)
+                self._include_registry(registry_for_uri(incuri))
 
         # finally, iterate over elements and add them to the table
         for elem in d[KEY_ELEMENTS]:
@@ -1707,6 +1677,10 @@ class Registry(object):
 _base_registry = None
 _registries = {}
 
+def preload_registry(filename=None):
+    global _registries
+    _registries[uri] = Registry(filename=filename)
+
 def initialize_registry(uri=REGURI_DEFAULT):
     """
     Initializes the mPlane registry from a URI; if no URI is given,
@@ -1717,7 +1691,7 @@ def initialize_registry(uri=REGURI_DEFAULT):
     """
     global _base_registry
     global _registries
-    _base_registry = Registry(uri)
+    _base_registry = Registry(uri=uri)
     _registries[uri] = _base_registry
 
 def registry_for_uri(uri):
@@ -1729,7 +1703,7 @@ def registry_for_uri(uri):
     global _registries
 
     if uri not in _registries:
-        _registries[uri] = Registry(uri)
+        _registries[uri] = Registry(uri=uri)
 
     return _registries[uri]
 
@@ -1745,6 +1719,40 @@ def element(name, reguri=None):
         return _registries[reguri][name]
     else:
         return _base_registry[name]
+
+def test_registry():
+    # default registry trough the Registry-Object
+    base_registry = Registry()
+    assert repr(base_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert base_registry["start"].name() == "start"
+    assert base_registry["start"].primitive_name() == "time"
+    assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
+
+    # registry with a parent
+
+    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "registry_with_parent.json"))
+    assert repr(test_registry["testName"]) == "<Element tests/registry_with_parent.json#testName mplane.model.prim_time >"
+    assert test_registry["testName"].name() == "testName"
+    assert test_registry["testName"].primitive_name() == "time"
+    assert test_registry["testName"].desc() == "testDesc"
+    # element from the parent registry
+    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert test_registry["start"].name() == "start"
+    assert test_registry["start"].primitive_name() == "time"
+    assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
+    # overwritten element
+    assert repr(test_registry["end"]) == "<Element tests/registry_with_parent.json#end mplane.model.prim_time >"
+    assert test_registry["end"].name() == "end"
+    assert test_registry["end"].primitive_name() == "time"
+    assert test_registry["end"].desc() == "overwritten end"
+
+    # default registry through the element-method
+    initialize_registry()
+    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert element("start").name() == "start"
+    assert element("start").primitive_name() == "time"
+    assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
+
 
 #######################################################################
 # Constraints
