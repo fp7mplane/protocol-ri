@@ -1588,7 +1588,7 @@ class Registry(object):
         self._elements[elem.name()] = elem
 
     def _include_registry(self, other_registry):
-        for elem in other_registry._elements():
+        for elem in other_registry._elements.values():
             self._add_element(elem)
 
     def _parse_json_bytestream(self, stream):
@@ -1723,35 +1723,36 @@ def element(name, reguri=None):
 def test_registry():
     # default registry trough the Registry-Object
     base_registry = Registry()
-    assert repr(base_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert repr(base_registry["start"]) == "<Element " + REGURI_DEFAULT + "#start mplane.model.prim_time >"
     assert base_registry["start"].name() == "start"
     assert base_registry["start"].primitive_name() == "time"
     assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
 
     # registry with a parent
 
-    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "registry_with_parent.json"))
-    assert repr(test_registry["testName"]) == "<Element tests/registry_with_parent.json#testName mplane.model.prim_time >"
+    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "testdata", "registry_with_parent.json"))
+    assert repr(test_registry["testName"]) == "<Element testdata/registry_with_parent.json#testName mplane.model.prim_time >"
     assert test_registry["testName"].name() == "testName"
     assert test_registry["testName"].primitive_name() == "time"
     assert test_registry["testName"].desc() == "testDesc"
     # element from the parent registry
-    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core#start mplane.model.prim_time >"
     assert test_registry["start"].name() == "start"
     assert test_registry["start"].primitive_name() == "time"
     assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
     # overwritten element
-    assert repr(test_registry["end"]) == "<Element tests/registry_with_parent.json#end mplane.model.prim_time >"
+    assert repr(test_registry["end"]) == "<Element testdata/registry_with_parent.json#end mplane.model.prim_time >"
     assert test_registry["end"].name() == "end"
     assert test_registry["end"].primitive_name() == "time"
     assert test_registry["end"].desc() == "overwritten end"
 
     # default registry through the element-method
     initialize_registry()
-    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core.json#start mplane.model.prim_time >"
+    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core#start mplane.model.prim_time >"
     assert element("start").name() == "start"
     assert element("start").primitive_name() == "time"
     assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
+
 
 
 #######################################################################
