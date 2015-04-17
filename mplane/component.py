@@ -44,8 +44,9 @@ CAPABILITY_PATH_ELEM = "capability"
 SPECIFICATION_PATH_ELEM = "/"
 
 class BaseComponent(object):
-    
+
     def __init__(self, config):
+        # FIXME use registry preload
         mplane.model.initialize_registry()
         self.config = config
         self.tls = mplane.tls.TlsState(self.config)
@@ -53,7 +54,7 @@ class BaseComponent(object):
         for service in self._services():
             service.set_capability_link(SPECIFICATION_PATH_ELEM)
             self.scheduler.add_service(service)
-    
+
     def _services(self):
         services = []
         for section in self.config.sections():
@@ -68,11 +69,11 @@ class BaseComponent(object):
         return services
 
 class ListenerHttpComponent(BaseComponent):
-    
+
     def __init__(self, config, io_loop=None):
         port = config.getint("component", "listen-port")
         super(ListenerHttpComponent, self).__init__(config)
-        
+
         application = tornado.web.Application([
             (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
@@ -91,7 +92,7 @@ class ListenerHttpComponent(BaseComponent):
 
 class MPlaneHandler(tornado.web.RequestHandler):
     """
-    Abstract tornado RequestHandler that allows a 
+    Abstract tornado RequestHandler that allows a
     handler to respond with an mPlane Message.
 
     """
@@ -103,9 +104,9 @@ class MPlaneHandler(tornado.web.RequestHandler):
 
 class DiscoveryHandler(MPlaneHandler):
     """
-    Exposes the capabilities registered with a given scheduler. 
-    URIs ending with "capability" will result in an HTML page 
-    listing links to each capability. 
+    Exposes the capabilities registered with a given scheduler.
+    URIs ending with "capability" will result in an HTML page
+    listing links to each capability.
 
     """
 
@@ -140,8 +141,8 @@ class DiscoveryHandler(MPlaneHandler):
 
 class MessagePostHandler(MPlaneHandler):
     """
-    Receives mPlane messages POSTed from a client, and passes them to a 
-    scheduler for processing. After waiting for a specified delay to see 
+    Receives mPlane messages POSTed from a client, and passes them to a
+    scheduler for processing. After waiting for a specified delay to see
     if a Result is immediately available, returns a receipt for future
     redemption.
 
@@ -190,9 +191,9 @@ class MessagePostHandler(MPlaneHandler):
 
         # return reply
         self._respond_message(reply)
-    
+
 class InitiatorHttpComponent(BaseComponent):
-    
+
     def __init__(self, config, supervisor=False):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
@@ -225,10 +226,10 @@ class InitiatorHttpComponent(BaseComponent):
     def register_to_client(self, caps=None):
         """
         Sends a list of capabilities to the Client, in order to register them
-        
+
         """
         env = mplane.model.Envelope()
-        
+
         connected = False
         while not connected:
             try:
@@ -237,7 +238,7 @@ class InitiatorHttpComponent(BaseComponent):
             except:
                 print("Client/Supervisor unreachable. Retrying connection in 5 seconds")
                 sleep(5)
-                
+
         # If caps is not None, register that
         if caps is not None:
             for cap in caps:
@@ -285,6 +286,7 @@ class InitiatorHttpComponent(BaseComponent):
 
         """
         while(True):
+            # FIXME configurable default idle time.
             self.idle_time = 5
             # send a request for specifications
             res = self.pool.request('GET', self.specification_path)
@@ -316,7 +318,7 @@ class InitiatorHttpComponent(BaseComponent):
     def return_results(self, receipt):
         """
         Checks if a job is complete, and in case sends it to the Client/Supervisor
-        
+
         """
         job = self.scheduler.job_for_message(receipt)
         reply = job.get_reply()
@@ -327,8 +329,8 @@ class InitiatorHttpComponent(BaseComponent):
             return
 
         # send result to the Client/Supervisor
-        res = self.pool.urlopen('POST', self.result_path, 
-                body=mplane.model.unparse_json(reply).encode("utf-8"), 
+        res = self.pool.urlopen('POST', self.result_path,
+                body=mplane.model.unparse_json(reply).encode("utf-8"),
                 headers={"content-type": "application/x-mplane+json"})
 
         # handle response
@@ -350,24 +352,24 @@ class InitiatorHttpComponent(BaseComponent):
         pass
 
 if __name__ == "__main__":
-    
+
     global args
     parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
     parser.add_argument('--config', metavar='conf-file', dest='CONF',
                         help='Configuration file for the component')
     args = parser.parse_args()
-    
+
     # check if conf file parameter has been inserted in the command line
     if not args.CONF:
         print('\nERROR: missing --config\n')
         parser.print_help()
         exit(1)
-    
+
     # Read the configuration file
     config = configparser.ConfigParser()
     config.optionxform = str
     config.read(mplane.utils.search_path(args.CONF))
-    
+
     if config["component"]["workflow"] == "component-initiated":
         component = InitiatorHttpComponent(config)
     elif config["component"]["workflow"] == "client-initiated":
