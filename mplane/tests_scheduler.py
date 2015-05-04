@@ -39,7 +39,6 @@ import time
 import ssl
 
 
-
 ''' HELPERS '''
 
 
@@ -55,7 +54,7 @@ def get_config(config_file):
     return config
 
 
-def create_capability():
+def create_test_capability():
     model.initialize_registry()
     cap = model.Capability()
     cap.set_when("now ... future / 1s")
@@ -69,15 +68,45 @@ def create_capability():
     return cap
 
 
+def create_test_specification():
+    spec = model.Specification(capability=cap)
+    spec.set_parameter_value("destination.ip4", "10.0.37.2")
+    spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
+    return spec
+
+
+def create_test_results():
+    res = model.Result(specification=spec)
+    res.set_when("2017-12-24 22:18:42.993000 ... " +
+                 "2017-12-24 22:19:42.991000")
+    res.set_result_value("delay.twoway.icmp.us.min", 33155)
+    res.set_result_value("delay.twoway.icmp.us.mean", 55166)
+    res.set_result_value("delay.twoway.icmp.us.max", 192307)
+    res.set_result_value("delay.twoway.icmp.count", 58220)
+    return res
+
+
+class TestService(scheduler.Service):
+    def run(self, specification, check_interrupt):
+        # time.sleep(1)
+        return res
+   
 # Scheduler module tests
 
-# Class service tests:
+cap = create_test_capability()
+spec = create_test_specification()
+receipt = model.Receipt(specification=spec)
+res = create_test_results()
 
-cap = create_capability()
 service = scheduler.Service(cap)
+test_service = TestService(cap)
+
+# Class Service tests:
 
 
 def test_Service_init():
+    assert_true(isinstance(service, scheduler.Service))
+    # check parameter assignment
     assert_equal(service._capability, cap)
 
 
@@ -86,6 +115,10 @@ def test_Service_run():
         service.run(None, None)
     except NotImplementedError as e:
         assert_true(isinstance(e, NotImplementedError))
+
+
+def test_TestService_run():
+    assert_equal(test_service.run(None, None), res)
 
 
 def test_Service_capability():
@@ -105,3 +138,72 @@ def test_Service__repr__():
                  "<Service for "+repr(cap)+">")
 
 
+# Class Job tests:
+job = scheduler.Job(test_service, spec)
+
+
+def test_Job_init():
+    assert_true(isinstance(job, scheduler.Job))
+    # check parameter assignment
+    assert_equal(job.service, test_service)
+    assert_equal(job.specification, spec)
+    assert_equal(job.session, None)
+    assert_equal(job._callback, None)
+    assert_true(isinstance(job.receipt, model.Receipt))
+    assert_true(isinstance(job._interrupt, threading.Event))
+
+
+def test_Job__repr__():
+    assert_equal(repr(job),
+                 "<Job for "+repr(spec)+">")
+
+
+def test_Job_check_interrupt():
+    # Interrupt is not set since job has not run (yet).
+    assert_false(job._interrupt.is_set())
+
+    
+def test_Job_set_interrupt():
+    # Set interrupt
+    job.interrupt()
+    assert_true(job._interrupt.is_set())
+
+
+def test_job_finished_false():
+    # Job has not run (yet).
+    assert_false(job.finished())
+
+
+def test_job_get_reply_receipt():
+    # Job has not run (yet).
+    assert_true(isinstance(job.get_reply(), model.Receipt))
+
+
+def test_Job_run():
+    assert_equal(job.result, None)
+    job._run()
+    assert_equal(job.result, res)
+
+
+def test_job_finished_true():
+    # Job has run.
+    assert_true(job.finished())
+
+
+def test_job_get_reply_result():
+    # Job has run.
+    assert_true(isinstance(job.get_reply(), model.Result))
+
+# Create a job that fails
+job_failure = scheduler.Job(service, spec)
+
+
+def test_job_failed():
+    # Making job to fail.
+    job_failure._run()
+    assert_true(job_failure.failed)
+
+
+def test_job_get_reply_failed():
+    # Job has failed.
+    assert_true(isinstance(job_failure.get_reply(), model.Exception))
