@@ -88,7 +88,6 @@ def create_test_results():
 
 class TestService(scheduler.Service):
     def run(self, specification, check_interrupt):
-        # time.sleep(1)
         return res
    
 # Scheduler module tests
@@ -139,6 +138,7 @@ def test_Service__repr__():
 
 
 # Class Job tests:
+
 job = scheduler.Job(test_service, spec)
 
 
@@ -169,12 +169,12 @@ def test_Job_set_interrupt():
     assert_true(job._interrupt.is_set())
 
 
-def test_job_finished_false():
+def test_Job_finished_false():
     # Job has not run (yet).
     assert_false(job.finished())
 
 
-def test_job_get_reply_receipt():
+def test_Job_get_reply_receipt():
     # Job has not run (yet).
     assert_true(isinstance(job.get_reply(), model.Receipt))
 
@@ -185,12 +185,12 @@ def test_Job_run():
     assert_equal(job.result, res)
 
 
-def test_job_finished_true():
+def test_Job_finished_true():
     # Job has run.
     assert_true(job.finished())
 
 
-def test_job_get_reply_result():
+def test_Job_get_reply_result():
     # Job has run.
     assert_true(isinstance(job.get_reply(), model.Result))
 
@@ -198,12 +198,12 @@ def test_job_get_reply_result():
 job_failure = scheduler.Job(service, spec)
 
 
-def test_job_failed():
+def test_Job_failed():
     # Making job to fail.
     job_failure._run()
     assert_true(job_failure.failed)
 
 
-def test_job_get_reply_failed():
+def test_Job_get_reply_failed():
     # Job has failed.
     assert_true(isinstance(job_failure.get_reply(), model.Exception))
