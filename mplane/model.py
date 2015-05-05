@@ -1917,7 +1917,7 @@ class Parameter(Element):
         elif isinstance(constraint, _Constraint):
             self._constraint = constraint
         else:
-            self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
+            self._constraint = _SetConstraint(vs=set([constraint]), prim=self._prim)
 
         self.set_value(val)
 
@@ -2506,8 +2506,8 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
-        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when, reguri=reguri)
 
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
@@ -2815,6 +2815,7 @@ class _StatementNotification(Statement):
             self._label = statement._label
             self._verb = statement._verb
             self._when = statement._when
+            self._reguri = statement._reguri
             self._metadata = statement._metadata
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
