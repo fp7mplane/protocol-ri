@@ -2662,6 +2662,7 @@ class Result(Statement):
             self._metadata = specification._metadata
             self._params = deepcopy(specification._params)
             self._resultcolumns = deepcopy(specification._resultcolumns)
+            self._reguri = specification._reguri
             # assign token from specification
             self._token = specification.get_token()
             # allow parameters to take values other than constrained
