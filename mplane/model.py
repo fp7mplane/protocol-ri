@@ -3065,8 +3065,8 @@ def render_text(message):
 def render(msg):
     d = msg.to_dict()
 
-    if msg.kind_str == KIND_EXCEPTION:
-        out = KIND_EXCEPTION+": "
+    if msg.kind_str() == KIND_EXCEPTION:
+        out = KIND_EXCEPTION + ": " + d[KIND_EXCEPTION] + "\n"
     else:
         out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
