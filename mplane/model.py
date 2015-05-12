@@ -2769,6 +2769,9 @@ class Exception(BareNotification):
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
 
+    def kind_str(self):
+        return KIND_EXCEPTION
+
     def get_token(self):
         """
         Returns a token that originates from a message that has caused
