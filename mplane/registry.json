@@ -1,7 +1,7 @@
 {
   "registry-format": "mplane-0",
   "registry-revision": 0,
-  "registry-uri": "http://ict-mplane.eu/registry/core.json",
+  "registry-uri": "http://ict-mplane.eu/registry/core",
   "elements": [
     {
       "name": "start",
@@ -226,22 +226,22 @@
     {
       "name": "packets.lost",
       "prim": "natural",
-      "desc": "Count of packets observed or inferred as lost in a flow, event, or measurement"      
+      "desc": "Count of packets observed or inferred as lost in a flow, event, or measurement"
     },
     {
       "name": "packets.unobserved",
       "prim": "natural",
-      "desc": "Count of packets observed or inferred as delivered but unobserved in a flow, event, or measurement"      
+      "desc": "Count of packets observed or inferred as delivered but unobserved in a flow, event, or measurement"
     },
     {
       "name": "flows",
       "prim": "natural",
-      "desc": "Count of unidirectional flows (see RFC 7011) associated with an event or measurement"      
+      "desc": "Count of unidirectional flows (see RFC 7011) associated with an event or measurement"
     },
     {
       "name": "flows.bidirectional",
       "prim": "natural",
-      "desc": "Count of bidirectional flows (see RFC 7011 and 5103) associated with an event or measurement"      
+      "desc": "Count of bidirectional flows (see RFC 7011 and 5103) associated with an event or measurement"
     },
     {
       "name": "delay.twoway.icmp.us",
