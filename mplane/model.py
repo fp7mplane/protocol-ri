@@ -3006,6 +3006,7 @@ class Envelope(object):
     def when(self):
         """ Returns the envelope's temporal scope. (If it's a bunch of multijob results) """
         return self._when
+
 #######################################################################
 # Utility methods
 #######################################################################
@@ -3063,9 +3064,14 @@ def render_text(message):
 
 def render(msg):
     d = msg.to_dict()
-    out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
-    for section in (KEY_LABEL, KEY_LINK, KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+    if msg.kind_str == KIND_EXCEPTION:
+        out = KIND_EXCEPTION+": "
+    else:
+        out = "%s: %s\n" % (msg.kind_str(), msg.verb())
+
+    for section in (KEY_MESSAGE, KEY_LABEL, KEY_LINK,
+                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
         if section in d:
             out += "    %-12s: %s\n" % (section, d[section])
 
