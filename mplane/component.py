@@ -35,6 +35,8 @@ from datetime import datetime
 import time
 from time import sleep
 import urllib3
+if mplane.utils.versiontuple(urllib3.__version__) > mplane.utils.versiontuple("1.9"):
+    urllib3.disable_warnings()
 from threading import Thread
 import json
 

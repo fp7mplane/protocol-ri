@@ -108,3 +108,6 @@ def split_stmt_list(msg):
     for json_stmt in json_stmts:
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
+
+def versiontuple(version_string):
+    return tuple(map(int, (version_string.split("."))))
