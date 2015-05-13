@@ -2805,6 +2805,7 @@ class _StatementNotification(Statement):
     def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE, token=None):
         super().__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
+            self._label = statement._label
             self._verb = statement._verb
             self._when = statement._when
             self._metadata = statement._metadata
