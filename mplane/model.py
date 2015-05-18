@@ -2564,6 +2564,7 @@ class Specification(Statement):
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            self._reguri = capability._reguri
 
             # inherit from capability only when necessary
             if when is None:
