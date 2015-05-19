@@ -46,9 +46,9 @@ SPECIFICATION_PATH_ELEM = "/"
 class BaseComponent(object):
 
     def __init__(self, config):
-        # FIXME use registry preload
-        mplane.model.initialize_registry()
         self.config = config
+        # FIXME use registry preload
+        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():

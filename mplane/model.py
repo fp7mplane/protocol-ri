@@ -1647,8 +1647,11 @@ class Registry(object):
             if scheme == "file" or scheme == "":
                 uri = "file://" + normalize_path(uri)
 
-            with urllib.request.urlopen(uri) as stream:
-                self._parse_json_bytestream(stream)
+            try:
+                with urllib.request.urlopen(uri) as stream:
+                    self._parse_json_bytestream(stream)
+            except:
+                raise ValueError("Invalid Registry uri: " + uri)
 
     def _dump_json(self):
         d = collections.OrderedDict()
@@ -2090,7 +2093,6 @@ class Statement(object):
         super().__init__()
         # Make a blank statement
         self._version = MPLANE_VERSION
-        self._reguri = REGURI_DEFAULT
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -2115,6 +2117,10 @@ class Statement(object):
             self._when = when
             if reguri is not None:
                 self._reguri = reguri
+            else:
+                for uri in _registries:
+                    self._reguri = uri
+                    break
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\

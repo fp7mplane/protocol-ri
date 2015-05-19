@@ -78,10 +78,10 @@ class RelayService(mplane.scheduler.Service):
 class BaseSupervisor(object):
     
     def __init__(self, config):
-        # boot the model
-        mplane.model.initialize_registry()
         self._caps = []
         self.config = config
+        # boot the model
+        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
         tls_state = mplane.tls.TlsState(config)
 
         self.from_cli = queue.Queue()
@@ -188,8 +188,6 @@ class BaseSupervisor(object):
             sleep(5)
 
 if __name__ == "__main__":
-    mplane.model.initialize_registry()
-
     # look for TLS configuration
     parser = argparse.ArgumentParser(description="mPlane generic Supervisor")
     parser.add_argument('--config', metavar="config-file",
