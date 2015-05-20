@@ -1647,8 +1647,11 @@ class Registry(object):
             if scheme == "file" or scheme == "":
                 uri = "file://" + normalize_path(uri)
 
-            with urllib.request.urlopen(uri) as stream:
-                self._parse_json_bytestream(stream)
+            try:
+                with urllib.request.urlopen(uri) as stream:
+                    self._parse_json_bytestream(stream)
+            except:
+                raise ValueError("Invalid Registry uri: " + uri)
 
     def _dump_json(self):
         d = collections.OrderedDict()
@@ -2090,7 +2093,6 @@ class Statement(object):
         super().__init__()
         # Make a blank statement
         self._version = MPLANE_VERSION
-        self._reguri = REGURI_DEFAULT
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -2115,6 +2117,10 @@ class Statement(object):
             self._when = when
             if reguri is not None:
                 self._reguri = reguri
+            else:
+                for uri in _registries:
+                    self._reguri = uri
+                    break
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -2564,6 +2570,7 @@ class Specification(Statement):
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            self._reguri = capability._reguri
 
             # inherit from capability only when necessary
             if when is None:
@@ -2805,6 +2812,7 @@ class _StatementNotification(Statement):
     def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE, token=None):
         super().__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
+            self._label = statement._label
             self._verb = statement._verb
             self._when = statement._when
             self._metadata = statement._metadata
@@ -3006,6 +3014,7 @@ class Envelope(object):
     def when(self):
         """ Returns the envelope's temporal scope. (If it's a bunch of multijob results) """
         return self._when
+
 #######################################################################
 # Utility methods
 #######################################################################
@@ -3063,9 +3072,14 @@ def render_text(message):
 
 def render(msg):
     d = msg.to_dict()
-    out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
-    for section in (KEY_LABEL, KEY_LINK, KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+    if msg.kind_str() == KIND_EXCEPTION:
+        out = KIND_EXCEPTION + ": " + d[KIND_EXCEPTION] + "\n"
+    else:
+        out = "%s: %s\n" % (msg.kind_str(), msg.verb())
+
+    for section in (KEY_MESSAGE, KEY_LABEL, KEY_LINK,
+                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
         if section in d:
             out += "    %-12s: %s\n" % (section, d[section])
 
