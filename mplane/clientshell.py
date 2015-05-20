@@ -42,6 +42,9 @@ class ClientShell(cmd.Cmd):
 
     def __init__(self, config):
 
+        # boot the model
+        mplane.model.initialize_registry(config["client"]["registry_uri"])
+
         super().__init__()
         tls_state = mplane.tls.TlsState(config)
         self._defaults = {}
@@ -463,8 +466,6 @@ class ClientShell(cmd.Cmd):
         print("You can try to continue, but client state may be inconsistent.")
 
 if __name__ == "__main__":
-    # boot the model
-    mplane.model.initialize_registry()
 
     # look for TLS configuration
     parser = argparse.ArgumentParser(description="mPlane generic testing client")

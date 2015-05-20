@@ -43,7 +43,7 @@ def services(runtimeconf):
     return services
 
 def tcp_flows_capability():
-    cap = mplane.model.Capability(label="tstat-log_tcp_complete-core", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-core", when = "now ... future")
     cap.add_metadata("System_type", "tStat")
     cap.add_metadata("System_ID", "tStat-Proxy")
     cap.add_metadata("System_version", "0.1")
@@ -94,7 +94,7 @@ def tcp_flows_capability():
     return cap
 
 def e2e_tcp_flows_capability():
-    cap = mplane.model.Capability(label="tstat-log_tcp_complete-end_to_end", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-end_to_end", when = "now ... future")
     cap.add_metadata("System_type", "tStat")
     cap.add_metadata("System_ID", "tStat-Proxy")
     cap.add_metadata("System_version", "0.1")
@@ -108,7 +108,7 @@ def e2e_tcp_flows_capability():
     return cap
     
 def tcp_options_capability():
-    cap = mplane.model.Capability(label="tstat-log_tcp_complete-tcp_options", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-tcp_options", when = "now ... future")
     cap.add_metadata("System_type", "tStat")
     cap.add_metadata("System_ID", "tStat-Proxy")
     cap.add_metadata("System_version", "0.1")
@@ -162,7 +162,7 @@ def tcp_options_capability():
     return cap
     
 def tcp_p2p_stats_capability():
-    cap = mplane.model.Capability(label="tstat-log_tcp_complete-p2p_stats", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-p2p_stats", when = "now ... future")
     cap.add_metadata("System_type", "tStat")
     cap.add_metadata("System_ID", "tStat-Proxy")
     cap.add_metadata("System_version", "0.1")
@@ -175,7 +175,7 @@ def tcp_p2p_stats_capability():
     return cap    
 
 def tcp_layer7_capability():
-    cap = mplane.model.Capability(label="tstat-log_tcp_complete-layer7", when = "now + inf ... future")
+    cap = mplane.model.Capability(label="tstat-log_tcp_complete-layer7", when = "now ... future")
     cap.add_metadata("System_type", "tStat")
     cap.add_metadata("System_ID", "tStat-Proxy")
     cap.add_metadata("System_version", "0.1")

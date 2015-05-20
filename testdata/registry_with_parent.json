@@ -1,7 +1,7 @@
 {
   "registry-format": "mplane-0",
   "registry-revision": 0,
-  "registry-uri": "tests/registry_with_parent.json",
+  "registry-uri": "testdata/registry_with_parent.json",
   "includes": ["http://ict-mplane.eu/registry/core"],
   "elements": [
     {
