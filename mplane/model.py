@@ -2147,10 +2147,6 @@ class Statement(object):
         """Returns this statement's verb"""
         return self._verb
 
-    def is_query(self):
-        """ FIXME: This method should be called is_schedulable(). Check implementations where this method is used. """
-        return self._verb == VERB_QUERY
-
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically adds a parameter to this Statement."""
         self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri),
@@ -2613,6 +2609,17 @@ class Specification(Statement):
 
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
+
+    def is_schedulable(self):
+        """
+        Determine if a specification can be scheduled -- i.e., that its
+        temporal scope refers to some time in the future at which a
+        measurement or other operation should take place, or some range of
+        time for which existing data should be searched and/or retrieved.
+
+        Currently, this just checks to see whether the verb is 'query'.
+        """
+        return self._verb != VERB_QUERY
 
     def _default_token(self):
         return self._pv_hash()

@@ -23,7 +23,7 @@
 #
 
 """
-Implements the dynamics of capabilities, specifications, and 
+Implements the dynamics of capabilities, specifications, and
 results within the mPlane reference component.
 
 """
@@ -35,11 +35,11 @@ import mplane.azn
 
 class Service(object):
     """
-    A Service binds some runnable code to an 
+    A Service binds some runnable code to an
     mplane.model.Capability provided by a component.
 
-    To use services with an mPlane scheduler, inherit from 
-    mplane.scheduler.Service or one of its subclasses 
+    To use services with an mPlane scheduler, inherit from
+    mplane.scheduler.Service or one of its subclasses
     and implement run().
 
     """
@@ -54,15 +54,15 @@ class Service(object):
         a concrete subclass of Service.
 
         The implementation should extract its parameters from a given
-        mplane.model.Specification, and return its result values in a 
+        mplane.model.Specification, and return its result values in a
         mplane.model.Result derived therefrom.
 
         After each row or logically grouped set of rows, the implementation
-        should call the check_interrupt function to determine whether it 
-        should stop; if this function returns True, the implementation should 
+        should call the check_interrupt function to determine whether it
+        should stop; if this function returns True, the implementation should
         terminate its processing in an orderly fashion and return its results.
 
-        Each method will be called within its own thread and/or process. 
+        Each method will be called within its own thread and/or process.
 
         """
         raise NotImplementedError("Cannot instantiate an abstract Service")
@@ -81,9 +81,9 @@ class Service(object):
 
 class Job(object):
     """
-    A Job binds some running code to an mPlane.model.Specification 
-    within a component. A Job can be thought of as a specific 
-    instance of a Service presently running, or ready to run at some 
+    A Job binds some running code to an mPlane.model.Specification
+    within a component. A Job can be thought of as a specific
+    instance of a Service presently running, or ready to run at some
     point in the future.
 
     Each Job will result in a single Result.
@@ -116,11 +116,11 @@ class Job(object):
     def _run(self):
         self._started_at = datetime.utcnow()
         try:
-            self.result = self.service.run(self.specification, 
+            self.result = self.service.run(self.specification,
                                            self._check_interrupt)
         except Exception as e:
             self.exception = mplane.model.Exception(
-                            token=self.specification.get_token(), 
+                            token=self.specification.get_token(),
                             errmsg=str(e))
             print("Got exception in _run(), returning "+str(self.exception))
             self._exception_at = datetime.utcnow()
@@ -135,16 +135,16 @@ class Job(object):
     def _schedule_now(self):
         # spawn a thread to run the service
         threading.Thread(target=self._run).start()
-        
+
     def schedule(self):
         """
         Schedule this job to run.
         """
         # Always schedule queries immediately without interrupt
-        if self.specification.is_query():
-            (start_delay, end_delay) = (0, None)
-        else:
+        if self.specification.is_schedulable():
             (start_delay, end_delay) = self.specification.when().timer_delays()
+        else:
+            (start_delay, end_delay) = (0, None)
 
         if start_delay is None:
             return
@@ -155,7 +155,7 @@ class Job(object):
             print("Will interrupt "+repr(self)+" after "+str(end_delay)+" sec")
 
         # start start timer
-        if start_delay > 0:            
+        if start_delay > 0:
             print("Scheduling "+repr(self)+" after "+str(start_delay)+" sec")
             threading.Timer(start_delay, self._schedule_now).start()
         else:
@@ -180,8 +180,8 @@ class Job(object):
 
     def get_reply(self):
         """
-        If a result is available for this Job (i.e., if the job is 
-        done running), return it. Otherwise, create a receipt from 
+        If a result is available for this Job (i.e., if the job is
+        done running), return it. Otherwise, create a receipt from
         the Specification and return that.
 
         """
@@ -217,8 +217,8 @@ class MultiJob(object):
         self.session = session
         self.specification = specification
         self.receipt = mplane.model.Receipt(specification=specification)
-        self.results = mplane.model.Envelope(token=specification.get_token(), 
-                                             label=specification.get_label(), 
+        self.results = mplane.model.Envelope(token=specification.get_token(),
+                                             label=specification.get_label(),
                                              when=specification.when())
         self._subspec_iterator = specification.subspec_iterator()
         self._max_results = int(max_results)
@@ -270,10 +270,10 @@ class MultiJob(object):
         """
         Scheduling start function
         """
-        if self.specification.is_query():
-            (start_delay, end_delay) = (0, None)
-        else:
+        if self.specification.is_schedulable():
             (start_delay, end_delay) = self.specification.when().timer_delays()
+        else:
+            (start_delay, end_delay) = (0, None)
 
         # if no start_delay for the next run was found we should stop this MultiJob
         if start_delay is None:
@@ -398,7 +398,7 @@ class Scheduler(object):
                 errmsg="Unknown job")
         else:
             print("exception")
-            reply = mplane.model.Exception(token=msg.get_token(), 
+            reply = mplane.model.Exception(token=msg.get_token(),
                 errmsg="Unexpected message type")
 
         return reply
@@ -412,7 +412,7 @@ class Scheduler(object):
 
     def capability_keys(self):
         """
-        Return keys (tokens) for the set of cached capabilities 
+        Return keys (tokens) for the set of cached capabilities
         provided by this scheduler's services.
 
         """
@@ -426,9 +426,9 @@ class Scheduler(object):
 
     def submit_job(self, user, specification, session=None, callback=None):
         """
-        Search the available Services for one which can 
-        service the given Specification, then create and schedule 
-        a new Job to execute the statement. 
+        Search the available Services for one which can
+        service the given Specification, then create and schedule
+        a new Job to execute the statement.
 
         """
         # linearly search the available services
@@ -464,7 +464,7 @@ class Scheduler(object):
                     self.jobs[job_key] = new_job
                     print("Returning "+repr(new_job.receipt))
                     return new_job.receipt
-                    
+
                 # user not authorized to request the capability
                 print("Not allowed to request this capability: " + repr(specification))
                 return mplane.model.Exception(token=specification.get_token(),
@@ -477,7 +477,7 @@ class Scheduler(object):
 
     def job_for_message(self, msg):
         """
-        Given a message (generally a Redemption), 
+        Given a message (generally a Redemption),
         return the Job matching its token.
 
         """
@@ -485,8 +485,8 @@ class Scheduler(object):
 
     def prune_jobs(self):
         """
-        Currently does nothing. Will remove Jobs which are 
-        finished and whose Results have been retrieved 
+        Currently does nothing. Will remove Jobs which are
+        finished and whose Results have been retrieved
         from the scheduler in a future version.
 
         """
