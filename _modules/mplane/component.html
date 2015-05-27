@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mplane.component &mdash; mPlane Software Development Kit 0.9.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="mPlane Software Development Kit 0.9.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+      <div class="header" role="banner"><img class="rightlogo" src="../../_static/mplane.png" alt="Logo"/><h1 class="heading"><a href="../../index.html">
+          <span>mPlane Software Development Kit 0.9.0 documentation</span></a></h1>
+        <h2 class="heading"><span>mplane.component</span></h2>
+      </div>
+      <div class="topnav" role="navigation" aria-label="top navigation">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for mplane.component</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python3</span>
+<span class="c"># vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4</span>
+<span class="c">##</span>
+<span class="c"># mPlane Software Development Kit</span>
+<span class="c"># Component framework</span>
+<span class="c">#</span>
+<span class="c"># (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)</span>
+<span class="c">#     Author: Stefano Pentassuglia &lt;stefano.pentassuglia@ssbprogetti.it&gt;</span>
+<span class="c">#             Brian Trammell &lt;brian@trammell.ch&gt;</span>
+<span class="c">#</span>
+<span class="c">#</span>
+<span class="c"># This program is free software: you can redistribute it and/or modify it under</span>
+<span class="c"># the terms of the GNU Lesser General Public License as published by the Free</span>
+<span class="c"># Software Foundation, either version 3 of the License, or (at your option) any</span>
+<span class="c"># later version.</span>
+<span class="c">#</span>
+<span class="c"># This program is distributed in the hope that it will be useful, but WITHOUT</span>
+<span class="c"># ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span>
+<span class="c"># FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more</span>
+<span class="c"># details.</span>
+<span class="c">#</span>
+<span class="c"># You should have received a copy of the GNU General Public License along with</span>
+<span class="c"># this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c">#</span>
+
+<span class="kn">import</span> <span class="nn">mplane.utils</span>
+<span class="kn">import</span> <span class="nn">mplane.model</span>
+<span class="kn">import</span> <span class="nn">mplane.azn</span>
+<span class="kn">import</span> <span class="nn">mplane.tls</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">tornado.web</span>
+<span class="kn">import</span> <span class="nn">tornado.httpserver</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span>
+<span class="kn">import</span> <span class="nn">urllib3</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">Thread</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="n">SLEEP_QUANTUM</span> <span class="o">=</span> <span class="mf">0.250</span>
+<span class="n">CAPABILITY_PATH_ELEM</span> <span class="o">=</span> <span class="s">&quot;capability&quot;</span>
+<span class="n">SPECIFICATION_PATH_ELEM</span> <span class="o">=</span> <span class="s">&quot;/&quot;</span>
+
+<span class="k">class</span> <span class="nc">BaseComponent</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="c"># FIXME use registry preload</span>
+        <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize_registry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;component&quot;</span><span class="p">][</span><span class="s">&quot;registry_uri&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tls</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">TlsState</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">Scheduler</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_services</span><span class="p">():</span>
+            <span class="n">service</span><span class="o">.</span><span class="n">set_capability_link</span><span class="p">(</span><span class="n">SPECIFICATION_PATH_ELEM</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">add_service</span><span class="p">(</span><span class="n">service</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">services</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">section</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;module_&quot;</span><span class="p">):</span>
+                <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="n">section</span><span class="p">][</span><span class="s">&quot;module&quot;</span><span class="p">])</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="n">section</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">arg</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;module&quot;</span><span class="p">):</span>
+                        <span class="n">kwargs</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="n">section</span><span class="p">][</span><span class="n">arg</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">services</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                    <span class="n">services</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">service</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">services</span>
+
+<span class="k">class</span> <span class="nc">ListenerHttpComponent</span><span class="p">(</span><span class="n">BaseComponent</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">io_loop</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">getint</span><span class="p">(</span><span class="s">&quot;component&quot;</span><span class="p">,</span> <span class="s">&quot;listen-port&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ListenerHttpComponent</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="n">application</span> <span class="o">=</span> <span class="n">tornado</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">([</span>
+            <span class="p">(</span><span class="s">r&quot;/&quot;</span><span class="p">,</span> <span class="n">MessagePostHandler</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;scheduler&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s">&#39;tlsState&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="p">}),</span>
+            <span class="p">(</span><span class="s">r&quot;/&quot;</span><span class="o">+</span><span class="n">CAPABILITY_PATH_ELEM</span><span class="p">,</span> <span class="n">DiscoveryHandler</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;scheduler&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s">&#39;tlsState&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="p">}),</span>
+            <span class="p">(</span><span class="s">r&quot;/&quot;</span><span class="o">+</span><span class="n">CAPABILITY_PATH_ELEM</span><span class="o">+</span><span class="s">&quot;/.*&quot;</span><span class="p">,</span> <span class="n">DiscoveryHandler</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;scheduler&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s">&#39;tlsState&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="p">})</span>
+        <span class="p">])</span>
+        <span class="n">http_server</span> <span class="o">=</span> <span class="n">tornado</span><span class="o">.</span><span class="n">httpserver</span><span class="o">.</span><span class="n">HTTPServer</span><span class="p">(</span><span class="n">application</span><span class="p">,</span> <span class="n">ssl_options</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">get_ssl_options</span><span class="p">())</span>
+        <span class="n">http_server</span><span class="o">.</span><span class="n">listen</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="n">comp_t</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">listen_in_background</span><span class="p">(</span><span class="n">io_loop</span><span class="p">))</span>
+        <span class="n">comp_t</span><span class="o">.</span><span class="n">setDaemon</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">comp_t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">listen_in_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">io_loop</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; The component listens for requests in background &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">io_loop</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">tornado</span><span class="o">.</span><span class="n">ioloop</span><span class="o">.</span><span class="n">IOLoop</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MPlaneHandler"><a class="viewcode-back" href="../../index.html#mplane.component.MPlaneHandler">[docs]</a><span class="k">class</span> <span class="nc">MPlaneHandler</span><span class="p">(</span><span class="n">tornado</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">RequestHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abstract tornado RequestHandler that allows a</span>
+<span class="sd">    handler to respond with an mPlane Message.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_respond_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_header</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">,</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DiscoveryHandler"><a class="viewcode-back" href="../../index.html#mplane.component.DiscoveryHandler">[docs]</a><span class="k">class</span> <span class="nc">DiscoveryHandler</span><span class="p">(</span><span class="n">MPlaneHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Exposes the capabilities registered with a given scheduler.</span>
+<span class="sd">    URIs ending with &quot;capability&quot; will result in an HTML page</span>
+<span class="sd">    listing links to each capability.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduler</span><span class="p">,</span> <span class="n">tlsState</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tls</span> <span class="o">=</span> <span class="n">tlsState</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># capabilities</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="n">path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">CAPABILITY_PATH_ELEM</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">path</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_respond_capability_links</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_respond_capability</span><span class="p">(</span><span class="n">path</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># FIXME how do we tell tornado we don&#39;t want to handle this?</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;I only know how to handle /&quot;</span><span class="o">+</span><span class="n">CAPABILITY_PATH_ELEM</span><span class="o">+</span><span class="s">&quot; URLs via HTTP GET&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_respond_capability_links</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_header</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">,</span> <span class="s">&quot;text/html&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;html&gt;&lt;head&gt;&lt;title&gt;Capabilities&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_for_key</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">extract_peer_identity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">)):</span>
+            	<span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;a href=&#39;/capability/&quot;</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s">&quot;&#39;&gt;&quot;</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s">&quot;&lt;/a&gt;&lt;br/&gt;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;/body&gt;&lt;/html&gt;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_respond_capability</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_respond_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_for_key</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="MessagePostHandler"><a class="viewcode-back" href="../../index.html#mplane.component.MessagePostHandler">[docs]</a><span class="k">class</span> <span class="nc">MessagePostHandler</span><span class="p">(</span><span class="n">MPlaneHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Receives mPlane messages POSTed from a client, and passes them to a</span>
+<span class="sd">    scheduler for processing. After waiting for a specified delay to see</span>
+<span class="sd">    if a Result is immediately available, returns a receipt for future</span>
+<span class="sd">    redemption.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduler</span><span class="p">,</span> <span class="n">tlsState</span><span class="p">,</span> <span class="n">immediate_ms</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tls</span> <span class="o">=</span> <span class="n">tlsState</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">immediate_ms</span> <span class="o">=</span> <span class="n">immediate_ms</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_header</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">,</span> <span class="s">&quot;text/html&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;html&gt;&lt;head&gt;&lt;title&gt;mplane.httpsrv&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.&lt;br/&gt;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;a href=&#39;/&quot;</span><span class="o">+</span><span class="n">CAPABILITY_PATH_ELEM</span><span class="o">+</span><span class="s">&quot;&#39;&gt;Capabilities&lt;/a&gt; provided by this server:&lt;br/&gt;&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_for_key</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">extract_peer_identity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;br/&gt;&lt;pre&gt;&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_for_key</span><span class="p">(</span><span class="n">key</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;&lt;/body&gt;&lt;/html&gt;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># unwrap json message from body</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s">&quot;Content-Type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parse_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># FIXME how do we tell tornado we don&#39;t want to handle this?</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;I only know how to handle mPlane JSON messages via HTTP POST&quot;</span><span class="p">)</span>
+
+        <span class="c"># hand message to scheduler</span>
+        <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">process_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">extract_peer_identity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">),</span> <span class="n">msg</span><span class="p">)</span>
+
+        <span class="c"># wait for immediate delay</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">immediate_ms</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> \
+           <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Specification</span><span class="p">)</span> <span class="ow">and</span> \
+           <span class="nb">isinstance</span><span class="p">(</span><span class="n">reply</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Receipt</span><span class="p">):</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">job_for_message</span><span class="p">(</span><span class="n">reply</span><span class="p">)</span>
+            <span class="n">wait_start</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+            <span class="k">while</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">-</span> <span class="n">wait_start</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">immediate_ms</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">SLEEP_QUANTUM</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">failed</span><span class="p">()</span> <span class="ow">or</span> <span class="n">job</span><span class="o">.</span><span class="n">finished</span><span class="p">():</span>
+                    <span class="n">reply</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_reply</span><span class="p">()</span>
+                    <span class="k">break</span>
+
+        <span class="c"># return reply</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_respond_message</span><span class="p">(</span><span class="n">reply</span><span class="p">)</span>
+</div>
+<span class="k">class</span> <span class="nc">InitiatorHttpComponent</span><span class="p">(</span><span class="n">BaseComponent</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">supervisor</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_supervisor</span> <span class="o">=</span> <span class="n">supervisor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">InitiatorHttpComponent</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s">&quot;TLS&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
+            <span class="n">scheme</span> <span class="o">=</span> <span class="s">&quot;http&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scheme</span> <span class="o">=</span> <span class="s">&quot;https&quot;</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;component&quot;</span><span class="p">][</span><span class="s">&quot;client_host&quot;</span><span class="p">]</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">getint</span><span class="p">(</span><span class="s">&quot;component&quot;</span><span class="p">,</span> <span class="s">&quot;client_port&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">urllib3</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">Url</span><span class="p">(</span><span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">registration_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;component&quot;</span><span class="p">][</span><span class="s">&quot;registration_path&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">registration_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registration_path</span> <span class="o">=</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">registration_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">specification_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;component&quot;</span><span class="p">][</span><span class="s">&quot;specification_path&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">specification_path</span> <span class="o">=</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;component&quot;</span><span class="p">][</span><span class="s">&quot;result_path&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span> <span class="o">=</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">pool_for</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">scheme</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_to_client</span><span class="p">()</span>
+
+        <span class="c"># periodically poll the Client/Supervisor for Specifications</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Checking for Specifications...&quot;</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">check_for_specs</span><span class="p">)</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">register_to_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">caps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sends a list of capabilities to the Client, in order to register them</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Envelope</span><span class="p">()</span>
+
+        <span class="n">connected</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">connected</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_client_identity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tls</span><span class="o">.</span><span class="n">extract_peer_identity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+                <span class="n">connected</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Client/Supervisor unreachable. Retrying connection in 5 seconds&quot;</span><span class="p">)</span>
+                <span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+        <span class="c"># If caps is not None, register that</span>
+        <span class="k">if</span> <span class="n">caps</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">cap</span> <span class="ow">in</span> <span class="n">caps</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client_identity</span><span class="p">):</span>
+                    <span class="n">env</span><span class="o">.</span><span class="n">append_message</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># generate the envelope containing the capability list</span>
+            <span class="n">no_caps_exposed</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_keys</span><span class="p">():</span>
+                <span class="n">cap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">capability_for_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client_identity</span><span class="p">):</span>
+                    <span class="n">env</span><span class="o">.</span><span class="n">append_message</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span>
+                    <span class="n">no_caps_exposed</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="k">if</span> <span class="n">no_caps_exposed</span> <span class="ow">is</span> <span class="bp">True</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supervisor</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">No Capabilities are being exposed to &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client_identity</span> <span class="o">+</span> <span class="s">&quot;, check permissions in config file. Exiting&quot;</span><span class="p">)</span>
+                <span class="nb">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c"># add callback capability to the list</span>
+            <span class="n">callback_cap</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Capability</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s">&quot;callback&quot;</span><span class="p">,</span> <span class="n">when</span> <span class="o">=</span> <span class="s">&quot;now ... future&quot;</span><span class="p">)</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">append_message</span><span class="p">(</span><span class="n">callback_cap</span><span class="p">)</span>
+
+        <span class="c"># send the envelope to the client</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="s">&#39;POST&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">registration_path</span><span class="p">,</span>
+                    <span class="n">body</span><span class="o">=</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">env</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">),</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;content-type&quot;</span><span class="p">:</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">})</span>
+
+        <span class="c"># handle response message</span>
+        <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Capability registration outcome:&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">body</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">body</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s">&#39;registered&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;ok&quot;</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s">&quot;: Ok&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s">&quot;: Failed (&quot;</span> <span class="o">+</span> <span class="n">body</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s">&#39;reason&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s">&quot;)&quot;</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Error registering capabilities, Client/Supervisor said: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; - &quot;</span> <span class="o">+</span> <span class="n">res</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="nb">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">check_for_specs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Poll the client for specifications</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span><span class="p">(</span><span class="bp">True</span><span class="p">):</span>
+            <span class="c"># FIXME configurable default idle time.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idle_time</span> <span class="o">=</span> <span class="mi">5</span>
+            <span class="c"># send a request for specifications</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+
+                <span class="c"># specs retrieved: split them if there is more than one</span>
+                <span class="n">env</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parse_json</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">messages</span><span class="p">():</span>
+                    <span class="c"># handle callbacks</span>
+                    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">get_label</span><span class="p">()</span>  <span class="o">==</span> <span class="s">&quot;callback&quot;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">idle_time</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">timer_delays</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">break</span>
+
+                    <span class="c"># hand spec to scheduler</span>
+                    <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">process_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client_identity</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">return_results</span><span class="p">)</span>
+
+                    <span class="c"># send receipt to the Client/Supervisor</span>
+                    <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span><span class="p">,</span>
+                            <span class="n">body</span><span class="o">=</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">reply</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">),</span>
+                            <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;content-type&quot;</span><span class="p">:</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">})</span>
+
+            <span class="c"># not registered on supervisor, need to re-register</span>
+            <span class="k">elif</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">428</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Re-registering capabilities on Client/Supervisor&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">register_to_supervisor</span><span class="p">()</span>
+
+            <span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idle_time</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">return_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">receipt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if a job is complete, and in case sends it to the Client/Supervisor</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">job_for_message</span><span class="p">(</span><span class="n">receipt</span><span class="p">)</span>
+        <span class="n">reply</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_reply</span><span class="p">()</span>
+
+        <span class="c"># check if job is completed</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">finished</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">True</span> <span class="ow">and</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">failed</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">True</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c"># send result to the Client/Supervisor</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_path</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">unparse_json</span><span class="p">(</span><span class="n">reply</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;content-type&quot;</span><span class="p">:</span> <span class="s">&quot;application/x-mplane+json&quot;</span><span class="p">})</span>
+
+        <span class="c"># handle response</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">reply</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Envelope</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">reply</span><span class="o">.</span><span class="n">messages</span><span class="p">():</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_label</span><span class="p">()</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">reply</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">):</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Exception for &quot;</span> <span class="o">+</span> <span class="n">reply</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span> <span class="o">+</span> <span class="s">&quot; successfully returned!&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="n">label</span> <span class="o">=</span> <span class="n">reply</span><span class="o">.</span><span class="n">get_label</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Result for &quot;</span> <span class="o">+</span> <span class="n">label</span> <span class="o">+</span> <span class="s">&quot; successfully returned!&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Error returning Result for &quot;</span> <span class="o">+</span> <span class="n">label</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Client/Supervisor said: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">status</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; - &quot;</span> <span class="o">+</span> <span class="n">res</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">pass</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav" role="navigation" aria-label="bottom navigation">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2013-2015, mPlane Consortium.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
+    </div>
+  </body>
+</html>

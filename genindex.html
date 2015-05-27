@@ -7,11 +7,10 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Index &mdash; mPlane Protocol RI 0.9.0 documentation</title>
+    <title>Index &mdash; mPlane Software Development Kit 0.9.0 documentation</title>
     
     <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -25,15 +24,14 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/theme_extras.js"></script>
-    <link rel="top" title="mPlane Protocol RI 0.9.0 documentation" href="index.html" /> 
+    <link rel="top" title="mPlane Software Development Kit 0.9.0 documentation" href="index.html" /> 
   </head>
-  <body>
-      <div class="header"><h1 class="heading"><a href="index.html">
-          <span>mPlane Protocol RI 0.9.0 documentation</span></a></h1>
+  <body role="document">
+      <div class="header" role="banner"><img class="rightlogo" src="_static/mplane.png" alt="Logo"/><h1 class="heading"><a href="index.html">
+          <span>mPlane Software Development Kit 0.9.0 documentation</span></a></h1>
         <h2 class="heading"><span>Index</span></h2>
       </div>
-      <div class="topnav">
+      <div class="topnav" role="navigation" aria-label="top navigation">
       
         <p>
         <a class="uplink" href="index.html">Contents</a>
@@ -57,9 +55,11 @@
  | <a href="#H"><strong>H</strong></a>
  | <a href="#I"><strong>I</strong></a>
  | <a href="#J"><strong>J</strong></a>
+ | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
  | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
@@ -72,10 +72,6 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.client.HttpClient.add_capability">add_capability() (mplane.client.HttpClient method)</a>
-  </dt>
-
-      
   <dt><a href="index.html#mplane.model.Statement.add_metadata">add_metadata() (mplane.model.Statement method)</a>
   </dt>
 
@@ -84,25 +80,17 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.add_receipt">add_receipt() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.model.Statement.add_result_column">add_result_column() (mplane.model.Statement method)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.client.HttpClient.add_result">add_result() (mplane.client.HttpClient method)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.Statement.add_result_column">add_result_column() (mplane.model.Statement method)</a>
-  </dt>
-
-      
   <dt><a href="index.html#mplane.scheduler.Scheduler.add_service">add_service() (mplane.scheduler.Scheduler method)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.AddressPrimitive">AddressPrimitive (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.Envelope.append_message">append_message() (mplane.model.Envelope method)</a>
   </dt>
 
   </dl></td>
@@ -118,7 +106,7 @@
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.BooleanPrimitive">BooleanPrimitive (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.client.BaseClient">BaseClient (class in mplane.client)</a>
   </dt>
 
   </dl></td>
@@ -128,7 +116,15 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.client.HttpClient.capabilities">capabilities() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.model.Statement.can_set_parameter_value">can_set_parameter_value() (mplane.model.Statement method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Parameter.can_set_value">can_set_value() (mplane.model.Parameter method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.BaseClient.capabilities_matching_schema">capabilities_matching_schema() (mplane.client.BaseClient method)</a>
   </dt>
 
       
@@ -136,7 +132,11 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.capability_at">capability_at() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.scheduler.Service.capability">capability() (mplane.scheduler.Service method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.BaseClient.capability_for">capability_for() (mplane.client.BaseClient method)</a>
   </dt>
 
       
@@ -148,17 +148,21 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.clear_capabilities">clear_capabilities() (mplane.client.HttpClient method)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.Element.compatible_with">compatible_with() (mplane.model.Element method)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.capability_labels">capability_labels() (mplane.client.BaseClient method)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.Constraint">Constraint (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.capability_tokens">capability_tokens() (mplane.client.BaseClient method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.ResultColumn.clear">clear() (mplane.model.ResultColumn method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Element.compatible_with">compatible_with() (mplane.model.Element method)</a>
   </dt>
 
       
@@ -192,11 +196,19 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.Schedule.datetime_iterator">datetime_iterator() (mplane.model.Schedule method)</a>
+  <dt><a href="index.html#mplane.model.When.datetimes">datetimes() (mplane.model.When method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Element.desc">desc() (mplane.model.Element method)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.component.DiscoveryHandler">DiscoveryHandler (class in mplane.component)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.When.duration">duration() (mplane.model.When method)</a>
   </dt>
@@ -211,8 +223,16 @@
   <dt><a href="index.html#mplane.model.Element">Element (class in mplane.model)</a>
   </dt>
 
+      
+  <dt><a href="index.html#mplane.model.element">element() (in module mplane.model)</a>
+  </dt>
+
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.model.Envelope">Envelope (class in mplane.model)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.Exception">Exception (class in mplane.model)</a>
   </dt>
@@ -224,9 +244,25 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
+  <dt><a href="index.html#mplane.scheduler.Job.failed">failed() (mplane.scheduler.Job method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.scheduler.MultiJob.failed">(mplane.scheduler.MultiJob method)</a>
+  </dt>
+
+      </dl></dd>
+      
   <dt><a href="index.html#mplane.scheduler.Job.finished">finished() (mplane.scheduler.Job method)</a>
   </dt>
 
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.scheduler.MultiJob.finished">(mplane.scheduler.MultiJob method)</a>
+  </dt>
+
+      </dl></dd>
       
   <dt><a href="index.html#mplane.model.When.follows">follows() (mplane.model.When method)</a>
   </dt>
@@ -234,7 +270,11 @@
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.FutureTime">FutureTime (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.forget">forget() (mplane.client.BaseClient method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Specification.fulfills">fulfills() (mplane.model.Specification method)</a>
   </dt>
 
   </dl></td>
@@ -244,19 +284,23 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.Statement.get_label">get_label() (mplane.model.Statement method)</a>
+  <dt><a href="index.html#mplane.model.Statement.get_export">get_export() (mplane.model.Statement method)</a>
   </dt>
 
+      
+  <dt><a href="index.html#mplane.model.Envelope.get_label">get_label() (mplane.model.Envelope method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Statement.get_label">(mplane.model.Statement method)</a>
+  </dt>
+
+      </dl></dd>
       
   <dt><a href="index.html#mplane.model.Statement.get_link">get_link() (mplane.model.Statement method)</a>
   </dt>
 
-      
-  <dt><a href="index.html#mplane.client.HttpClient.get_mplane_reply">get_mplane_reply() (mplane.client.HttpClient method)</a>
-  </dt>
-
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#mplane.model.Statement.get_parameter_value">get_parameter_value() (mplane.model.Statement method)</a>
   </dt>
@@ -265,10 +309,46 @@
   <dt><a href="index.html#mplane.scheduler.Job.get_reply">get_reply() (mplane.scheduler.Job method)</a>
   </dt>
 
-      
-  <dt><a href="index.html#mplane.model.Parameter.get_value">get_value() (mplane.model.Parameter method)</a>
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.scheduler.MultiJob.get_reply">(mplane.scheduler.MultiJob method)</a>
   </dt>
 
+      </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.model.Statement.get_single_parameter_value">get_single_parameter_value() (mplane.model.Statement method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Parameter.get_single_value">get_single_value() (mplane.model.Parameter method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Envelope.get_token">get_token() (mplane.model.Envelope method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Exception.get_token">(mplane.model.Exception method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Statement.get_token">(mplane.model.Statement method)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="index.html#mplane.model.Metavalue.get_value">get_value() (mplane.model.Metavalue method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Parameter.get_value">(mplane.model.Parameter method)</a>
+  </dt>
+
+      </dl></dd>
   </dl></td>
 </tr></table>
 
@@ -276,7 +356,7 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.client.HttpClient.handle_message">handle_message() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.handle_message">handle_message() (mplane.client.BaseClient method)</a>
   </dt>
 
       
@@ -287,6 +367,10 @@
   <dt><a href="index.html#mplane.model.Statement.has_parameter">has_parameter() (mplane.model.Statement method)</a>
   </dt>
 
+      
+  <dt><a href="index.html#mplane.model.Statement.has_result_column">has_result_column() (mplane.model.Statement method)</a>
+  </dt>
+
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
@@ -294,7 +378,11 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient">HttpClient (class in mplane.client)</a>
+  <dt><a href="index.html#mplane.client.HttpInitiatorClient">HttpInitiatorClient (class in mplane.client)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.HttpListenerClient">HttpListenerClient (class in mplane.client)</a>
   </dt>
 
   </dl></td>
@@ -303,6 +391,10 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.client.BaseClient.identity_for">identity_for() (mplane.client.BaseClient method)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.When.in_scope">in_scope() (mplane.model.When method)</a>
   </dt>
@@ -319,6 +411,22 @@
   <dt><a href="index.html#mplane.scheduler.Job.interrupt">interrupt() (mplane.scheduler.Job method)</a>
   </dt>
 
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.scheduler.MultiJob.interrupt">(mplane.scheduler.MultiJob method)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="index.html#mplane.client.HttpInitiatorClient.invoke_capability">invoke_capability() (mplane.client.HttpInitiatorClient method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.client.HttpListenerClient.invoke_capability">(mplane.client.HttpListenerClient method)</a>
+  </dt>
+
+      </dl></dd>
       
   <dt><a href="index.html#mplane.model.When.is_definite">is_definite() (mplane.model.When method)</a>
   </dt>
@@ -327,12 +435,12 @@
   <dt><a href="index.html#mplane.model.When.is_forever">is_forever() (mplane.model.When method)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#mplane.model.When.is_future">is_future() (mplane.model.When method)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#mplane.model.When.is_immediate">is_immediate() (mplane.model.When method)</a>
   </dt>
@@ -346,7 +454,23 @@
   </dt>
 
       
+  <dt><a href="index.html#mplane.model.When.is_repeated">is_repeated() (mplane.model.When method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Specification.is_schedulable">is_schedulable() (mplane.model.Specification method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Parameter.is_single_value">is_single_value() (mplane.model.Parameter method)</a>
+  </dt>
+
+      
   <dt><a href="index.html#mplane.model.When.is_singleton">is_singleton() (mplane.model.When method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.When.iterator">iterator() (mplane.model.When method)</a>
   </dt>
 
   </dl></td>
@@ -368,35 +492,31 @@
   </dl></td>
 </tr></table>
 
-<h2 id="M">M</h2>
+<h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.client.HttpClient.measurement_at">measurement_at() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.client.HttpListenerClient.listen_in_background">listen_in_background() (mplane.client.HttpListenerClient method)</a>
   </dt>
 
-      
-  <dt><a href="index.html#mplane.client.HttpClient.measurements">measurements() (mplane.client.HttpClient method)</a>
-  </dt>
+  </dl></td>
+</tr></table>
 
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#mplane.model.message_from_dict">message_from_dict() (in module mplane.model)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.Constraint.met_by">met_by() (mplane.model.Constraint method)</a>
+  <dt><a href="index.html#mplane.component.MessagePostHandler">MessagePostHandler (class in mplane.component)</a>
   </dt>
 
-      <dd><dl>
-        
-  <dt><a href="index.html#mplane.model.RangeConstraint.met_by">(mplane.model.RangeConstraint method)</a>
+      
+  <dt><a href="index.html#mplane.model.Envelope.messages">messages() (mplane.model.Envelope method)</a>
   </dt>
 
-        
-  <dt><a href="index.html#mplane.model.SetConstraint.met_by">(mplane.model.SetConstraint method)</a>
-  </dt>
-
-      </dl></dd>
       
   <dt><a href="index.html#mplane.model.Statement.metadata_names">metadata_names() (mplane.model.Statement method)</a>
   </dt>
@@ -405,14 +525,18 @@
   <dt><a href="index.html#mplane.model.Metavalue">Metavalue (class in mplane.model)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#module-mplane">mplane (module)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#module-mplane.client">mplane.client (module)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#module-mplane.component">mplane.component (module)</a>
   </dt>
 
       
@@ -424,6 +548,16 @@
   </dt>
 
       
+  <dt><a href="index.html#mplane.client.MPlaneHandler">MPlaneHandler (class in mplane.client)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.component.MPlaneHandler">(class in mplane.component)</a>
+  </dt>
+
+      </dl></dd>
+      
   <dt><a href="index.html#mplane.scheduler.MultiJob">MultiJob (class in mplane.scheduler)</a>
   </dt>
 
@@ -434,13 +568,7 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.NaturalPrimitive">NaturalPrimitive (class in mplane.model)</a>
-  </dt>
-
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
-      
-  <dt><a href="index.html#mplane.model.NowTime">NowTime (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.Element.name">name() (mplane.model.Element method)</a>
   </dt>
 
   </dl></td>
@@ -458,31 +586,13 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.AddressPrimitive.parse">parse() (mplane.model.AddressPrimitive method)</a>
+  <dt><a href="index.html#mplane.model.Statement.parameter_values">parameter_values() (mplane.model.Statement method)</a>
   </dt>
 
-      <dd><dl>
-        
-  <dt><a href="index.html#mplane.model.BooleanPrimitive.parse">(mplane.model.BooleanPrimitive method)</a>
+      
+  <dt><a href="index.html#mplane.model.Element.parse">parse() (mplane.model.Element method)</a>
   </dt>
 
-        
-  <dt><a href="index.html#mplane.model.Element.parse">(mplane.model.Element method)</a>
-  </dt>
-
-        
-  <dt><a href="index.html#mplane.model.NaturalPrimitive.parse">(mplane.model.NaturalPrimitive method)</a>
-  </dt>
-
-        
-  <dt><a href="index.html#mplane.model.Primitive.parse">(mplane.model.Primitive method)</a>
-  </dt>
-
-        
-  <dt><a href="index.html#mplane.model.RealPrimitive.parse">(mplane.model.RealPrimitive method)</a>
-  </dt>
-
-      </dl></dd>
       
   <dt><a href="index.html#mplane.model.parse_constraint">parse_constraint() (in module mplane.model)</a>
   </dt>
@@ -490,11 +600,19 @@
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.PastTime">PastTime (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.parse_json">parse_json() (in module mplane.model)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.Primitive">Primitive (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.When.period">period() (mplane.model.When method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Element.primitive_name">primitive_name() (mplane.model.Element method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.scheduler.Scheduler.process_message">process_message() (mplane.scheduler.Scheduler method)</a>
   </dt>
 
       
@@ -504,39 +622,47 @@
   </dl></td>
 </tr></table>
 
-<h2 id="R">R</h2>
+<h2 id="Q">Q</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.RangeConstraint">RangeConstraint (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.Element.qualified_name">qualified_name() (mplane.model.Element method)</a>
   </dt>
 
-      
-  <dt><a href="index.html#mplane.model.RealPrimitive">RealPrimitive (class in mplane.model)</a>
-  </dt>
+  </dl></td>
+</tr></table>
 
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="index.html#mplane.model.Receipt">Receipt (class in mplane.model)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.receipts">receipts() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.receipt_labels">receipt_labels() (mplane.client.BaseClient method)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.scheduler.Scheduler.receive_message">receive_message() (mplane.scheduler.Scheduler method)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.client.HttpClient.redeem_receipts">redeem_receipts() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.client.BaseClient.receipt_tokens">receipt_tokens() (mplane.client.BaseClient method)</a>
   </dt>
 
       
   <dt><a href="index.html#mplane.model.Redemption">Redemption (class in mplane.model)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.client.RegistrationHandler">RegistrationHandler (class in mplane.client)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Registry">Registry (class in mplane.model)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.registry_for_uri">registry_for_uri() (in module mplane.model)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.Result">Result (class in mplane.model)</a>
   </dt>
@@ -545,16 +671,40 @@
   <dt><a href="index.html#mplane.model.Statement.result_column_names">result_column_names() (mplane.model.Statement method)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.client.BaseClient.result_for">result_for() (mplane.client.BaseClient method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.client.HttpInitiatorClient.result_for">(mplane.client.HttpInitiatorClient method)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="index.html#mplane.client.BaseClient.result_labels">result_labels() (mplane.client.BaseClient method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.BaseClient.result_tokens">result_tokens() (mplane.client.BaseClient method)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.ResultColumn">ResultColumn (class in mplane.model)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.results">results() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.client.ResultHandler">ResultHandler (class in mplane.client)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.client.HttpClient.retrieve_capabilities">retrieve_capabilities() (mplane.client.HttpClient method)</a>
+  <dt><a href="index.html#mplane.model.Specification.retoken">retoken() (mplane.model.Specification method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.HttpInitiatorClient.retrieve_capabilities">retrieve_capabilities() (mplane.client.HttpInitiatorClient method)</a>
   </dt>
 
       
@@ -568,19 +718,41 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.Schedule">Schedule (class in mplane.model)</a>
-  </dt>
-
-      
   <dt><a href="index.html#mplane.scheduler.Job.schedule">schedule() (mplane.scheduler.Job method)</a>
   </dt>
 
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.scheduler.MultiJob.schedule">(mplane.scheduler.MultiJob method)</a>
+  </dt>
+
+      </dl></dd>
       
   <dt><a href="index.html#mplane.scheduler.Scheduler">Scheduler (class in mplane.scheduler)</a>
   </dt>
 
       
+  <dt><a href="index.html#mplane.model.Result.schema_dict_iterator">schema_dict_iterator() (mplane.model.Result method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.client.HttpInitiatorClient.send_message">send_message() (mplane.client.HttpInitiatorClient method)</a>
+  </dt>
+
+      
   <dt><a href="index.html#mplane.scheduler.Service">Service (class in mplane.scheduler)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.scheduler.Service.set_capability_link">set_capability_link() (mplane.scheduler.Service method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Statement.set_export">set_export() (mplane.model.Statement method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Statement.set_label">set_label() (mplane.model.Statement method)</a>
   </dt>
 
       
@@ -591,20 +763,26 @@
   <dt><a href="index.html#mplane.model.Statement.set_parameter_value">set_parameter_value() (mplane.model.Statement method)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.model.Result.set_result_value">set_result_value() (mplane.model.Result method)</a>
+  </dt>
+
       
   <dt><a href="index.html#mplane.model.Parameter.set_single_value">set_single_value() (mplane.model.Parameter method)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.Specification.set_single_values">set_single_values() (mplane.model.Specification method)</a>
+  <dt><a href="index.html#mplane.model.Metavalue.set_value">set_value() (mplane.model.Metavalue method)</a>
   </dt>
 
-      
-  <dt><a href="index.html#mplane.model.Parameter.set_value">set_value() (mplane.model.Parameter method)</a>
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Parameter.set_value">(mplane.model.Parameter method)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
+      </dl></dd>
       
   <dt><a href="index.html#mplane.model.Capability.set_when">set_when() (mplane.model.Capability method)</a>
   </dt>
@@ -612,24 +790,6 @@
       <dd><dl>
         
   <dt><a href="index.html#mplane.model.Statement.set_when">(mplane.model.Statement method)</a>
-  </dt>
-
-      </dl></dd>
-      
-  <dt><a href="index.html#mplane.model.SetConstraint">SetConstraint (class in mplane.model)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.Constraint.single_value">single_value() (mplane.model.Constraint method)</a>
-  </dt>
-
-      <dd><dl>
-        
-  <dt><a href="index.html#mplane.model.RangeConstraint.single_value">(mplane.model.RangeConstraint method)</a>
-  </dt>
-
-        
-  <dt><a href="index.html#mplane.model.SetConstraint.single_value">(mplane.model.SetConstraint method)</a>
   </dt>
 
       </dl></dd>
@@ -642,19 +802,19 @@
   </dt>
 
       
+  <dt><a href="index.html#mplane.client.SpecificationHandler">SpecificationHandler (class in mplane.client)</a>
+  </dt>
+
+      
   <dt><a href="index.html#mplane.model.Statement">Statement (class in mplane.model)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.StatementNotification">StatementNotification (class in mplane.model)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.StringPrimitive">StringPrimitive (class in mplane.model)</a>
-  </dt>
-
-      
   <dt><a href="index.html#mplane.scheduler.Scheduler.submit_job">submit_job() (mplane.scheduler.Scheduler method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Specification.subspec_iterator">subspec_iterator() (mplane.model.Specification method)</a>
   </dt>
 
   </dl></td>
@@ -664,39 +824,21 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.test_constraints">test_constraints() (in module mplane.model)</a>
+  <dt><a href="index.html#mplane.model.When.timer_delays">timer_delays() (mplane.model.When method)</a>
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.test_primitives">test_primitives() (in module mplane.model)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.test_tscope">test_tscope() (in module mplane.model)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.TimePrimitive">TimePrimitive (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.Statement.to_dict">to_dict() (mplane.model.Statement method)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.When.timer_delays">timer_delays() (mplane.model.When method)</a>
-  </dt>
-
-      
-  <dt><a href="index.html#mplane.model.Schedule.to_dict">to_dict() (mplane.model.Schedule method)</a>
-  </dt>
-
-      <dd><dl>
-        
-  <dt><a href="index.html#mplane.model.Statement.to_dict">(mplane.model.Statement method)</a>
-  </dt>
-
-      </dl></dd>
-      
   <dt><a href="index.html#mplane.model.Element.transformation_to">transformation_to() (mplane.model.Element method)</a>
+  </dt>
+
+      
+  <dt><a href="index.html#mplane.model.Envelope.trim">trim() (mplane.model.Envelope method)</a>
   </dt>
 
   </dl></td>
@@ -709,16 +851,14 @@
   <dt><a href="index.html#mplane.model.Element.unparse">unparse() (mplane.model.Element method)</a>
   </dt>
 
-      <dd><dl>
-        
-  <dt><a href="index.html#mplane.model.Primitive.unparse">(mplane.model.Primitive method)</a>
+      
+  <dt><a href="index.html#mplane.model.unparse_json">unparse_json() (in module mplane.model)</a>
   </dt>
 
-      </dl></dd>
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.URLPrimitive">URLPrimitive (class in mplane.model)</a>
+  <dt><a href="index.html#mplane.model.Registry.uri">uri() (mplane.model.Registry method)</a>
   </dt>
 
   </dl></td>
@@ -728,7 +868,39 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="index.html#mplane.model.Specification.validate">validate() (mplane.model.Specification method)</a>
+  <dt><a href="index.html#mplane.model.Capability.validate">validate() (mplane.model.Capability method)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Interrupt.validate">(mplane.model.Interrupt method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Receipt.validate">(mplane.model.Receipt method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Redemption.validate">(mplane.model.Redemption method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Result.validate">(mplane.model.Result method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Specification.validate">(mplane.model.Specification method)</a>
+  </dt>
+
+        
+  <dt><a href="index.html#mplane.model.Withdrawal.validate">(mplane.model.Withdrawal method)</a>
+  </dt>
+
+      </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="index.html#mplane.model.Statement.verb">verb() (mplane.model.Statement method)</a>
   </dt>
 
   </dl></td>
@@ -742,9 +914,15 @@
   </dt>
 
       
-  <dt><a href="index.html#mplane.model.Statement.when">when() (mplane.model.Statement method)</a>
+  <dt><a href="index.html#mplane.model.Envelope.when">when() (mplane.model.Envelope method)</a>
   </dt>
 
+      <dd><dl>
+        
+  <dt><a href="index.html#mplane.model.Statement.when">(mplane.model.Statement method)</a>
+  </dt>
+
+      </dl></dd>
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
@@ -757,7 +935,7 @@
 
 
       </div>
-      <div class="bottomnav">
+      <div class="bottomnav" role="navigation" aria-label="bottom navigation">
       
         <p>
         <a class="uplink" href="index.html">Contents</a>
@@ -765,9 +943,9 @@
 
       </div>
 
-    <div class="footer">
-        &copy; Copyright 2013, Brian Trammell.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2013-2015, mPlane Consortium.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>

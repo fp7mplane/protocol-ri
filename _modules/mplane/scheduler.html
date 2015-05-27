@@ -6,11 +6,10 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>mplane.scheduler &mdash; mPlane Protocol RI 0.9.0 documentation</title>
+    <title>mplane.scheduler &mdash; mPlane Software Development Kit 0.9.0 documentation</title>
     
     <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -24,16 +23,15 @@
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="../../_static/theme_extras.js"></script>
-    <link rel="top" title="mPlane Protocol RI 0.9.0 documentation" href="../../index.html" />
+    <link rel="top" title="mPlane Software Development Kit 0.9.0 documentation" href="../../index.html" />
     <link rel="up" title="Module code" href="../index.html" /> 
   </head>
-  <body>
-      <div class="header"><h1 class="heading"><a href="../../index.html">
-          <span>mPlane Protocol RI 0.9.0 documentation</span></a></h1>
+  <body role="document">
+      <div class="header" role="banner"><img class="rightlogo" src="../../_static/mplane.png" alt="Logo"/><h1 class="heading"><a href="../../index.html">
+          <span>mPlane Software Development Kit 0.9.0 documentation</span></a></h1>
         <h2 class="heading"><span>mplane.scheduler</span></h2>
       </div>
-      <div class="topnav">
+      <div class="topnav" role="navigation" aria-label="top navigation">
       
         <p>
         <a class="uplink" href="../../index.html">Contents</a>
@@ -44,6 +42,9 @@
         
         
   <h1>Source code for mplane.scheduler</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c"># vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4</span>
+<span class="c">#</span>
 <span class="c">#</span>
 <span class="c"># mPlane Protocol Reference Implementation</span>
 <span class="c"># Component and Client Job Scheduling</span>
@@ -66,22 +67,23 @@
 <span class="c">#</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Implements the dynamics of capabilities, specifications, and </span>
+<span class="sd">Implements the dynamics of capabilities, specifications, and</span>
 <span class="sd">results within the mPlane reference component.</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">import</span> <span class="nn">mplane.model</span>
+<span class="kn">import</span> <span class="nn">mplane.azn</span>
 
 <div class="viewcode-block" id="Service"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Service">[docs]</a><span class="k">class</span> <span class="nc">Service</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A Service binds some runnable code to an </span>
+<span class="sd">    A Service binds some runnable code to an</span>
 <span class="sd">    mplane.model.Capability provided by a component.</span>
 
-<span class="sd">    To use services with an mPlane scheduler, inherit from </span>
-<span class="sd">    mplane.scheduler.Service or one of its subclasses </span>
+<span class="sd">    To use services with an mPlane scheduler, inherit from</span>
+<span class="sd">    mplane.scheduler.Service or one of its subclasses</span>
 <span class="sd">    and implement run().</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -96,87 +98,110 @@
 <span class="sd">        a concrete subclass of Service.</span>
 
 <span class="sd">        The implementation should extract its parameters from a given</span>
-<span class="sd">        mplane.model.Specification, and return its result values in a </span>
+<span class="sd">        mplane.model.Specification, and return its result values in a</span>
 <span class="sd">        mplane.model.Result derived therefrom.</span>
 
 <span class="sd">        After each row or logically grouped set of rows, the implementation</span>
-<span class="sd">        should call the check_interrupt function to determine whether it </span>
-<span class="sd">        should stop; if this function returns True, the implementation should </span>
+<span class="sd">        should call the check_interrupt function to determine whether it</span>
+<span class="sd">        should stop; if this function returns True, the implementation should</span>
 <span class="sd">        terminate its processing in an orderly fashion and return its results.</span>
 
-<span class="sd">        Each method will be called within its own thread and/or process. </span>
+<span class="sd">        Each method will be called within its own thread and/or process.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;Cannot instantiate an abstract Service&quot;</span><span class="p">)</span>
 </div>
-    <span class="k">def</span> <span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Service.capability"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Service.capability">[docs]</a>    <span class="k">def</span> <span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the capability belonging to this service&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capability</span>
-
+</div>
+<div class="viewcode-block" id="Service.set_capability_link"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Service.set_capability_link">[docs]</a>    <span class="k">def</span> <span class="nf">set_capability_link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the link section in the capability schema&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capability</span><span class="o">.</span><span class="n">set_link</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+</div>
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;&lt;Service for &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_capability</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;&gt;&quot;</span>
+
 </div>
 <div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A Job binds some running code to an mPlane.model.Specification </span>
-<span class="sd">    within a component. A Job can be thought of as a specific </span>
-<span class="sd">    instance of a Service presently running, or ready to run at some </span>
+<span class="sd">    A Job binds some running code to an mPlane.model.Specification</span>
+<span class="sd">    within a component. A Job can be thought of as a specific</span>
+<span class="sd">    instance of a Service presently running, or ready to run at some</span>
 <span class="sd">    point in the future.</span>
 
-<span class="sd">    Each Job will result in a single Result; Specifications with a</span>
-<span class="sd">    schedule: section are represented by MultiJob.</span>
-
+<span class="sd">    Each Job will result in a single Result.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">exception</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_thread</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_started_at</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_ended_at</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_exception_at</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_replied_at</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">specification</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">receipt</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_interrupt</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Job</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">service</span> <span class="o">=</span> <span class="n">service</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">session</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">specification</span> <span class="o">=</span> <span class="n">specification</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">receipt</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Receipt</span><span class="p">(</span><span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_started_at</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ended_at</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_replied_at</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span> <span class="o">=</span> <span class="n">callback</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;Job for &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;&gt;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_started_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="p">,</span> 
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">_check_interrupt</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">_check_interrupt</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span>
+                            <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">get_token</span><span class="p">(),</span>
+                            <span class="n">errmsg</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Got exception in _run(), returning &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exception_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ended_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receipt</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_check_interrupt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span><span class="o">.</span><span class="n">is_set</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_schedule_now</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Schedule this job to run immediately. </span>
-<span class="sd">        Used internally by schedule().</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># spawn a thread to run the service</span>
         <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-        
+
 <div class="viewcode-block" id="Job.schedule"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Job.schedule">[docs]</a>    <span class="k">def</span> <span class="nf">schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Schedule this job to run.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># Get delay to start and end timers</span>
-        <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">timer_delays</span><span class="p">()</span>
+        <span class="c"># Always schedule queries immediately without interrupt</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">is_schedulable</span><span class="p">():</span>
+            <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">timer_delays</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
 
-        <span class="c"># Short-circuit on expired temporal scope</span>
         <span class="k">if</span> <span class="n">start_delay</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span>
 
         <span class="c"># start interrupt timer</span>
-        <span class="k">if</span> <span class="n">end_delay</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">end_delay</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">service</span><span class="p">,</span> <span class="s">&#39;relay&#39;</span><span class="p">):</span>
             <span class="n">threading</span><span class="o">.</span><span class="n">Timer</span><span class="p">(</span><span class="n">end_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;Will interrupt &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; after &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">end_delay</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; sec&quot;</span><span class="p">)</span>
 
         <span class="c"># start start timer</span>
-        <span class="k">if</span> <span class="n">start_delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>            
+        <span class="k">if</span> <span class="n">start_delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;Scheduling &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; after &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">start_delay</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; sec&quot;</span><span class="p">)</span>
-            <span class="n">threading</span><span class="o">.</span><span class="n">timer</span><span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_now</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="n">threading</span><span class="o">.</span><span class="n">Timer</span><span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_now</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;Scheduling &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; immediately&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_now</span><span class="p">()</span>
@@ -185,35 +210,175 @@
         <span class="sd">&quot;&quot;&quot;Interrupt this job.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
 </div>
+<div class="viewcode-block" id="Job.failed"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Job.failed">[docs]</a>    <span class="k">def</span> <span class="nf">failed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A job only fails if it is finished and has no results&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+</div>
 <div class="viewcode-block" id="Job.finished"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Job.finished">[docs]</a>    <span class="k">def</span> <span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return True if the job is complete.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return False if the job is not complete</span>
+<span class="sd">        and if there are results pending.</span>
+<span class="sd">        Otherwise return True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
 </div>
 <div class="viewcode-block" id="Job.get_reply"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Job.get_reply">[docs]</a>    <span class="k">def</span> <span class="nf">get_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        If a result is available for this Job (i.e., if the job is </span>
-<span class="sd">        done running), return it. Otherwise, create a receipt from </span>
+<span class="sd">        If a result is available for this Job (i.e., if the job is</span>
+<span class="sd">        done running), return it. Otherwise, create a receipt from</span>
 <span class="sd">        the Specification and return that.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_replied_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished</span><span class="p">():</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">failed</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exception</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished</span><span class="p">():</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">receipt</span>
-</div>
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;Job for &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;&gt;&quot;</span>
-</div>
-<div class="viewcode-block" id="MultiJob"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob">[docs]</a><span class="k">class</span> <span class="nc">MultiJob</span><span class="p">(</span><span class="n">Job</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Represents a job that runs on a schedule and produces multiple Results.</span>
-<span class="sd">    Implementation pending. Currently, submitting a MultiJob will cause</span>
-<span class="sd">    the scheduled job to run once according to its inner temporal scope.</span>
 
+</div></div>
+<div class="viewcode-block" id="MultiJob"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob">[docs]</a><span class="k">class</span> <span class="nc">MultiJob</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A MultiJob spawns multiple jobs determined by its schedule.</span>
+
+<span class="sd">    Each MultiJob will result in multiple result rows, one for each sub-job.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">MultiJob</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+
+    <span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">specification</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">receipt</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_replied_at</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">_scheduling_finished</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">_subspec_iterator</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_results</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MultiJob</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">service</span> <span class="o">=</span> <span class="n">service</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">session</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">specification</span> <span class="o">=</span> <span class="n">specification</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">receipt</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Receipt</span><span class="p">(</span><span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Envelope</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">specification</span><span class="o">.</span><span class="n">get_token</span><span class="p">(),</span>
+                                             <span class="n">label</span><span class="o">=</span><span class="n">specification</span><span class="o">.</span><span class="n">get_label</span><span class="p">(),</span>
+                                             <span class="n">when</span><span class="o">=</span><span class="n">specification</span><span class="o">.</span><span class="n">when</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subspec_iterator</span> <span class="o">=</span> <span class="n">specification</span><span class="o">.</span><span class="n">subspec_iterator</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_results</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span> <span class="o">=</span> <span class="n">callback</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;MultiJob for &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_schedule_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Schedule a job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">service</span><span class="p">,</span>
+                      <span class="n">specification</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_subspec</span><span class="p">,</span>
+                      <span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">,</span>
+                      <span class="n">callback</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_callback</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_job</span><span class="p">)</span>
+        <span class="n">new_job</span><span class="o">.</span><span class="n">schedule</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_next_job</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_next_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the next job and schedules it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subspec</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subspec_iterator</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scheduling_finished</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">return</span>
+
+        <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subspec</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">timer_delays</span><span class="p">()</span>
+
+        <span class="c"># if no start_delay for the next run was found we should stop this MultiJob</span>
+        <span class="k">if</span> <span class="n">start_delay</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scheduling_finished</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">return</span>
+
+        <span class="c"># start start timer</span>
+        <span class="k">if</span> <span class="n">start_delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Scheduling &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subspec</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; from &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; after &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">start_delay</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; sec&quot;</span><span class="p">)</span>
+            <span class="n">threading</span><span class="o">.</span><span class="n">Timer</span><span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_job</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Scheduling &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subspec</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; from &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; immediately&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_job</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MultiJob.schedule"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob.schedule">[docs]</a>    <span class="k">def</span> <span class="nf">schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Scheduling start function</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">is_schedulable</span><span class="p">():</span>
+            <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">timer_delays</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">start_delay</span><span class="p">,</span> <span class="n">end_delay</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="c"># if no start_delay for the next run was found we should stop this MultiJob</span>
+        <span class="k">if</span> <span class="n">start_delay</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scheduling_finished</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">return</span>
+
+        <span class="c"># start interrupt timer</span>
+        <span class="k">if</span> <span class="n">end_delay</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">threading</span><span class="o">.</span><span class="n">Timer</span><span class="p">(</span><span class="n">end_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Will interrupt &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; after &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">end_delay</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; sec&quot;</span><span class="p">)</span>
+
+        <span class="c"># begin scheduling of all jobs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_next_job</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="MultiJob.interrupt"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob.interrupt">[docs]</a>    <span class="k">def</span> <span class="nf">interrupt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Interrupt all jobs.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">interrupt</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="MultiJob.failed"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob.failed">[docs]</a>    <span class="k">def</span> <span class="nf">failed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A multijob will only fail if it is finished and has no results&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">finished</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+
+        <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="MultiJob.finished"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob.finished">[docs]</a>    <span class="k">def</span> <span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return True if all jobs are complete.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scheduling_finished</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+    <span class="k">def</span> <span class="nf">_collect_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stores the last self.max_results results.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[:]:</span>
+            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">failed</span><span class="p">()</span> <span class="ow">or</span> <span class="n">job</span><span class="o">.</span><span class="n">finished</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">append_message</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_reply</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiJob.get_reply"><a class="viewcode-back" href="../../index.html#mplane.scheduler.MultiJob.get_reply">[docs]</a>    <span class="k">def</span> <span class="nf">get_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        If results are available for this MultiJob, return them.</span>
+<span class="sd">        Otherwise, create a receipt from the Specification and return that.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collect_results</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replied_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">receipt</span>
+</div>
+    <span class="k">def</span> <span class="nf">_job_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receipt</span><span class="p">)</span>
 
 </div>
 <div class="viewcode-block" id="Scheduler"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler">[docs]</a><span class="k">class</span> <span class="nc">Scheduler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -224,29 +389,60 @@
 <span class="sd">    submit_job().</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Scheduler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">config</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">azn</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">Authorization</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="s">&quot;component&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># get max results to store</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">getint</span><span class="p">(</span><span class="s">&quot;component&quot;</span><span class="p">,</span> <span class="s">&quot;scheduler_max_results&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">azn</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">Authorization</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">services</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_capability_cache</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Scheduler.receive_message"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.receive_message">[docs]</a>    <span class="k">def</span> <span class="nf">receive_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Scheduler.process_message"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.process_message">[docs]</a>    <span class="k">def</span> <span class="nf">process_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Receive and process a message. </span>
+<span class="sd">        Process a message. If msg is a mplane.model.Specification and</span>
+<span class="sd">        the callback parameter is set to a function this function is</span>
+<span class="sd">        called with a mplane.model.Receipt each time a result is available.</span>
+
 <span class="sd">        Returns a message to send in reply.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">reply</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Specification</span><span class="p">):</span>
-            <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_job</span><span class="p">(</span><span class="n">specification</span><span class="o">=</span><span class="n">msg</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span> <span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Redemption</span><span class="p">):</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_job</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">specification</span><span class="o">=</span><span class="n">msg</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Redemption</span><span class="p">):</span>
             <span class="n">job_key</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">job_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
-                <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span><span class="o">.</span><span class="n">get_reply</span><span class="p">()</span>
-            <span class="k">else</span><span class="p">:</span> <span class="n">reply</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">job_key</span><span class="p">,</span> 
+                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span>
+                <span class="n">reply</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_reply</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">finished</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">job_key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">reply</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">job_key</span><span class="p">,</span>
+                <span class="n">errmsg</span><span class="o">=</span><span class="s">&quot;Unknown job&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Interrupt</span><span class="p">):</span>
+            <span class="n">job_key</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">job_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Interrupting &quot;</span> <span class="o">+</span> <span class="n">job</span><span class="o">.</span><span class="n">specification</span><span class="o">.</span><span class="n">get_label</span><span class="p">())</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">interrupt</span><span class="p">()</span>
+                <span class="n">reply</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_reply</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">reply</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">job_key</span><span class="p">,</span>
                 <span class="n">errmsg</span><span class="o">=</span><span class="s">&quot;Unknown job&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">reply</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">(),</span> 
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;exception&quot;</span><span class="p">)</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">msg</span><span class="o">.</span><span class="n">get_token</span><span class="p">(),</span>
                 <span class="n">errmsg</span><span class="o">=</span><span class="s">&quot;Unexpected message type&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">reply</span>
@@ -260,7 +456,7 @@
 </div>
 <div class="viewcode-block" id="Scheduler.capability_keys"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.capability_keys">[docs]</a>    <span class="k">def</span> <span class="nf">capability_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Return keys (tokens) for the set of cached capabilities </span>
+<span class="sd">        Return keys (tokens) for the set of cached capabilities</span>
 <span class="sd">        provided by this scheduler&#39;s services.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -272,39 +468,51 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capability_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="Scheduler.submit_job"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.submit_job">[docs]</a>    <span class="k">def</span> <span class="nf">submit_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Scheduler.submit_job"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.submit_job">[docs]</a>    <span class="k">def</span> <span class="nf">submit_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">specification</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Search the available Services for one which can </span>
-<span class="sd">        service the given Specification, then create and schedule </span>
-<span class="sd">        a new Job to execute the statement. </span>
+<span class="sd">        Search the available Services for one which can</span>
+<span class="sd">        service the given Specification, then create and schedule</span>
+<span class="sd">        a new Job to execute the statement.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># linearly search the available services</span>
         <span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">specification</span><span class="o">.</span><span class="n">fulfills</span><span class="p">(</span><span class="n">service</span><span class="o">.</span><span class="n">capability</span><span class="p">()):</span>
-                <span class="c"># Found. Create a new job.</span>
-                <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">service</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; matches &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">specification</span><span class="p">))</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">specification</span><span class="o">.</span><span class="n">has_schedule</span><span class="p">()):</span>
-                    <span class="n">new_job</span> <span class="o">=</span> <span class="n">MultiJob</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span>
-                                       <span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">,</span>
-                                       <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">new_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span>
-                                  <span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">,</span>
-                                  <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azn</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">service</span><span class="o">.</span><span class="n">capability</span><span class="p">(),</span> <span class="n">user</span><span class="p">):</span>
+                    <span class="c"># Found. Create a new job.</span>
+                    <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">service</span><span class="p">)</span><span class="o">+</span><span class="s">&quot; matches &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">specification</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">specification</span><span class="o">.</span><span class="n">when</span><span class="p">()</span><span class="o">.</span><span class="n">is_repeated</span><span class="p">()</span> <span class="ow">and</span>
+                        <span class="c"># the service is not a RelayService from supervisor.py,</span>
+                        <span class="c"># handle it as a normal multijob</span>
+                        <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="s">&#39;relay&#39;</span><span class="p">)):</span>
+                        <span class="n">new_job</span> <span class="o">=</span> <span class="n">MultiJob</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span>
+                                           <span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">,</span>
+                                           <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+                                           <span class="n">max_results</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_results</span><span class="p">,</span>
+                                           <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">new_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span>
+                                      <span class="n">specification</span><span class="o">=</span><span class="n">specification</span><span class="p">,</span>
+                                      <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+                                      <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">)</span>
 
-                <span class="c"># Key by the receipt&#39;s token, and return</span>
-                <span class="n">job_key</span> <span class="o">=</span> <span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">job_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
-                    <span class="c"># Job already running. Return receipt</span>
-                    <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">])</span><span class="o">+</span><span class="s">&quot; already running&quot;</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span><span class="o">.</span><span class="n">receipt</span>
+                    <span class="c"># Key by the receipt&#39;s token, and return</span>
+                    <span class="n">job_key</span> <span class="o">=</span> <span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">job_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
+                        <span class="c"># Job already running. Return receipt</span>
+                        <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">])</span><span class="o">+</span><span class="s">&quot; already running&quot;</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span><span class="o">.</span><span class="n">receipt</span>
 
-                <span class="c"># Keep track of the job and return receipt</span>
-                <span class="n">new_job</span><span class="o">.</span><span class="n">schedule</span><span class="p">()</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_job</span>
-                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Returning &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span><span class="p">))</span>
-                <span class="k">return</span> <span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span>
+                    <span class="c"># Keep track of the job and return receipt</span>
+                    <span class="n">new_job</span><span class="o">.</span><span class="n">schedule</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_job</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Returning &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="n">new_job</span><span class="o">.</span><span class="n">receipt</span>
+
+                <span class="c"># user not authorized to request the capability</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Not allowed to request this capability: &quot;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">specification</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">mplane</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">specification</span><span class="o">.</span><span class="n">get_token</span><span class="p">(),</span>
+                            <span class="n">errmsg</span><span class="o">=</span><span class="s">&quot;User has no permission to request this capability&quot;</span><span class="p">)</span>
 
         <span class="c"># fall-through, no job</span>
         <span class="k">print</span><span class="p">(</span><span class="s">&quot;No service for &quot;</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="n">specification</span><span class="p">))</span>
@@ -313,7 +521,7 @@
 </div>
 <div class="viewcode-block" id="Scheduler.job_for_message"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.job_for_message">[docs]</a>    <span class="k">def</span> <span class="nf">job_for_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Given a message (generally a Redemption), </span>
+<span class="sd">        Given a message (generally a Redemption),</span>
 <span class="sd">        return the Job matching its token.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -321,8 +529,8 @@
 </div>
 <div class="viewcode-block" id="Scheduler.prune_jobs"><a class="viewcode-back" href="../../index.html#mplane.scheduler.Scheduler.prune_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">prune_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Currently does nothing. Will remove Jobs which are </span>
-<span class="sd">        finished and whose Results have been retrieved </span>
+<span class="sd">        Currently does nothing. Will remove Jobs which are</span>
+<span class="sd">        finished and whose Results have been retrieved</span>
 <span class="sd">        from the scheduler in a future version.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -330,7 +538,7 @@
 </pre></div>
 
       </div>
-      <div class="bottomnav">
+      <div class="bottomnav" role="navigation" aria-label="bottom navigation">
       
         <p>
         <a class="uplink" href="../../index.html">Contents</a>
@@ -338,9 +546,9 @@
 
       </div>
 
-    <div class="footer">
-        &copy; Copyright 2013, Brian Trammell.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2013-2015, mPlane Consortium.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>
