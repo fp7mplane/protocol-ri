@@ -39,7 +39,7 @@ The TLS state, access control, client framework, command-line client, and compon
 
 The following sections and keys are supported/required by each module:
 
-- `TLS` section: Certificate configuration. Required by component.py and client.py to support HTTPS URLs. Has the following keys:
+- `TLS` section: Certificate configuration. Required by component and client to support HTTPS URLs. Has the following keys:
     - `ca-chain`: path to file containing PEM-encoded certificates for the valid certificate authorities.
     - `cert`: path to file containing decoded and PEM-encoded certificate identifying this component/client. Must contain the decoded certificate as well, from which the distinguished name can be extracted.
     - `key`: path to file containing (decrypted) PEM-encoded secret key associated with this component/client's certificate
