@@ -41,8 +41,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'mPlane Protocol RI'
-copyright = '2013-2014, mPlane Consortium'
+project = 'mPlane Software Development Kit'
+copyright = '2013-2015, mPlane Consortium'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

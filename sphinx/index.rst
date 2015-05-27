@@ -29,11 +29,9 @@ module mplane.component
 .. automodule:: mplane.component
    :members:
 
-
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
