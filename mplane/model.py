@@ -457,7 +457,8 @@ def parse_time(valstr):
             mstr = m.group(0)
             mg = m.groups()
             if mg[3]:
-                # FIXME handle fractional seconds correctly
+                # FIXME this only handles millseconds; we should handle
+                # general precision fractional seconds correctly
                 dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S.%f")
             elif mg[2]:
                 dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S")
@@ -839,6 +840,7 @@ class When(object):
         """
         Return the duration of this temporal scope as a timedelta.
 
+        If the temporal scope is indefinite in the future, returns None.
         """
         if self._duration is not None:
             return self._duration
@@ -2212,10 +2214,6 @@ class Statement(object):
         """Returns this statement's verb"""
         return self._verb
 
-    def is_query(self):
-        """ FIXME: This method should be called is_schedulable(). Check implementations where this method is used. """
-        return self._verb == VERB_QUERY
-
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
         """Programatically adds a parameter to this Statement."""
         self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri),
@@ -2620,8 +2618,7 @@ class Specification(Statement):
 
     Specifications are created either by passing a Capability the
     Specification is intended to use as the capability= argument of
-    the constructor, or by reading from a JSON or YAML object
-    [FIXME document how this works once it's written]
+    the constructor, or by reading from a JSON object (see model.parse_json()).
 
     """
 
@@ -2679,6 +2676,17 @@ class Specification(Statement):
         if (not pval) or (self.count_result_rows() > 0):
             raise ValueError("Specifications must have parameter values.")
 
+    def is_schedulable(self):
+        """
+        Determine if a specification can be scheduled -- i.e., that its
+        temporal scope refers to some time in the future at which a
+        measurement or other operation should take place, or some range of
+        time for which existing data should be searched and/or retrieved.
+
+        Currently, this just checks to see whether the verb is 'query'.
+        """
+        return self._verb != VERB_QUERY
+
     def _default_token(self):
         return self._pv_hash()
 
@@ -2715,9 +2723,10 @@ class Specification(Statement):
 class Result(Statement):
     """
     A result is a statement that a component measured
-    a given set of values at a given point in time according to a specification.
+    a given set of values at a given point in time, according to a specification.
 
-    Note, tits token is generally inherited from the respective specification.
+    Results are generally created by passing the specification the new result responds to as the specification= argument to the constructor. A result inherits its token from the specification it responds to.
+
     """
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
