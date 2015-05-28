@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from distutils.core import setup
+from setuptools import find_packages
 
 with open('README.md') as file:
     long_description = file.read()
