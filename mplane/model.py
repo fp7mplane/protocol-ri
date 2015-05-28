@@ -2830,6 +2830,7 @@ class _StatementNotification(Statement):
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
             self._token = statement.get_token()
+            self._reguri = statement._reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
