@@ -3,8 +3,26 @@
 from distutils.core import setup
 from setuptools import find_packages
 
-with open('README.md') as file:
-    long_description = file.read()
+long_description = '''
+This module contains the mPlane Software Development Kit.
+
+The draft protocol specification is available in
+https://github.com/fp7mplane/protocol-ri/blob/master/doc/protocol-spec.md.
+
+The mPlane Protocol provides control and data interchange for passive
+and active network measurement tasks. It is built around a simple
+workflow in which **Capabilities** are published by **Components**,
+which can accept **Specifications** for measurements based on these
+Capabilities, and provide **Results**, either inline or via an indirect
+export mechanism negotiated using the protocol.
+
+Measurement statements are fundamentally based on schemas divided into
+Parameters, representing information required to run a measurement or
+query; and Result Columns, the information produced by the measurement
+or query. Measurement interoperability is provided at the element level;
+that is, measurements containing the same Parameters and Result Columns
+are considered to be of the same type and therefore comparable.
+'''
 
 setup(name='mplane-sdk',
       version='0.9.0',
