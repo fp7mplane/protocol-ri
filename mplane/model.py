@@ -1693,6 +1693,8 @@ def registry_for_uri(uri):
     Called when parsing statements; generally not useful in client code.
 
     """
+    print("retrieving registry for "+uri)
+
     global _registries
 
     if uri not in _registries:

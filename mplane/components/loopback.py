@@ -42,7 +42,7 @@ def loopback_test_capability():
         {
           "capability": "measure",
           "version":    0,
-          "registry":   "http://corvid.ch/mplane/loopback-test-registry",
+          "registry":   "http://mplane.corvid.ch/registry/loopback",
           "label":      "test-loopback",
           "when":       "now ... future / 1s",
           "parameters": {
