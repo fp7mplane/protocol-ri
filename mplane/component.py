@@ -1,8 +1,8 @@
-#
+#!/usr/bin/env python3
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
-# mPlane Protocol Reference Implementation
-# Authorization context for mPlane components
+# mPlane Software Development Kit
+# Component framework
 #
 # (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
@@ -28,12 +28,10 @@ import mplane.model
 import mplane.azn
 import mplane.tls
 import importlib
-import configparser
 import tornado.web
 import tornado.httpserver
 from datetime import datetime
 import time
-import argparse
 from time import sleep
 import urllib3
 from threading import Thread
@@ -47,8 +45,19 @@ class BaseComponent(object):
 
     def __init__(self, config):
         self.config = config
-        # FIXME use registry preload
-        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+
+        # preload any registries necessary
+        if "registry_preload" in config["component"]:
+            for filename in config["component"]["registry_preload"]:
+                mplane.model.preload_registry(filename)
+
+        # initialize core registry
+        if "registry_uri" in config["component"]:
+            registry_uri = config["component"]["registry_uri"]
+        else:
+            registry_uri = None
+        mplane.model.initialize_registry(registry_uri)
+
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():
@@ -350,29 +359,3 @@ class InitiatorHttpComponent(BaseComponent):
             print("Error returning Result for " + label)
             print("Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
-
-if __name__ == "__main__":
-
-    global args
-    parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
-    parser.add_argument('--config', metavar='conf-file', dest='CONF',
-                        help='Configuration file for the component')
-    args = parser.parse_args()
-
-    # check if conf file parameter has been inserted in the command line
-    if not args.CONF:
-        print('\nERROR: missing --config\n')
-        parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.CONF))
-
-    if config["component"]["workflow"] == "component-initiated":
-        component = InitiatorHttpComponent(config)
-    elif config["component"]["workflow"] == "client-initiated":
-        component = ListenerHttpComponent(config)
-    else:
-        raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")

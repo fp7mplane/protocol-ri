@@ -1,12 +1,10 @@
-# protocol-ri Introduction
-
-*[**Editor's Note**: this readme is under construction]*
+# mPlane Protocol Software Development Kit
 
 This module contains the mPlane Software Development Kit.
 
-The draft protocol specification is available in [doc/protocol-spec.md](https://github.com/fp7mplane/protocol-ri/blob/sdk/doc); current work is in the `sdk` branch.
+The draft protocol specification is available in [doc/protocol-spec.md](https://github.com/fp7mplane/protocol-ri/blob/sdk/doc).
 
-The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which __Capabilities__ are published by __Components__, which can accept __Specifications__ for measurements based on these Capabilities, and provide __Results__, either inline or via an indirect export mechanism negotiated using the protocol. 
+The mPlane Protocol provides control and data interchange for passive and active network measurement tasks. It is built around a simple workflow in which __Capabilities__ are published by __Components__, which can accept __Specifications__ for measurements based on these Capabilities, and provide __Results__, either inline or via an indirect export mechanism negotiated using the protocol.
 
 Measurement statements are fundamentally based on schemas divided into Parameters, representing information required to run a measurement or query; and Result Columns, the information produced by the measurement or query. Measurement interoperability is provided at the element level; that is, measurements containing the same Parameters and Result Columns are considered to be of the same type and therefore comparable.
 
@@ -24,26 +22,29 @@ The mPlane SDK requires Python 3.3 and the following additional packages:
 
 The SDK is made up of several modules. The core classes are documented using Sphinx. Reasonably current Sphinx documentation can be read online [here](https://fp7mplane.github.io/protocol-ri).
 
-- `mplane.model`: Information model and JSON representation of mPlane messages. 
-- `mplane.scheduler`: Component specification scheduler. Maps capabilities to Python code that implements them (in `Service`) and keeps track of running specifications and associated results (`Job` and `MultiJob`). 
+- `mplane.model`: Information model and JSON representation of mPlane messages.
+- `mplane.scheduler`: Component specification scheduler. Maps capabilities to Python code that implements them (in `Service`) and keeps track of running specifications and associated results (`Job` and `MultiJob`).
 - `mplane.tls`: Handles TLS, mapping local and peer certificates to identities and providing TLS connectivity over HTTPS.
 - `mplane.azn`: Handles access control, mapping identities to roles and authorizing roles to use specific services.
 - `mplane.client`: mPlane client framework. Handles client-initiated (`HttpClient`) and component-initiated (`ListenerHttpClient`) workflows.
-- `mplane.clientshell`: Simple command-line shell for client debugging.
-- `mplane.component`: mPlane component framework. Handles client-initiated and component-initiated workflows.
+
+There are two scripts installed with the package, as well:
+
+- `mpcli`: Simple client with command-line shell for debugging.
+- `mpcom`: mPlane component runtime. Handles client-initiated and component-initiated workflows.
 
 ## mPlane SDK Configuration Files
 
-The TLS state, access control, client and component frameworks use a unified configuration file in Windows INI file format (as supported by the Python standard library `configparser` module).
+The TLS state, access control, client framework, command-line client, and component runtime use a unified configuration file in Windows INI file format (as supported by the Python standard library `configparser` module).
 
 The following sections and keys are supported/required by each module:
 
-- `TLS` section: Certificate configuration. Required by component.py and client.py to support HTTPS URLs. Has the following keys:
+- `TLS` section: Certificate configuration. Required by component and client to support HTTPS URLs. Has the following keys:
     - `ca-chain`: path to file containing PEM-encoded certificates for the valid certificate authorities.
     - `cert`: path to file containing decoded and PEM-encoded certificate identifying this component/client. Must contain the decoded certificate as well, from which the distinguished name can be extracted.
     - `key`: path to file containing (decrypted) PEM-encoded secret key associated with this component/client's certificate
 - `Roles` section: Maps identities to roles for access control. Used by component.py. Each key in this section is an mPlane identity (see below), and the value is a comma-separated list of arbitrary role names assigned to the identity.
-- `Authorizations` section: Authorizes defined roles to invoke services associated with capabilities by capability label or token. Each key is a capability label or token, and the value is a comma-separated list of arbitrary role names which may invoke the capability. The use of labels is recommended for authorizations, as it makes authorization configuration more auditable. If authorizations are present, _only_ those capabilities which are explicitly authorized to a given client identity will be invocable. 
+- `Authorizations` section: Authorizes defined roles to invoke services associated with capabilities by capability label or token. Each key is a capability label or token, and the value is a comma-separated list of arbitrary role names which may invoke the capability. The use of labels is recommended for authorizations, as it makes authorization configuration more auditable. If authorizations are present, _only_ those capabilities which are explicitly authorized to a given client identity will be invocable.
 - `Component` section: Global configuration for the component framework.
 - `Client` section: Global configuration for the client framework.
 - `ClientShell` section: Contains defaults for the mPlane client shell (see mPlane Client Shell below for details).
@@ -58,9 +59,9 @@ Identities in the mPlane SDK (for purposes of configuration) are represented as 
 
 ## Implementing a Component
 
-The component.py module provides a framework for building components for both component-initiated and client-initiated workflows. To implement a component for use with this framework:
+The component runtime provides a framework for building components for both component-initiated and client-initiated workflows. To implement a component for use with this framework:
 
-- Implement each measurement, query, or other action performed by the component as a subclass of mplane.scheduler.Service. Each service is bound to a single capability. Your service must implement at least the mplane.scheduler.Service.run(self, specification, check_interrupt) method. 
+- Implement each measurement, query, or other action performed by the component as a subclass of mplane.scheduler.Service. Each service is bound to a single capability. Your service must implement at least the mplane.scheduler.Service.run(self, specification, check_interrupt) method.
 
 - Implement a `services` function in your module that takes a set of keyword arguments derived from the configuration file section, and returns a list of Services provided by your component. For example:
 
@@ -77,14 +78,13 @@ def service(**kwargs):
 module: mplane.components.mycomponent
 local-ip-address: 10.2.3.4
 ```
-
 **[*Editor's Note:* need to define how to configure component.py for each workflow.]**
 
-- Run `component.py` to start your component.
+- Run `mpcom` to start your component. The `--config` argument points to the configuration file to use.
 
 ## mPlane Client Shell
 
-The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. To start it, simply run `client.py`. It supports the following commands:
+The mPlane Client Shell is a simple client intended for debugging of mPlane infrastructures. To start it, simply run `mpcli`. It supports the following commands:
 
 - `seturl`: Set the default URL for sending specifications and redemptions (when not given in a Capability's or Receipt's link section)
 - `getcap`: Retrieve capabilities and withdrawals from a given URL, and process them.
@@ -98,10 +98,6 @@ The mPlane Client Shell is a simple client intended for debugging of mPlane infr
 - `listmeas`: List known measurements (receipts and results)
 - `showmeas`: Show the details of a measurement given its label or token.
 - `tbenable`: Enable tracebacks for subsequent exceptions. Used for client debugging.
-
-## mPlane Stub Supervisor
-
-**[*Editor's Note:* need to finish building this, then document it.]**
 
 # Testing and Developing the SDK
 

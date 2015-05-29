@@ -650,10 +650,6 @@
       "prim": "natural"
     },
     {
-      "name": "duration.ms",
-      "prim": "time"
-    },
-    {
       "name": "responder.ip4",
       "prim": "address"
     },

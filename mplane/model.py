@@ -455,7 +455,8 @@ def parse_time(valstr):
             mstr = m.group(0)
             mg = m.groups()
             if mg[3]:
-                # FIXME handle fractional seconds correctly
+                # FIXME this only handles millseconds; we should handle
+                # general precision fractional seconds correctly
                 dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S.%f")
             elif mg[2]:
                 dt = datetime.strptime(mstr, "%Y-%m-%d %H:%M:%S")
@@ -837,6 +838,7 @@ class When(object):
         """
         Return the duration of this temporal scope as a timedelta.
 
+        If the temporal scope is indefinite in the future, returns None.
         """
         if self._duration is not None:
             return self._duration
@@ -2551,8 +2553,7 @@ class Specification(Statement):
 
     Specifications are created either by passing a Capability the
     Specification is intended to use as the capability= argument of
-    the constructor, or by reading from a JSON or YAML object
-    [FIXME document how this works once it's written]
+    the constructor, or by reading from a JSON object (see model.parse_json()).
 
     """
 
@@ -2657,9 +2658,10 @@ class Specification(Statement):
 class Result(Statement):
     """
     A result is a statement that a component measured
-    a given set of values at a given point in time according to a specification.
+    a given set of values at a given point in time, according to a specification.
 
-    Note, tits token is generally inherited from the respective specification.
+    Results are generally created by passing the specification the new result responds to as the specification= argument to the constructor. A result inherits its token from the specification it responds to.
+
     """
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
@@ -2828,6 +2830,7 @@ class _StatementNotification(Statement):
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
             self._token = statement.get_token()
+            self._reguri = statement._reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
