@@ -37,6 +37,7 @@ import urllib3
 from threading import Thread
 import json
 
+DEFAULT_MPLANE_PORT = 1228
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 SPECIFICATION_PATH_ELEM = "/"
@@ -80,7 +81,11 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        port = config.getint("component", "listen-port")
+        if "listen_port" in config["component"]:
+            port = int(config["component"]["listen_port"])
+        else:
+            port = DEFAULT_MPLANE_PORT
+
         super(ListenerHttpComponent, self).__init__(config)
 
         application = tornado.web.Application([
@@ -207,12 +212,20 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
+        # FIXME: Configuration should take a URL, not build one from components.
+
         if "TLS" not in self.config.sections():
             scheme = "http"
         else:
             scheme = "https"
+
         host = self.config["component"]["client_host"]
-        port = self.config.getint("component", "client_port")
+
+        if "client_port" in config["component"]:
+            port = int(config["component"]["client_port"])
+        else:
+            port = DEFAULT_MPLANE_PORT
+
         self.url = urllib3.util.url.Url(scheme=scheme, host=host, port=port)
         self.registration_path = self.config["component"]["registration_path"]
         if not self.registration_path.startswith("/"):
