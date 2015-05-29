@@ -1,5 +1,5 @@
 # mPlane Protocol Reference Implementation
-# example component code
+# loopback test component code
 #
 # (c) 2013-2015 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell
@@ -33,25 +33,17 @@ def services(param):
     # the parameter is passed to this function by component-py,
     # that reads it from the [module_exampleServiceName] section
     # in the config file
-    services = [IntegrationTestService()]
-    if param is not None:
-        services.append(exampleService(example_capability_with_param(), param))
-        services.append(exampleService(example_capability_without_param()))
-    else:
-        raise ValueError("Missing parameter for capability")
+    services = [LoopbackTestService(loopback_test_capability)]
     return services
 
-def integration_test_registry():
-    pass
-
-def integration_test_capability():
+def loopback_test_capability():
     return mplane.model.parse_json(
         """
         {
           "capability": "measure",
           "version":    0,
-          "registry":   "http://corvid.ch/mplane/integration-test-registry",
-          "label":      "test-integration",
+          "registry":   "http://corvid.ch/mplane/loopback-test-registry",
+          "label":      "test-loopback",
           "when":       "now ... future / 1s",
           "parameters": {
                           "test.input" : "*"
@@ -61,40 +53,20 @@ def integration_test_capability():
         """
     )
 
-def example_capability_with_param(param):
-    cap = mplane.model.Capability(label="example-capability1", when = "now + inf ... future / 1s")
-    cap.add_metadata("System_version", "0.1")
-    cap.add_parameter("source.ip4", param)
-    cap.add_parameter("destination.ip4")
-    cap.add_result_column("time")
-    cap.add_result_column("bytes.forward")
-    return cap
-
-def example_capability_without_param():
-    cap = mplane.model.Capability(label="example-capability2", when = "now + inf ... future")
-    cap.add_metadata("System_version", "0.1")
-    cap.add_parameter("source.ip4")
-    cap.add_parameter("destination.ip4")
-    cap.add_result_column("time")
-    cap.add_result_column("bytes.forward")
-    return cap
-
-class IntegrationTestService(mplane.scheduler.Service):
+class LoopbackTestService(mplane.scheduler.Service):
     """
     This class handles the capabilities exposed by the component:
     executes them, and fills the results
 
     """
 
-    def __init__(self, cap, fileconf):
+    def __init__(self, cap):
         super(exampleService, self).__init__(cap)
-        self._fileconf = fileconf
 
     def run(self, spec, check_interrupt):
-        """ Execute this Service """
-
-        # Run measurements here
+        """ Run a loopback test: copy the input string to the output """
 
         res = mplane.model.Result(specification=spec)
-        # fill the Result here
+        res.set_result_value("test.output",
+                             spec.get_parameter_value("test.input"))
         return res
