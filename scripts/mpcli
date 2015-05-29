@@ -40,8 +40,8 @@ class ClientShell(cmd.Cmd):
 
         # preload any registries necessary
         if "registry_preload" in config["client"]:
-            for filename in config["client"]["registry_preload"]:
-                mplane.model.preload_registry(filename)
+                mplane.model.preload_registry(
+                    config["client"]["registry_preload"])
 
         if "registry_uri" in config["client"]:
             registry_uri = config["client"]["registry_uri"]

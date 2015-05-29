@@ -29,11 +29,11 @@ Implements service capabilities and services
 
 """
 
-def services(param):
+def services():
     # the parameter is passed to this function by component-py,
     # that reads it from the [module_exampleServiceName] section
     # in the config file
-    services = [LoopbackTestService(loopback_test_capability)]
+    services = [LoopbackTestService(loopback_test_capability())]
     return services
 
 def loopback_test_capability():
@@ -61,7 +61,7 @@ class LoopbackTestService(mplane.scheduler.Service):
     """
 
     def __init__(self, cap):
-        super(exampleService, self).__init__(cap)
+        super().__init__(cap)
 
     def run(self, spec, check_interrupt):
         """ Run a loopback test: copy the input string to the output """

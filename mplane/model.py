@@ -1684,20 +1684,8 @@ _registries = {}
 
 def preload_registry(filename=None):
     global _registries
-    _registries[uri] = Registry(filename=filename)
-
-def initialize_registry(uri=REGURI_DEFAULT):
-    """
-    Initializes the mPlane registry from a URI; if no URI is given,
-    initializes the registry from the internal core registry.
-
-    Call this before doing anything else.
-
-    """
-    global _base_registry
-    global _registries
-    _base_registry = Registry(uri=uri)
-    _registries[uri] = _base_registry
+    preloaded = Registry(filename=filename)
+    _registries[preloaded.uri()] = preloaded
 
 def registry_for_uri(uri):
     """
@@ -1711,6 +1699,17 @@ def registry_for_uri(uri):
         _registries[uri] = Registry(uri=uri)
 
     return _registries[uri]
+
+def initialize_registry(uri=REGURI_DEFAULT):
+    """
+    Initializes the mPlane registry from a URI; if no URI is given,
+    initializes the registry from the internal core registry.
+
+    Call this after preloading registries, but before doing anything else.
+
+    """
+    global _base_registry
+    _base_registry = registry_for_uri(uri)
 
 def element(name, reguri=None):
     """
@@ -1757,8 +1756,6 @@ def test_registry():
     assert element("start").name() == "start"
     assert element("start").primitive_name() == "time"
     assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
-
-
 
 #######################################################################
 # Constraints

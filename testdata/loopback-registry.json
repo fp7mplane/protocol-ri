@@ -7,12 +7,12 @@
         {
             "name": "test.input",
             "prim": "string",
-            "desc": "An input string for a loopback test",
+            "desc": "An input string for a loopback test"
         },
         {
             "name": "test.output",
             "prim": "string",
-            "desc": "An output string for a loopback test",
-        },
+            "desc": "An output string for a loopback test"
+        }
     ]
 }
