@@ -81,12 +81,12 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
+        super(ListenerHttpComponent, self).__init__(config)
+
         if "listen_port" in config["component"]:
             port = int(config["component"]["listen_port"])
         else:
             port = DEFAULT_MPLANE_PORT
-
-        super(ListenerHttpComponent, self).__init__(config)
 
         application = tornado.web.Application([
             (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
@@ -95,6 +95,7 @@ class ListenerHttpComponent(BaseComponent):
         ])
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=self.tls.get_ssl_options())
         http_server.listen(port)
+        print("ListenerHttpComponent running on port "+str(port))
         comp_t = Thread(target=self.listen_in_background(io_loop))
         comp_t.setDaemon(True)
         comp_t.start()
