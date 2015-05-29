@@ -45,8 +45,19 @@ class BaseComponent(object):
 
     def __init__(self, config):
         self.config = config
-        # FIXME use registry preload
-        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+
+        # preload any registries necessary
+        if "registry_preload" in config["component"]:
+            for filename in config["component"]["registry_preload"]:
+                mplane.model.preload_registry(filename)
+
+        # initialize core registry
+        if "registry_uri" in config["component"]:
+            registry_uri = config["component"]["registry_uri"]
+        else:
+            registry_uri = None
+        mplane.model.initialize_registry(registry_uri)
+
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
         for service in self._services():
