@@ -37,14 +37,21 @@ class ClientShell(cmd.Cmd):
     prompt = '|mplane| '
 
     def __init__(self, config):
+        # We're using our own root.
+        # FIXME figure out how to get 
+        urllib3.disable_warnings()
 
         # preload any registries necessary
-        if "registry_preload" in config["client"]:
+        if "client" in config:
+
+            if "registry_preload" in config["client"]:
                 mplane.model.preload_registry(
                     config["client"]["registry_preload"])
 
-        if "registry_uri" in config["client"]:
-            registry_uri = config["client"]["registry_uri"]
+            if "registry_uri" in config["client"]:
+                registry_uri = config["client"]["registry_uri"]
+            else:
+                registry_uri = None
         else:
             registry_uri = None
 
@@ -61,21 +68,30 @@ class ClientShell(cmd.Cmd):
         # don't print tracebacks by default
         self._print_tracebacks = False
 
-        if config["client"]["workflow"] == "component-initiated":
-            self.workflow = "component-initiated"
+        # default workflow is client-initiated
+        # FIXME this should be boolean instead
+        self._workflow = "client-initiated"
+
+        if "client" in config:
+            if "workflow" in config["client"]:
+                self._workflow = config["client"]["workflow"]
+
+        if self._workflow == "component-initiated":
             self._client = mplane.client.HttpListenerClient(config=config,
                                                             tls_state=tls_state)
-        elif config["client"]["workflow"] == "client-initiated":
-            self.workflow = "client-initiated"
+        elif self._workflow == "client-initiated":
             self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
         else:
-            raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
+            raise ValueError("workflow setting in " + args.CONF +
+                             " can only be 'client-initiated' or 'component-initiated'")
 
-        if "default-url" in config["client"]:
-            self.do_seturl(config["client"]["default-url"])
 
-        if "capability-url" in config["client"]:
-            self.do_getcap(config["client"]["capability-url"])
+        if "client" in config:
+            if "default-url" in config["client"]:
+                self.do_seturl(config["client"]["default-url"])
+
+            if "capability-url" in config["client"]:
+                self.do_getcap(config["client"]["capability-url"])
 
     def do_seturl(self, arg):
         """
@@ -92,7 +108,7 @@ class ClientShell(cmd.Cmd):
             print("Usage: seturl [url]")
             return
 
-        if self.workflow == "client-initiated":
+        if self._workflow == "client-initiated":
             self._client.set_default_url(url)
         else:
             print("This command can only be used in client-initiated workflows")
@@ -105,7 +121,7 @@ class ClientShell(cmd.Cmd):
         Usage: getcap [url]
 
         """
-        if self.workflow == "client-initiated":
+        if self._workflow == "client-initiated":
             try:
                 url = arg.split()[0]
                 url = urllib3.util.parse_url(url)
@@ -116,13 +132,7 @@ class ClientShell(cmd.Cmd):
                 print("Usage: getcap [url]")
                 return
 
-            while True:
-                try:
-                    self._client.retrieve_capabilities(url)
-                    break
-                except:
-                    print("Url unreachable. Retrying in 5 seconds")
-                sleep(5)
+            self._client.retrieve_capabilities(url)
 
             print("ok")
         else:
