@@ -91,7 +91,7 @@ class BaseSupervisor(object):
             registry_uri = config["component"]["registry_uri"]
         else:
             registry_uri = None
-        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+        mplane.model.initialize_registry(registry_uri)
 
         tls_state = mplane.tls.TlsState(config)
 
