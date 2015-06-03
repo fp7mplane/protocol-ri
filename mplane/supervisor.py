@@ -80,8 +80,19 @@ class BaseSupervisor(object):
     def __init__(self, config):
         self._caps = []
         self.config = config
-        # boot the model
+
+        # preload any registries necessary
+        if "registry_preload" in config["component"]:
+            for filename in config["component"]["registry_preload"]:
+                mplane.model.preload_registry(filename)
+
+        # initialize core registry
+        if "registry_uri" in config["component"]:
+            registry_uri = config["component"]["registry_uri"]
+        else:
+            registry_uri = None
         mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+
         tls_state = mplane.tls.TlsState(config)
 
         self.from_cli = queue.Queue()
@@ -186,24 +197,3 @@ class BaseSupervisor(object):
                 self._client.result_for(token)
 
             sleep(5)
-
-if __name__ == "__main__":
-    # look for TLS configuration
-    parser = argparse.ArgumentParser(description="mPlane generic Supervisor")
-    parser.add_argument('--config', metavar="config-file",
-                        help="Configuration file")
-    args = parser.parse_args()
-
-    # check if conf file parameter has been inserted in the command line
-    if not args.config:
-        print('\nERROR: missing --config\n')
-        parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.config))
-    
-    # Start the supervisor
-    supervisor = BaseSupervisor(config)
