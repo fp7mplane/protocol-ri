@@ -23,11 +23,8 @@
 import mplane.model
 import mplane.scheduler
 import mplane.utils
+from datetime import datetime
 
-"""
-Implements service capabilities and services
-
-"""
 
 def services():
     # the parameter is passed to this function by component-py,
@@ -44,7 +41,7 @@ def loopback_test_capability():
           "version":    0,
           "registry":   "http://mplane.corvid.ch/registry/loopback",
           "label":      "test-loopback",
-          "when":       "now ... future / 1s",
+          "when":       "now ... future",
           "parameters": {
                           "test.input" : "*"
                         },
@@ -67,6 +64,7 @@ class LoopbackTestService(mplane.scheduler.Service):
         """ Run a loopback test: copy the input string to the output """
 
         res = mplane.model.Result(specification=spec)
+        res.set_when(mplane.model.When(a=datetime.utcnow()))
         res.set_result_value("test.output",
                              spec.get_parameter_value("test.input"))
         return res
