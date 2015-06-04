@@ -356,7 +356,7 @@ class InitiatorHttpComponent(BaseComponent):
 
         result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
         # send result to the Client/Supervisor
-        if self.pool.is_same_host(result_url.url):
+        if result_url != "" and self.pool.is_same_host(result_url.url):
             res = self.pool.urlopen('POST', self.result_path,
                     body=mplane.model.unparse_json(reply).encode("utf-8"),
                     headers={"content-type": "application/x-mplane+json"})
