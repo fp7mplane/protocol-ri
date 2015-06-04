@@ -67,7 +67,8 @@ class ClientShell(cmd.Cmd):
                                                             tls_state=tls_state)
         elif config["client"]["workflow"] == "client-initiated":
             self.workflow = "client-initiated"
-            self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
+            self._client = mplane.client.HttpInitiatorClient(config=config,
+                                                            tls_state=tls_state)
         else:
             raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
 

@@ -29,6 +29,7 @@ import html.parser
 import urllib3
 from threading import Thread
 import queue
+import os
 
 import tornado.web
 import tornado.httpserver
@@ -53,7 +54,7 @@ class BaseClient(object):
 
     """
 
-    def __init__(self, tls_state, supervisor=False, exporter=None):
+    def __init__(self, tls_state, config, supervisor=False, exporter=None):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
@@ -64,6 +65,12 @@ class BaseClient(object):
         self._results = {}
         self._result_labels = {}
         self._supervisor = supervisor
+
+        env_ip = os.getenv("SOURCE_IP")
+        if env_ip is not None:
+            self._ip = env_ip
+        else:
+            self._ip = config["client"]["source_ip"]
         if self._supervisor:
             self._exporter = exporter
 
@@ -406,13 +413,13 @@ class HttpInitiatorClient(BaseClient):
 
     """
 
-    def __init__(self, tls_state, default_url=None,
+    def __init__(self, config, tls_state, default_url=None,
                  supervisor=False, exporter=None):
         """
         initialize a client with a given 
         default URL an a given TLS state
         """
-        super().__init__(tls_state, supervisor=supervisor,
+        super().__init__(tls_state, config, supervisor=supervisor,
                         exporter=exporter)
 
         self._default_url = default_url
@@ -449,7 +456,6 @@ class HttpInitiatorClient(BaseClient):
             path = dst_url.path
         else:
             path = "/"
-
         res = pool.urlopen('POST', path,
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
@@ -507,10 +513,7 @@ class HttpInitiatorClient(BaseClient):
         """
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         spec.validate()
-        dst_url = urllib3.util.Url(scheme=self._default_url.scheme,
-                                   host=self._default_url.host,
-                                   port=self._default_url.port,
-                                   path=cap.get_link())
+        dst_url = cap.get_link()
         self.send_message(spec, dst_url)
         return spec
 
@@ -581,12 +584,8 @@ class HttpListenerClient(BaseClient):
     """
     def __init__(self, config, tls_state=None,
                  supervisor=False, exporter=None, io_loop=None):
-        super().__init__(tls_state, supervisor=supervisor,
+        super().__init__(tls_state, config, supervisor=supervisor,
                         exporter=exporter)
-
-        listen_host = DEFAULT_HOST
-        if "listen-host" in config["client"]:
-            listen_host = config["client"]["listen-host"]
 
         listen_port = DEFAULT_PORT
         if "listen-port" in config["client"]:
@@ -603,6 +602,13 @@ class HttpListenerClient(BaseClient):
         result_path = DEFAULT_RESULT_PATH
         if "result-path" in config["client"]:
             result_path = config["client"]["result-path"]
+
+        if "TLS" not in config.sections():
+            scheme = "http"
+        else:
+            scheme = "https"
+        # link to which results must be sent
+        self._link = urllib3.util.url.Url(scheme=scheme, host=self._ip, port=listen_port, path=result_path).url
 
         # Outgoing messages per component identifier
         self._outgoing = {}
@@ -626,7 +632,7 @@ class HttpListenerClient(BaseClient):
         http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
         # run the server
-        http_server.listen(listen_port, listen_host)
+        http_server.listen(listen_port)
         if io_loop is not None:
             cli_t = Thread(target=self.listen_in_background(io_loop))
         else:
@@ -661,6 +667,7 @@ class HttpListenerClient(BaseClient):
         # grab cap, spec, and identity
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         identity = self.identity_for(cap.get_token())
+        spec.set_link(self._link)
 
         callback_cap = None
         if identity in self._callback_capability:

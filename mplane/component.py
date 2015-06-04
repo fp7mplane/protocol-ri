@@ -28,6 +28,7 @@ import mplane.model
 import mplane.azn
 import mplane.tls
 import importlib
+import os
 import tornado.web
 import tornado.httpserver
 from datetime import datetime
@@ -58,10 +59,23 @@ class BaseComponent(object):
             registry_uri = None
         mplane.model.initialize_registry(registry_uri)
 
+        env_ip = os.getenv("SOURCE_IP")
+        if env_ip is not None:
+            self._ip = env_ip
+        else:
+            self._ip = self.config["component"]["source_ip"]
+
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
+        if "TLS" not in self.config.sections():
+            scheme = "http"
+        else:
+            scheme = "https"
         for service in self._services():
-            service.set_capability_link(SPECIFICATION_PATH_ELEM)
+            if config["component"]["workflow"] == "client-initiated":
+                service.set_capability_link(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=self._port, path=self._path).url)
+            else:
+                service.set_capability_link("")
             self.scheduler.add_service(service)
 
     def _services(self):
@@ -80,7 +94,8 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        port = config.getint("component", "listen-port")
+        self._port = config.getint("component", "listen-port")
+        self._path = SPECIFICATION_PATH_ELEM
         super(ListenerHttpComponent, self).__init__(config)
 
         application = tornado.web.Application([
@@ -89,7 +104,7 @@ class ListenerHttpComponent(BaseComponent):
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
         ])
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=self.tls.get_ssl_options())
-        http_server.listen(port)
+        http_server.listen(self._port)
         comp_t = Thread(target=self.listen_in_background(io_loop))
         comp_t.setDaemon(True)
         comp_t.start()
@@ -225,6 +240,7 @@ class InitiatorHttpComponent(BaseComponent):
             self.result_path = "/" + self.result_path
 
         self.pool = self.tls.pool_for(self.url.scheme, self.url.host, self.url.port)
+        self._result_url = dict()
         self.register_to_client()
 
         # periodically poll the Client/Supervisor for Specifications
@@ -311,6 +327,7 @@ class InitiatorHttpComponent(BaseComponent):
 
                     # hand spec to scheduler
                     reply = self.scheduler.process_message(self._client_identity, spec, callback=self.return_results)
+                    self._result_url[spec.get_token()] = spec.get_link()
 
                     # send receipt to the Client/Supervisor
                     res = self.pool.urlopen('POST', self.result_path,
@@ -337,10 +354,17 @@ class InitiatorHttpComponent(BaseComponent):
             job.failed() is not True):
             return
 
+        result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
         # send result to the Client/Supervisor
-        res = self.pool.urlopen('POST', self.result_path,
-                body=mplane.model.unparse_json(reply).encode("utf-8"),
-                headers={"content-type": "application/x-mplane+json"})
+        if self.pool.is_same_host(result_url.url):
+            res = self.pool.urlopen('POST', self.result_path,
+                    body=mplane.model.unparse_json(reply).encode("utf-8"),
+                    headers={"content-type": "application/x-mplane+json"})
+        else:
+            pool = self.tls.pool_for(result_url.scheme, result_url.host, result_url.port)
+            res = pool.urlopen('POST', result_url.path,
+                    body=mplane.model.unparse_json(reply).encode("utf-8"),
+                    headers={"content-type": "application/x-mplane+json"})
 
         # handle response
         if isinstance(reply, mplane.model.Envelope):
