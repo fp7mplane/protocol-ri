@@ -148,10 +148,10 @@ class BaseSupervisor(object):
                 serv = RelayService(msg, identity, self._client,
                                     self._lock, self._spec_messages)
                 if self.comp_workflow == "client-initiated":
-                    serv.set_capability_link(urllib3.util.url.Url(scheme=self._scheme,
+                    serv.set_capability_link(str(urllib3.util.url.Url(scheme=self._scheme,
                                                                   host=self._component._ip,
                                                                   port=self._component._port,
-                                                                  path=self._component._path).url)
+                                                                  path=self._component._path)))
                 self._component.scheduler.add_service(serv)
                 if self.comp_workflow == "component-initiated":
                     self._component.register_to_client([serv.capability()])

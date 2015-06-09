@@ -608,7 +608,7 @@ class HttpListenerClient(BaseClient):
         else:
             scheme = "https"
         # link to which results must be sent
-        self._link = urllib3.util.url.Url(scheme=scheme, host=self._ip, port=listen_port, path=result_path).url
+        self._link = str(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=listen_port, path=result_path))
 
         # Outgoing messages per component identifier
         self._outgoing = {}
