@@ -30,7 +30,7 @@ import argparse
 if __name__ == "__main__":
 
     global args
-    parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
+    parser = argparse.ArgumentParser(description='mplane component runtime')
     parser.add_argument('--config', metavar='conf-file', dest='CONF',
                         help='Configuration file for the component')
     args = parser.parse_args()
@@ -51,4 +51,4 @@ if __name__ == "__main__":
     elif config["component"]["workflow"] == "client-initiated":
         component = mplane.component.ListenerHttpComponent(config)
     else:
-        raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
+        raise ValueError("need either a 'client-initiated' or 'component-initiated' workflow in " + args.CONF + "")

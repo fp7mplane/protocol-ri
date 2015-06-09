@@ -49,7 +49,7 @@ DEFAULT_RESULT_PATH = "register/result"
 class BaseClient(object):
     """
     Core implementation of a generic programmatic client.
-    Used for common client state management between 
+    Used for common client state management between
     Client and ClientListener; use one of these instead.
 
     """
@@ -76,7 +76,7 @@ class BaseClient(object):
 
     def _add_capability(self, msg, identity):
         """
-        Add a capability to internal state. The capability will be recallable 
+        Add a capability to internal state. The capability will be recallable
         by token, and, if present, by label.
 
         Internal use only; use handle_message instead.
@@ -104,7 +104,7 @@ class BaseClient(object):
 
     def _withdraw_capability(self, msg, identity):
         """
-        Process a withdrawal. Match the withdrawal to the capability, 
+        Process a withdrawal. Match the withdrawal to the capability,
         first by token, then by schema. Withdrawals that do not match
         any known capabilities are dropped silently.
 
@@ -154,8 +154,8 @@ class BaseClient(object):
 
     def capabilities_matching_schema(self, schema_capability):
         """
-        Given a capability, return *all* known capabilities matching the 
-        given schema capability. A capability matches a schema capability 
+        Given a capability, return *all* known capabilities matching the
+        given schema capability. A capability matches a schema capability
         if and only if: (1) the capability schemas match and (2) all
         constraints in the capability are contained by all constraints
         in the schema capability.
@@ -169,7 +169,7 @@ class BaseClient(object):
 
     def _spec_for(self, cap_tol, when, params, relabel=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         ready for invocation, and return the capability and specification.
 
@@ -208,7 +208,7 @@ class BaseClient(object):
 
     def _add_receipt(self, msg, identity):
         """
-        Add a receipt to internal state. The receipt will be recallable 
+        Add a receipt to internal state. The receipt will be recallable
         by token, and, if present, by label.
 
         Internal use only; use handle_message instead.
@@ -229,14 +229,14 @@ class BaseClient(object):
                 del self._receipt_labels[label]
 
     def _handle_result(self, msg, identity):
-        # FIXME check the result identity 
+        # FIXME check the result identity
         # against where we sent the specification to
         self._add_result(msg, identity)
 
     def _add_result(self, msg, identity=None):
         """
         Add a result to internal state. The result will supercede any receipt
-        stored for the same token, and will be recallable by token, and, 
+        stored for the same token, and will be recallable by token, and,
         if present, by label.
 
         Internal use only; use handle_message instead.
@@ -298,8 +298,8 @@ class BaseClient(object):
 
     def handle_message(self, msg, identity=None):
         """
-        Handle a message. Used internally to process 
-        mPlane messages received from a component. Can also be used 
+        Handle a message. Used internally to process
+        mPlane messages received from a component. Can also be used
         to inject messages into a client's state.
 
         """
@@ -408,7 +408,7 @@ class CrawlParser(html.parser.HTMLParser):
 class HttpInitiatorClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports client-initiated workflows. Intended for building 
+    Supports client-initiated workflows. Intended for building
     client UIs and bots.
 
     """
@@ -416,7 +416,7 @@ class HttpInitiatorClient(BaseClient):
     def __init__(self, config, tls_state, default_url=None,
                  supervisor=False, exporter=None):
         """
-        initialize a client with a given 
+        initialize a client with a given
         default URL an a given TLS state
         """
         super().__init__(tls_state, config, supervisor=supervisor,
@@ -459,7 +459,7 @@ class HttpInitiatorClient(BaseClient):
         res = pool.urlopen('POST', path,
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
-        if (res.status == 200 and 
+        if (res.status == 200 and
             res.getheader("Content-Type") == "application/x-mplane+json"):
             component_identity = self._tls_state.extract_peer_identity(dst_url)
             self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")), component_identity)
@@ -506,7 +506,7 @@ class HttpInitiatorClient(BaseClient):
 
     def invoke_capability(self, cap_tol, when, params, relabel=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         and send it to the appropriate destination.
 
@@ -529,7 +529,7 @@ class HttpInitiatorClient(BaseClient):
 
     def retrieve_capabilities(self, url, urlchain=[], pool=None, identity=None):
         """
-        connect to the given URL, retrieve and process the 
+        connect to the given URL, retrieve and process the
         capabilities/withdrawals found there
         """
 
@@ -571,14 +571,14 @@ class HttpInitiatorClient(BaseClient):
                 parser.feed(res.data.decode("utf-8"))
                 parser.close()
                 for capurl in parser.urls:
-                    self.retrieve_capabilities(url=capurl, 
+                    self.retrieve_capabilities(url=capurl,
                                                urlchain=urlchain + [url],
                                                pool=pool, identity=identity)
 
 class HttpListenerClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports component-initiated workflows. Intended for building 
+    Supports component-initiated workflows. Intended for building
     supervisors.
 
     """
@@ -589,7 +589,7 @@ class HttpListenerClient(BaseClient):
 
         listen_port = DEFAULT_PORT
         if "listen-port" in config["client"]:
-            listen_port = config.getint("client", "listen-port")
+            listen_port = int(config["client"]["listen-port"])
 
         registration_path = DEFAULT_REGISTRATION_PATH
         if "registration-path" in config["client"]:
@@ -617,7 +617,7 @@ class HttpListenerClient(BaseClient):
         # used to create labels programmatically
         self._ssn = 0
 
-        # Capability 
+        # Capability
         self._callback_capability = {}
 
         # Create a request handler pointing at this client
@@ -655,7 +655,7 @@ class HttpListenerClient(BaseClient):
 
     def invoke_capability(self, cap_tol, when, params, relabel=None, callback_when=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         and queue it for retrieval by the appropriate identity (i.e., the
         one associated with the capability).

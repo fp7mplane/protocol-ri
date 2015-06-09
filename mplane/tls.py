@@ -40,7 +40,7 @@ import tornado.httpserver
 from socket import socket
 import mplane.utils
 
-DUMMY_DN = "Dummy.Distinguished.Name"
+DUMMY_DN = "Identity.Unauthenticated.Default"
 
 class TlsState:
 

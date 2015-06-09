@@ -38,6 +38,7 @@ import urllib3
 from threading import Thread
 import json
 
+DEFAULT_MPLANE_PORT = 1228
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 SPECIFICATION_PATH_ELEM = "/"
@@ -49,8 +50,8 @@ class BaseComponent(object):
 
         # preload any registries necessary
         if "registry_preload" in config["component"]:
-            for filename in config["component"]["registry_preload"]:
-                mplane.model.preload_registry(filename)
+            mplane.model.preload_registry(
+                config["component"]["registry_preload"])
 
         # initialize core registry
         if "registry_uri" in config["component"]:
@@ -94,17 +95,24 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        self._port = config.getint("component", "listen-port")
-        self._path = SPECIFICATION_PATH_ELEM
         super(ListenerHttpComponent, self).__init__(config)
+
+        if "listen_port" in config["component"]:
+            self._port = int(config["component"]["listen_port"])
+        else:
+            self._port = DEFAULT_MPLANE_PORT
+        self._path = SPECIFICATION_PATH_ELEM
 
         application = tornado.web.Application([
             (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
         ])
-        http_server = tornado.httpserver.HTTPServer(application, ssl_options=self.tls.get_ssl_options())
+        http_server = tornado.httpserver.HTTPServer(
+                        application,
+                        ssl_options=self.tls.get_ssl_options())
         http_server.listen(self._port)
+        print("ListenerHttpComponent running on port "+str(port))
         comp_t = Thread(target=self.listen_in_background(io_loop))
         comp_t.setDaemon(True)
         comp_t.start()
@@ -222,12 +230,20 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
+        # FIXME: Configuration should take a URL, not build one from components.
+
         if "TLS" not in self.config.sections():
             scheme = "http"
         else:
             scheme = "https"
+
         host = self.config["component"]["client_host"]
-        port = self.config.getint("component", "client_port")
+
+        if "client_port" in config["component"]:
+            port = int(config["component"]["client_port"])
+        else:
+            port = DEFAULT_MPLANE_PORT
+
         self.url = urllib3.util.url.Url(scheme=scheme, host=host, port=port)
         self.registration_path = self.config["component"]["registration_path"]
         if not self.registration_path.startswith("/"):
