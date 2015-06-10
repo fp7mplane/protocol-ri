@@ -148,7 +148,7 @@ class BaseSupervisor(object):
                 serv = RelayService(msg, identity, self._client,
                                     self._lock, self._spec_messages)
                 if self.comp_workflow == "client-initiated":
-                    serv.set_capability_link(str(urllib3.util.url.Url(scheme=self._scheme,
+                    serv.set_capability_link(mplane.utils.parse_url(urllib3.util.url.Url(scheme=self._scheme,
                                                                   host=self._component._ip,
                                                                   port=self._component._port,
                                                                   path=self._component._path)))

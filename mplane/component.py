@@ -78,7 +78,7 @@ class BaseComponent(object):
             scheme = "https"
         for service in self._services():
             if config["component"]["workflow"] == "client-initiated":
-                service.set_capability_link(str(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=self._port, path=self._path)))
+                service.set_capability_link(mplane.utils.parse_url(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=self._port, path=self._path)))
             else:
                 service.set_capability_link("")
             self.scheduler.add_service(service)
@@ -376,7 +376,7 @@ class InitiatorHttpComponent(BaseComponent):
 
         result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
         # send result to the Client/Supervisor
-        if result_url != "" and self.pool.is_same_host(str(result_url)):
+        if result_url != "" and self.pool.is_same_host(mplane.utils.parse_url(result_url)):
             res = self.pool.urlopen('POST', self.result_path,
                     body=mplane.model.unparse_json(reply).encode("utf-8"),
                     headers={"content-type": "application/x-mplane+json"})

@@ -22,6 +22,7 @@ import os.path
 import re
 import mplane.model
 import json
+import urllib3
 
 def read_setting(filepath, param):
     """
@@ -108,6 +109,15 @@ def split_stmt_list(msg):
     for json_stmt in json_stmts:
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
+
+def parse_url(url):
+    """ Returns a link in string format from an Url object """
+    link = url.scheme + "://" + url.host + ":" + str(url.port)
+    if url.path.startswith("/"):
+        link = link + url.path
+    else:
+        link = link + "/" + ur.path
+    return link
 
 def versiontuple(version_string):
     return tuple(map(int, (version_string.split("."))))
