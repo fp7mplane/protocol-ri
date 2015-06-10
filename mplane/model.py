@@ -1584,7 +1584,7 @@ class Registry(object):
         return len(self._elements)
 
     def __getitem__(self, name):
-        return self._elements[name]
+        return self._elements.get(name, None)
 
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
@@ -1719,10 +1719,14 @@ def element(name, reguri=None):
     """
     global _base_registry
     global _registries
-    if reguri:
-        return _registries[reguri][name]
-    else:
-        return _base_registry[name]
+    
+    for reg in _registries:
+        if _registries[reg][name] != None:
+            return _registries[reg][name]
+    return _base_registry[name] 
+    
+    # fall-through: no results
+    raise Exception("Key error: " + name + " not present in registries")
 
 def test_registry():
     # default registry trough the Registry-Object
