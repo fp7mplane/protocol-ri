@@ -38,6 +38,8 @@ import urllib3
 from threading import Thread
 import json
 
+urllib3.disable_warnings()
+
 DEFAULT_MPLANE_PORT = 1228
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
