@@ -116,7 +116,7 @@ def parse_url(url):
     if url.path.startswith("/"):
         link = link + url.path
     else:
-        link = link + "/" + ur.path
+        link = link + "/" + url.path
     return link
 
 def versiontuple(version_string):
