@@ -99,13 +99,13 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        super(ListenerHttpComponent, self).__init__(config)
-
         if "listen-port" in config["component"]:
             self._port = int(config["component"]["listen-port"])
         else:
             self._port = DEFAULT_MPLANE_PORT
         self._path = SPECIFICATION_PATH_ELEM
+
+        super(ListenerHttpComponent, self).__init__(config)
 
         application = tornado.web.Application([
             (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),

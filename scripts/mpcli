@@ -88,7 +88,7 @@ class ClientShell(cmd.Cmd):
                              " can only be 'client-initiated' or 'component-initiated'")
 
 
-        if "client" in config:
+        if "client" in config and self._workflow != "component-initiated":
             if "default-url" in config["client"]:
                 self.do_seturl(config["client"]["default-url"])
 
