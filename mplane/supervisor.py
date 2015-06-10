@@ -81,8 +81,8 @@ class BaseSupervisor(object):
 
         # preload any registries necessary
         if "registry_preload" in config["component"]:
-            for filename in config["component"]["registry_preload"]:
-                mplane.model.preload_registry(filename)
+            mplane.model.preload_registry(
+                config["component"]["registry_preload"])
 
         # initialize core registry
         if "registry_uri" in config["component"]:
