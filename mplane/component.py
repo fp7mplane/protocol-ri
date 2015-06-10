@@ -97,8 +97,8 @@ class ListenerHttpComponent(BaseComponent):
     def __init__(self, config, io_loop=None):
         super(ListenerHttpComponent, self).__init__(config)
 
-        if "listen_port" in config["component"]:
-            self._port = int(config["component"]["listen_port"])
+        if "listen-port" in config["component"]:
+            self._port = int(config["component"]["listen-port"])
         else:
             self._port = DEFAULT_MPLANE_PORT
         self._path = SPECIFICATION_PATH_ELEM
