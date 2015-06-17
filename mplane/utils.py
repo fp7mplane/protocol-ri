@@ -40,7 +40,25 @@ def read_setting(filepath, param):
                     else:
                         return line.split('= ')[1]
     return None
+
+def search_path(path):
+    """
+    Converts every path into absolute paths,
+    and checks if file exists. 
+    Should replace check_file() and normalize_path()
     
+    """
+    if path[0] != '/':
+        norm_path = os.path.abspath(path)
+    else:
+        norm_path = path
+        
+    if not os.path.exists(norm_path):
+        raise ValueError("Error: File " + norm_path + " does not appear to exist.")
+        exit(1)
+        
+    return norm_path
+ 
 def check_file(filename): 
     """
     Checks if the file exists at the given path
@@ -48,12 +66,14 @@ def check_file(filename):
     """      
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
+        exit(1)
         
 def normalize_path(path):
     """
     Converts every path into absolute paths
     
     """
+    print(path)
     if path[0] != '/':
         return os.path.abspath(path)
     else:
@@ -89,3 +109,6 @@ def split_stmt_list(msg):
     for json_stmt in json_stmts:
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
+
+def versiontuple(version_string):
+    return tuple(map(int, (version_string.split("."))))

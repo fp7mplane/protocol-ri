@@ -1,7 +1,7 @@
 {
   "registry-format": "mplane-0",
   "registry-revision": 0,
-  "registry-uri": "http://ict-mplane.eu/registry/core.json",
+  "registry-uri": "http://ict-mplane.eu/registry/core",
   "elements": [
     {
       "name": "start",
@@ -226,22 +226,22 @@
     {
       "name": "packets.lost",
       "prim": "natural",
-      "desc": "Count of packets observed or inferred as lost in a flow, event, or measurement"      
+      "desc": "Count of packets observed or inferred as lost in a flow, event, or measurement"
     },
     {
       "name": "packets.unobserved",
       "prim": "natural",
-      "desc": "Count of packets observed or inferred as delivered but unobserved in a flow, event, or measurement"      
+      "desc": "Count of packets observed or inferred as delivered but unobserved in a flow, event, or measurement"
     },
     {
       "name": "flows",
       "prim": "natural",
-      "desc": "Count of unidirectional flows (see RFC 7011) associated with an event or measurement"      
+      "desc": "Count of unidirectional flows (see RFC 7011) associated with an event or measurement"
     },
     {
       "name": "flows.bidirectional",
       "prim": "natural",
-      "desc": "Count of bidirectional flows (see RFC 7011 and 5103) associated with an event or measurement"      
+      "desc": "Count of bidirectional flows (see RFC 7011 and 5103) associated with an event or measurement"
     },
     {
       "name": "delay.twoway.icmp.us",
@@ -1010,6 +1010,10 @@
       "prim": "string"
     },
     {
+      "name": "probe.DN",
+      "prim": "string"
+    },
+    {
       "name": "http.code.max",
       "prim": "natural",
       "desc": "The maximal value of the HTTP result code during the test"
@@ -1040,6 +1044,16 @@
       "desc": "Quality level expressed in percents."
     },
     {
+      "name": "scamper.pps",
+      "prim": "natural",
+      "desc": "specifies the target packets-per-second rate for scamper to\nreach.  By default, this value is 20."
+    },
+    {
+      "name": "scamper.window",
+      "prim": "natural",
+      "desc": "specifies the maximum number of tasks that may be probed in par-\nallel.  A value of zero places no upper limit.  By default, zero\nis used."
+    },
+    {
       "name": "tracebox.udp",
       "prim": "boolean",
       "desc": "Uses UDP probes"
@@ -1058,6 +1072,11 @@
       "name": "tracebox.hop.modifications",
       "prim": "string",
       "desc": "modifications as observed by Tracebox"
+    },
+    {
+      "name": "tracebox.values",
+      "prim": "boolean",
+      "desc": "retreive values of modified fields."
     },
     {
       "name": "tracebox.hop.ip4",
@@ -1131,12 +1150,12 @@
     },
     {
       "name": "trace.confidence",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies that a hop should be probed to a specified confidence level (95% or 99%) to be sure the trace has seen all interfaces that will reply for that hop."
     },
     {
       "name": "trace.dport",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies the base destination port value to use for UDP-based and TCP-based traceroute methods.  For ICMP-paris, this option sets the ICMP checksum value."
     },
     {
@@ -1171,7 +1190,7 @@
     },
     {
       "name": "trace.loopaction",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies the action to take when a loop is encountered.  A value of 1 tells scamper to probe beyond the first loop in the trace."
     },
     {
@@ -1196,13 +1215,13 @@
     },
     {
       "name": "trace.sport",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies the source port value to use.  For ICMP-based methods, this option specifies the ICMP identifier to use."
     },
     {
       "name": "trace.srcaddr",
-      "prim": "boolean",
-      "desc": "specifies that the source address to use in probes is the address passed in argument of the Python file.  The address cannot be spoofed."
+      "prim": "address",
+      "desc": "specifies the source address to use in probes.  The address cannot be spoofed.\nThe address cannot be spoofed."
     },
     {
       "name": "trace.tos",
@@ -1216,7 +1235,7 @@
     },
     {
       "name": "trace.userid",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies an unsigned integer to include with the data collected; the meaning of the user-id is entirely up to the user and has no effect on the behaviour of traceroute."
     },
     {
@@ -1226,7 +1245,7 @@
     },
     {
       "name": "trace.waitprobe",
-      "prim": "natural",
+      "prim": "real",
       "desc": "specifies the minimum time to wait, in 10s of milliseconds, between sending consecutive probes.  By default the next probe is sent as soon as possible."
     },
     {
@@ -1235,162 +1254,17 @@
       "desc": "specifies the name of the local stop set to use when determining when to halt probing backwards; used with the double-tree algorithm."
     },
     {
+      "name": "trace.gssentry",
+      "prim": "address",
+      "desc":"specifies an IP address to halt probing when encountered; used\nwith the double-tree algorithm."
+    },
+    {
       "name": "trace.hop.ip4",
       "prim": "address"
     },
     {
       "name": "trace.hop.ip6",
       "prim": "address"
-    },
-    {
-      "name": "dealias.dport",
-      "prim": "natural",
-      "desc": "specifies the destination port to use when sending probes.  Only valid for the mercator technique; destination ports can be specified in probedefs defined with -p for other alias resolution methods."
-    },
-    {
-      "name": "dealias.fudge",
-      "prim": "natural",
-      "desc": "specifies a fudge factor for alias matching. Defaults to 200. Only valid for ally and bump."
-    },
-    {
-      "name": "dealias.method",
-      "prim": "string",
-      "desc": " specifies which method to use for alias resolution.  Valid options are: ally, bump, mercator, prefixscan, and radargun."
-    },
-    {
-      "name": "dealias.replyc",
-      "prim": "natural",
-      "desc": "specifies how many replies to wait for. Only valid for prefixscan."
-    },
-    {
-      "name": "dealias.option",
-      "prim": "string",
-      "desc": "allows alias resolution behaviour to be further tailored.  The current choices for this option are:\n-  inseq where IP-ID values are required to be strictly in sequence (with no tolerance for packet reordering)\n-  shuffle randomise the order of probes sent each round; only valid for radargun probing.\n-  nobs do not allow for byte swapped IP-ID values in responses.  Valid for ally and prefixscan."
-    },
-    {
-      "name": "dealias.probedef",
-      "prim": "string",
-      "desc": "will probably not work" 
-    },
-    {
-      "name": "dealias.attempts",
-      "prim": "natural",
-      "desc": "specifies how many times a probe should be retried if it does not obtain a useful response."
-    },
-    {
-      "name": "dealias.waitround",
-      "prim": "natural",
-      "desc": "specifies how many milliseconds to wait between probing rounds with radargun."
-    },
-    {
-      "name": "dealias.sport",
-      "prim": "natural",
-      "desc": "specifies the source port to use when sending probes. Only valid for mercator."
-    },
-    {
-      "name": "dealias.ttl",
-      "prim": "natural",
-      "desc": "specifies the time-to-live of probes sent. Only valid for mercator."
-    },
-    {
-      "name": "dealias.userid",
-      "prim": "natural",
-      "desc": "specifies an unsigned integer to include with the data collected; the meaning of the user-id is entirely up to the user and has no effect on the behaviour of dealias."
-    },
-    {
-      "name": "dealias.waittimeout",
-      "prim": "natural",
-      "desc": "specifies how long to wait in milliseconds for a reply from the remote host."
-    },
-    {
-      "name": "dealias.waitprobe",
-      "prim": "natural",
-      "desc": "specifies how long to wait in milliseconds between probes."
-    },
-    {
-      "name": "dealias.exclude",
-      "prim": "address",
-      "desc": "specifies an IP address to exclude when using the prefixscan method.  May be specified multiple times to exclude multiple addresses."
-    },
-    {
-      "name": "neighbourdisc.F",
-      "prim": "boolean",
-      "desc": "specifies that we only want the first response."
-    },
-    {
-      "name": "neighbourdisc.Q",
-      "prim": "boolean",
-      "desc": "specifies that we want to send all attempts."
-    },
-    {
-      "name": "neighbourdisc.interface",
-      "prim": "string",
-      "desc": "specifies the name of the interface to use for neighbour discovery."
-    },
-    {
-      "name": "neighbourdisc.replycount",
-      "prim": "natural",
-      "desc": "specifies how many replies we wait for."
-    },
-    {
-      "name": "neighbourdisc.attempts",
-      "prim": "natural",
-      "desc": "specifies how many probes we send out."
-    },
-    {
-      "name": "neighbourdisc.wait",
-      "prim": "natural",
-      "desc": "specifies how long to wait between probes in milliseconds.\nDefaults to 1000."
-    },
-    {
-      "name": "tbit.type",
-      "prim": "string",
-      "desc": "specifies which type of testing to use.\n Valid options are: pmtud, ecn, null, sack-rcvr."
-    },
-    {
-      "name": "tbit.app",
-      "prim": "string",
-      "desc": " specifies what kind of traffic to generate for testing.\nDestination port defaults the application standard port.\nValid applications are: smtp, http, dns, ftp."
-    },
-    {
-      "name": "tbit.dport",
-      "prim": "natural",
-      "desc": "specifies the destination port for the packets being sent.\nDefaults are application-specific."
-    },
-    {
-      "name": "tbit.sport",
-      "prim": "natural",
-      "desc": "specifies the source port for the packets being sent.\nDefault is based of the scamper process id."
-    },
-    {
-      "name": "tbit.mss",
-      "prim": "natural",
-      "desc": "specifies the maximum segment size to advertise to the remote host."
-    },
-    {
-      "name": "tbit.mtu",
-      "prim": "natural",
-      "desc": "specifies the MTU to use in a Packet Too Big message."
-    },
-    {
-      "name": "tbit.options",
-      "prim": "string",
-      "desc": "allows tbit behaviour to be further tailored.  The current choice for this option is: \n-  blackhole for PMTUD testing, do not send Packet Too Big messages; this tests to ability of a host to infer a PMTUD blackhole and work around it."
-    },
-    {
-      "name": "tbit.ptbsrc",
-      "prim": "address",
-      "desc": "specifies the source address that should be used to send Packet Too Big messages in the pmtud test."
-    },
-    {
-      "name": "tbit.srcaddr",
-      "prim": "address",
-      "desc": "specifies the source address that should be used in TCP packets sent by the tbit test."
-    },
-    {
-      "name": "tbit.url",
-      "prim": "string",
-      "desc": "specifies a url for the http application."
     },
     {
       "name": "tracelb.confidence",
@@ -1456,46 +1330,6 @@
       "name": "tracelb.result",
       "prim": "string",
       "desc": "a tracelb result line."
-    },
-    {
-      "name": "sting.count",
-      "prim": "natural",
-      "desc": "specifies the number of samples to make.\nBy default 48 samples are sent, as this value is the current default of the FreeBSD TCP reassembly queue length.\nSting 0.7 uses 100 samples."
-    },
-    {
-      "name": "sting.dport",
-      "prim": "natural",
-      "desc": "specifies the base destination port to use.  Defaults to 80, the default port used by the HTTP protocol."
-    },
-    {
-      "name": "sting.distribution",
-      "prim": "string",
-      "desc": "specifies the delay distribution of samples.\nBy default a uniform distribution is constructed.  Other distributions are currently not implemented in scamper's implementation of sting."
-    },
-    {
-      "name": "sting.request",
-      "prim": "string",
-      "desc": "specifies the default request to make.  Currently not implemented."
-    },
-    {
-      "name": "sting.hole",
-      "prim": "natural",
-      "desc": " specifies the size of the initial hole left in the request.\nThe default is 3 bytes, the same as sting-0.7."
-    },
-    {
-      "name": "sting.inter",
-      "prim": "natural",
-      "desc": "specifies the inter-phase delay between data seeding and hole filling, in milliseconds.\nBy default, sting waits 2000ms between phases."
-    },
-    {
-      "name": "sting.mean",
-      "prim": "natural",
-      "desc": "specifies the mean rate to send packets in the data phase, in milliseconds.\nBy default, sting waits 100ms between probes."
-    },
-    {
-      "name": "sting.sport",
-      "prim": "natural",
-      "desc": "specfies to the source port to use when sending probes.\nDefault is based on the process ID."
     }
   ]
 }

@@ -99,10 +99,6 @@
 | bufferload | real | Normalized buffer load on the identified device |
 | bufferstalls | natural | Count of buffer stalls (imputed playback quality degradation) associated with a flow/event |
 | snr | real | Signal to noise ratio in decibels, either in a radio access network or in an audio transmission context |
-| period.s | natural | DEPRECATED and to be removed before D1.4. Use temporal scopes instead. |
-| period.ms | natural | DEPRECATED and to be removed before D1.4. Use temporal scopes instead. |
-| period.us | natural | DEPRECATED and to be removed before D1.4. Use temporal scopes instead. |
-| period.ns | natural | DEPRECATED and to be removed before D1.4. Use temporal scopes instead. |
 | measurement.identifier | string | Free-form string identifying the implementation of the measurement on the component; often the name of the external program |
 | measurement.revision | natural | Release or deployment serial number of the implementation of the measurement on the component |
 | measurement.algorithm | string | Free-form string identifying the algorithm used for the measurement on the component |

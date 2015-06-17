@@ -25,19 +25,18 @@
 Information model and element registry for the mPlane protocol.
 
 This module implements Statements and Notifications, the core
-messages used by the mPlane protocol, the Elements these
-use to describe measurement and query schemas, and various
-other classes to support them.
+messages used by the mPlane protocol to describe measurement
+and query schemas, and various other classes to support them.
 
-There are three kinds of Statement:
+There are three kinds of Statements:
 
     - Capability represents something a component can do
     - Specification tells a component to do something it
-      advertised a Capability for 
+      advertised a Capability for
     - Result returns the results for a Specification in-band
 
 Notifications are used to transfer other information between
-components and clients. There are four kinds of Notification:
+components and clients. There are four kinds of Notifications:
 
     - Receipt notifies that a Result is not yet ready or
       that the results of an operation will be indirectly exported.
@@ -46,25 +45,24 @@ components and clients. There are four kinds of Notification:
     - Interrupt notifies that a running Specification should be stopped.
 
 To see how all this fits together, let's simulate the message exchange
-in a simple ping measurement. First, we load the registry and 
-programatically create a new Capability, as would be advertised by
-the component. First, we initialize the registry and create a new 
-empty Capability.
+in a simple ping measurement. Initially, we have to load the default element
+registry and programatically create a new empty Capability, as it would
+be advertised by the component.
 
 >>> import mplane
 >>> import json
 >>> mplane.model.initialize_registry()
 >>> cap = mplane.model.Capability()
 
-First we set a temporal scope for the capability. Probe components 
-generally advertise a temporal scope from the present stretching 
-into the indeterminate future. In this case, we advertise that the 
-measurement performed is periodic, by setting the minimum period 
+First, we set a temporal scope for the capability. Probe components
+generally advertise a temporal scope from the present stretching
+into the indeterminate future. In this case, we advertise that the
+measurement performed is periodic, by setting the minimum period
 supported by the capability: one ping per second.
 
 >>> cap.set_when("now ... future / 1s")
 
-We can only ping from one IPv4 address, to any IPv4 address. 
+We can only ping from one IPv4 address, to any IPv4 address.
 Adding a parameter without a constraint makes it unconstrained:
 
 >>> cap.add_parameter("source.ip4", "10.0.27.2")
@@ -80,22 +78,22 @@ total count of singleton measurements taken and packets lost:
 >>> cap.add_result_column("delay.twoway.icmp.count")
 >>> cap.add_result_column("packets.lost")
 
-Now we have a capability we could transform into JSON and make 
-available to clients via the mPlane protocol, or via static 
+Now we have a capability we could transform into JSON and make it
+available to clients via the mPlane protocol, or via static
 download or configuration:
 
 >>> capjson = mplane.model.unparse_json(cap)
 >>> capjson # doctest: +SKIP
 '{"capability": "measure",
   "version": 1,
-  "registry": "http://ict-mplane.eu/registry/core", 
-  "when": "now ... future / 1s", 
-  "parameters": {"source.ip4": "10.0.27.2", 
+  "registry": "http://ict-mplane.eu/registry/core",
+  "when": "now ... future / 1s",
+  "parameters": {"source.ip4": "10.0.27.2",
                  "destination.ip4": "*"},
-  "results": ["delay.twoway.icmp.us.min", 
-              "delay.twoway.icmp.us.max", 
-              "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.count", 
+  "results": ["delay.twoway.icmp.us.min",
+              "delay.twoway.icmp.us.max",
+              "delay.twoway.icmp.us.mean",
+              "delay.twoway.icmp.count",
               "packets.lost"]}'
 
 On the client side, we'd receive this capability as a JSON object and turn it
@@ -104,28 +102,26 @@ into a capability, from which we generate a specification:
 >>> clicap = mplane.model.parse_json(capjson)
 >>> spec = mplane.model.Specification(capability=clicap)
 >>> spec
-<specification: measure when now ... future / 1s token 4e66a52f schema 5ce99352 p(v)/m/r 2(0)/0/5>
+<specification: measure when now ... future / 1s token e00d7fe8 schema 5ce99352 p(v)/m/r 2(1)/0/5>
 
-Here we have a specification with a given token, schema, and 2 parameters, 
+Here we have a specification with a given token, schema, and 2 parameters,
 no metadata, and five result columns.
 
 .. note:: The schema of the statement is identified by a
-          schema hash, the first eight hex digits of which are shown for 
-          diagnostic purposes. Statements with identical sets of parameters 
+          schema hash, the first eight hex digits of which are shown for
+          diagnostic purposes. Statements with identical sets of parameters
           and columns (schemas) will have identical schema hashes. Likewise,
           the token is defined by the schema as well as the parameter values.
 
-First let's fill in a specific temporal scope for the measurement:
+First, let's fill in a specific temporal scope for the measurement:
 
->>> spec.set_when("2014-12-24 22:18:42 + 1m / 1s")
+>>> spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
 
-And then let's fill in some parameters. First, we can fill in all parameters whose
+And then let's fill in some parameters. All od the parameters whose
 single values are already given by their constraints (in this case, source.ip4)
-
->>> spec.set_single_values()
-
-Then let's set a destination. Note that strings are accepted and
-automatically parsed using each parameter's primitive type:
+have already been filled in. So let's start with the destination.
+Note that strings are accepted and automatically parsed using each
+parameter's primitive type:
 
 >>> spec.set_parameter_value("destination.ip4", "10.0.37.2")
 
@@ -134,17 +130,17 @@ the component from which we got the capability:
 
 >>> specjson = mplane.model.unparse_json(spec)
 >>> specjson # doctest: +SKIP
-'{"specification": "measure", 
+'{"specification": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
-  "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
-  "parameters": {"source.ip4": "10.0.27.2", 
-                 "destination.ip4": "10.0.37.2"}, 
-  "results": ["delay.twoway.icmp.us.min", 
-              "delay.twoway.icmp.us.max", 
-              "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.count", 
+  "token": "ea839b56bc3f6004e95d780d7a64d899",
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s",
+  "parameters": {"source.ip4": "10.0.27.2",
+                 "destination.ip4": "10.0.37.2"},
+  "results": ["delay.twoway.icmp.us.min",
+              "delay.twoway.icmp.us.max",
+              "delay.twoway.icmp.us.mean",
+              "delay.twoway.icmp.count",
               "packets.lost"]}'
 
 On the component side, likewise, we'd receive this specification as a JSON
@@ -153,7 +149,7 @@ object and turn it back into a specification:
 >>> comspec = mplane.model.parse_json(specjson)
 
 The component would determine the measurement, query, or other operation to
-run by the specification, then extract the necessary parameter values, e.g.:
+run given by the specification, then extract the necessary parameter values, e.g.:
 
 >>> comspec.get_parameter_value("destination.ip4")
 IPv4Address('10.0.37.2')
@@ -165,7 +161,7 @@ by assigning values to parameters which changed and result columns
 measured:
 
 >>> res = mplane.model.Result(specification=comspec)
->>> res.set_when("2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000")
+>>> res.set_when("2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000")
 >>> res.set_result_value("delay.twoway.icmp.us.min", 33155)
 >>> res.set_result_value("delay.twoway.icmp.us.mean", 55166)
 >>> res.set_result_value("delay.twoway.icmp.us.max", 192307)
@@ -174,27 +170,27 @@ measured:
 
 The result can then be serialized and sent back to the client:
 
->>> resjson = json.dumps(res.to_dict())
+>>> resjson = mplane.model.unparse_json(res)
 >>> resjson # doctest: +SKIP
-'{"result": "measure", 
+'{"result": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
-  "token": "ea839b56bc3f6004e95d780d7a64d899", 
-  "when": "2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000", 
-  "parameters": {"source.ip4": "10.0.27.2", 
+  "token": "ea839b56bc3f6004e95d780d7a64d899",
+  "when": "2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000",
+  "parameters": {"source.ip4": "10.0.27.2",
                  "destination.ip4": "10.0.37.2"},
-  "results": ["delay.twoway.icmp.us.min", 
-              "delay.twoway.icmp.us.max", 
-              "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.count", 
-              "packets.lost"],  
+  "results": ["delay.twoway.icmp.us.min",
+              "delay.twoway.icmp.us.max",
+              "delay.twoway.icmp.us.mean",
+              "delay.twoway.icmp.count",
+              "packets.lost"],
   "resultvalues": [["33155", "192307", "55166", "58220", "2"]]}'
 
 which can transform them back to a result and extract the values:
 
->>> clires = mplane.model.message_from_dict(json.loads(resjson))
+>>> clires = mplane.model.parse_json(resjson)
 >>> clires
-<result: measure when 2014-12-24 22:18:42.993000 ... 2014-12-24 22:19:42.991000 token 4e66a52f schema 5ce99352 p/m/r(r) 2/0/5(1)>
+<result: measure when 2017-12-24 22:18:42.993000 ... 2017-12-24 22:19:42.991000 token e00d7fe8 schema 5ce99352 p/m/r(r) 2/0/5(1)>
 
 If the component cannot return results immediately (for example, because
 the measurement will take some time), it can return a receipt instead:
@@ -202,10 +198,10 @@ the measurement will take some time), it can return a receipt instead:
 >>> rcpt = mplane.model.Receipt(specification=comspec)
 
 This receipt contains all the information in the specification, as well as a token
-which can be used to quickly identify it in the future. 
+which can be used to quickly identify it in the future.
 
 >>> rcpt.get_token()
-'4e66a52f575499129f748a60eb0a26c7'
+'e00d7fe813cf17eeeea37b313dcfa4e7'
 
 .. note:: The mPlane protocol specification allows components to assign tokens
           however they like. In the reference implementation, the default token
@@ -214,46 +210,102 @@ which can be used to quickly identify it in the future.
           A component could, however, assign serial-number based tokens, or tokens
           mapping to structures in its own filesystem, etc.
 
->>> jsonrcpt = json.dumps(rcpt.to_dict())
+>>> jsonrcpt = mplane.model.unparse_json(rcpt)
 >>> jsonrcpt # doctest: +SKIP
 '{"receipt": "measure",
   "version": 1,
   "registry": "http://ict-mplane.eu/registry/core",
-  "token": "4e66a52f575499129f748a60eb0a26c7", 
-  "when": "2014-12-24 22:18:42.000000 + 1m / 1s", 
-  "parameters": {"destination.ip4": "10.0.37.2", 
-                 "source.ip4": "10.0.27.2"}, 
-  "results": ["delay.twoway.icmp.us.min", 
-              "delay.twoway.icmp.us.max", 
-              "delay.twoway.icmp.us.mean", 
-              "delay.twoway.icmp.count", 
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7",
+  "when": "2017-12-24 22:18:42.000000 + 1m / 1s",
+  "parameters": {"destination.ip4": "10.0.37.2",
+                 "source.ip4": "10.0.27.2"},
+  "results": ["delay.twoway.icmp.us.min",
+              "delay.twoway.icmp.us.max",
+              "delay.twoway.icmp.us.mean",
+              "delay.twoway.icmp.count",
               "packets.lost"],}'
 
 The component keeps the receipt, keyed by token, and returns it to the
-client in a message. The client then which generates a future redemption 
+client in a message. The client then which generates a future redemption
 referring to this receipt to retrieve the results:
 
->>> clircpt = mplane.model.message_from_dict(json.loads(jsonrcpt))
+>>> clircpt = mplane.model.parse_json(jsonrcpt)
 >>> clircpt
-<receipt: 4e66a52f575499129f748a60eb0a26c7>
+<receipt: e00d7fe813cf17eeeea37b313dcfa4e7>
 >>> rdpt = mplane.model.Redemption(receipt=clircpt)
 >>> rdpt
-<redemption: 4e66a52f575499129f748a60eb0a26c7>
+<redemption: e00d7fe813cf17eeeea37b313dcfa4e7>
 
-Note here that the redemption has the same token as the receipt; 
-just the token may be sent back to the component to retrieve the 
+Note here that the redemption has the same token as the receipt;
+just the token may be sent back to the component to retrieve the
 results:
 
->>> json.dumps(rdpt.to_dict(token_only=True)) # doctest: +SKIP
-'{"redemption": "measure", 
-  "version": 1, 
-  "registry": "http://ict-mplane.eu/registry/core", 
-  "token": "4e66a52f575499129f748a60eb0a26c7"
+>>> mplane.model.unparse_json(rdpt, token_only=True) # doctest: +SKIP
+'{"redemption": "measure",
+  "version": 1,
+  "registry": "http://ict-mplane.eu/registry/core",
+  "token": "e00d7fe813cf17eeeea37b313dcfa4e7"
 }'
 
-.. note:: We should document and test interrupts, withdrawals, and Envelopes as well.
- 
+As long as the measurement is running, the client can stop the measurement by sending an
+interrupt:
 
+>>> irpt = mplane.model.Interrupt(specification=spec)
+>>> jsonrcpt = mplane.model.unparse_json(irpt)
+
+The component receives the interrupt, stops the measurement and returns the results of
+performed measurement.
+
+Otherwise, in case the component cannot perform the speficied operation, it sends a
+withdrawal to cancel the previously advertised capability:
+
+>>> wtdr = mplane.model.Withdrawal(capability=cap)
+>>> mplane.model.unparse_json(wtdr) # doctest: +SKIP
+'{"withdrawal": "measure",
+"version": 1,
+"registry": "http://ict-mplane.eu/registry/core",
+"token": "d7e9df75145e209e144bf9c06e7a9d2f",
+"when": "now ... future / 1s",
+"parameters": {"destination.ip4": "*",
+"source.ip4": "10.0.27.2"},
+"results": ["delay.twoway.icmp.us.min",
+"delay.twoway.icmp.us.max",
+"delay.twoway.icmp.us.mean",
+"delay.twoway.icmp.count",
+"packets.lost"]
+}'
+
+Further several messages can be send at once by using an Envelope,
+e.g. a component could announce serval capabilites at once.
+
+In case of our simple ping component we create a second capability
+that only provides the mean of the measurement values:
+
+>>> cap2 = mplane.model.Capability()
+>>> cap2.set_when("now ... future / 1s")
+>>> cap2.add_parameter("source.ip4", "10.0.27.2")
+>>> cap2.add_parameter("destination.ip4")
+>>> cap2.add_result_column("delay.twoway.icmp.us.mean")
+
+Now we create an Envelope and append the two capabilities.
+
+>>> env = mplane.model.Envelope()
+>>> env.append_message(cap)
+>>> env.append_message(cap2)
+>>> env  # doctest: +SKIP
+<Envelope message (2):
+ <capability: measure when now ... future / 1s token d7e9df75 schema 5ce99352 p/m/r 2/0/5>
+ <capability: measure when now ... future / 1s token a9ec7fce schema ea37cea5 p/m/r 2/0/1>
+>
+
+Similar as with every other message this Envelope is serialized and send to the client:
+
+>>> envjson = mplane.model.unparse_json(env)
+
+The client receives the Envelope and decomposes the encapsulated messages:
+
+>>> clienv = mplane.model.parse_json(envjson)
+>>> messages = [message for message in clienv.messages()]
 """
 
 try:
@@ -264,6 +316,7 @@ except ImportError:
 from datetime import datetime, timedelta, timezone
 from copy import copy, deepcopy
 import urllib.request
+import urllib.parse
 import collections
 import functools
 import operator
@@ -272,6 +325,8 @@ import json
 import yaml
 import re
 import os
+
+from mplane.utils import normalize_path
 
 #######################################################################
 # String constants for protocol framing
@@ -301,6 +356,7 @@ VERB_MEASURE = "measure"
 VERB_QUERY = "query"
 VERB_COLLECT = "collect"
 VERB_STORE = "store"
+VERB_CALLBACK = "callback"
 
 KEY_PARAMETERS = "parameters"
 KEY_METADATA = "metadata"
@@ -312,10 +368,6 @@ KEY_LINK = "link"
 KEY_EXPORT = "export"
 KEY_VERSION = "version"
 KEY_WHEN = "when"
-KEY_WHEN_REPEAT = "repeated-when"
-KEY_WHEN_OTHER = "outer-when"
-KEY_WHEN_INNER = "inner-when"
-KEY_SCHEDULE = "schedule"
 KEY_REGISTRY = "registry"
 KEY_LABEL = "label"
 KEY_CONTENTS = "contents"
@@ -345,7 +397,7 @@ ENVELOPE_NOTIFICATION = "notification"
 KEY_REGFMT = "registry-format"
 KEY_REGREV = "registry-revision"
 KEY_REGURI = "registry-uri"
-KEY_REGINCLUDE = "include"
+KEY_REGINCLUDE = "includes"
 KEY_ELEMENTS = "elements"
 KEY_ELEMNAME = "name"
 KEY_ELEMPRIM = "prim"
@@ -365,8 +417,6 @@ MPLANE_VERSION = 1 # version 1 -- D1.4 protocol, interop guarantee
 
 # Hash length in __repr__ strings
 REPHL = 8
-
-EXCEPTION_NO_TOKEN = "00000000000000000000000000000000"
 
 #######################################################################
 # Universal parse and unparse functions for times and durations
@@ -416,7 +466,7 @@ def parse_time(valstr):
             return dt
         else:
             raise ValueError(repr(valstr)+" does not appear to be an mPlane timestamp")
-    
+
 def unparse_time(valts, precision="us"):
     if isinstance(valts, datetime):
         return valts.strftime(_iso8601_fmt[precision])
@@ -454,9 +504,9 @@ def unparse_dur(valtd):
 # Temporal Scoping and Scheduling
 #######################################################################
 
-class PastTime:
+class _PastTime:
     """
-    Class representing the indeterminate past. 
+    Class representing the indeterminate past.
     Do not instantiate; use the time_past instance of this class.
 
     """
@@ -469,13 +519,13 @@ class PastTime:
     def strftime(self, ign):
         return str(self)
 
-time_past = PastTime()
+time_past = _PastTime()
 
-class NowTime:
+class _NowTime:
     """
     Class representing the present.
     Do not instantiate; use the time_now instance of this class.
-    
+
     """
     def __str__(self):
         return TIME_NOW
@@ -486,9 +536,9 @@ class NowTime:
     def strftime(self, ign):
         return str(self)
 
-time_now = NowTime()
+time_now = _NowTime()
 
-class FutureTime:
+class _FutureTime:
     """
     Class representing the indeterminate future.
     Do not instantiate; use the time_future instance of this class.
@@ -503,7 +553,7 @@ class FutureTime:
     def strftime(self, ign):
         return str(self)
 
-time_future = FutureTime()
+time_future = _FutureTime()
 
 def _parse_numset(valstr):
     return set(map(int, valstr.split(SET_SEP)))
@@ -566,7 +616,7 @@ class _Crontab(object):
 
 class When(object):
     """
-    Defines the temporal scopes for capabilities, results, or 
+    Defines the temporal scopes for capabilities, results, or
     single measurement specifications.
 
     """
@@ -664,7 +714,7 @@ class When(object):
         # if this is a repeated-when with cron, period must not be set
         if self._repeated and self._crontab and self._period:
             raise ValueError(repr(valstr)+" does not appear to be an mPlane repeated-when (duration and cron set at the same time)")
-        
+
         self._a = parse_time(valsplit[0])
         if len(valsplit) > 1:
             self._b = parse_time(valsplit[1])
@@ -702,32 +752,32 @@ class When(object):
         return "<When: "+str(self)+">"
 
     def is_immediate(self):
-        """Return True if this is an immediate scope (i.e., starts now)"""
+        """Returns True if this is an immediate scope (i.e., starts now)."""
         return self._a is time_now
 
     def is_forever(self):
-        """Return True if this scope ends in the indeterminate future"""
+        """Returns True if this scope ends in the indeterminate future."""
         return self._b is time_future
 
     def is_past(self):
-        """Return True if this is an indefinite past scope"""
+        """Returns True if this is an indefinite past scope."""
         return self._a is time_past and self._b is time_now
 
     def is_future(self):
-        """Return True if this is an indefinite future scope"""
+        """Returns True if this is an indefinite future scope."""
         return self._a is time_now and self._b is time_future
 
     def is_infinite(self):
         """
-        Return True if this scope is completely infinite 
-        (from the infinite past to the infinite future)
+        Returns True if this scope is completely infinite
+        (from the infinite past to the infinite future).
 
         """
         return self._a is time_past and self._b is time_future
 
     def is_definite(self):
         """
-        Return True if this scope defines a definite time 
+        Returns True if this scope defines a definite time
         or a definite time interval.
 
         """
@@ -738,9 +788,9 @@ class When(object):
 
     def is_singleton(self):
         """
-        Return True if this temporal scope refers to a
+        Returns True if this temporal scope refers to a
         singleton measurement. Used in scheduling an enclosing
-        Specification; has no meaning for Capabilities 
+        Specification; has no meaning for Capabilities
         or Results.
 
         """
@@ -755,7 +805,7 @@ class When(object):
 
     def datetimes(self, tzero=None):
         """
-        Return start and end times as absolute timestamps 
+        Return start and end times as absolute timestamps
         for this temporal scope, relative to a given tzero.
         """
 
@@ -799,33 +849,34 @@ class When(object):
             return end - start
 
     def period(self):
+        """Returns the period of this temporal scope."""
         return self._period
 
     def timer_delays(self, tzero=None):
         """
         Returns a tuple with delays for timers to signal the start and end of
         a temporal scope, given a specified time zero, which defaults to the
-        current system time. 
+        current system time.
 
         The start delay is defined to be zero if the scheduled start time has
         already passed or the temporal scope is immediate (i.e., starts now).
         The start delay is None if the temporal scope has expired (that is,
-        the current time is after the calculated end time)
+        the current time is after the calculated end time).
 
         The end delay is defined to be None if the temporal scope has already
         expired, or if the temporal scope has no scheduled end (is infinite or
-        a singleton). End delays are calculated to give priority to duration 
-        when a temporal scope is expressed in terms of duration, and to 
+        a singleton). End delays are calculated to give priority to duration
+        when a temporal scope is expressed in terms of duration, and to
         prioritize end time otherwise.
- 
-        Used in scheduling an enclosing Specification for execution. 
+
+        Used in scheduling an enclosing Specification for execution.
         Has no meaning for Capabilities or Results.
 
         """
         # default to current time
         if tzero is None:
             tzero = datetime.utcnow()
-        
+
         # get datetimes
         (start, end) = self.datetimes(tzero=tzero)
 
@@ -851,9 +902,9 @@ class When(object):
 
     def sort_scope(self, t, tzero=None):
         """
-        Return < 0 if time t falls before this scope,
-        0 if time t falls within the scope, 
-        or > 0 if time t falls after this scope. 
+        Returns < 0 if time t falls before this scope,
+        0 if time t falls within the scope,
+        or > 0 if time t falls after this scope.
 
         """
 
@@ -878,14 +929,14 @@ class When(object):
 
     def in_scope(self, t, tzero=None):
         """
-        Return True if time t falls within this scope.
+        Returns True if time t falls within this scope.
 
         """
         return self.sort_scope(t, tzero) == 0
 
     def follows(self, s, tzero=None):
         """
-        Return True if this scope follows (is contained by) another.
+        Returns True if this scope follows (is contained by) another.
 
         """
         if not self._repeated and s.period() is not None and (self.period() is None or self.period() < s.period()):
@@ -899,7 +950,7 @@ class When(object):
         else:
             return False
 
-    def iterator(self, t=None):
+    def iterator(self, tzero=None):
         """
         Returns an iterator over When statements generated by a repeated when.
 
@@ -908,8 +959,10 @@ class When(object):
             raise Exception("Can't get iterator for non-repeated when")
 
         # default to now, zero microseconds, initialize minus one second
-        if t is None:
+        if tzero is None:
             t = datetime.utcnow().replace(microsecond=0)
+        else:
+            t = tzero
 
         # get base period (default 1s) and
         period = self.period()
@@ -917,7 +970,7 @@ class When(object):
             period = timedelta(seconds=1)
 
         # fast forward if necessary
-        lag = self.sort_scope(t)
+        lag = self.sort_scope(t, tzero)
         if lag < 0:
             t += timedelta(seconds=-lag)
 
@@ -1033,8 +1086,8 @@ when_infinite = When(a=time_past, b=time_future)
 
 #     def datetime_iterator(self, t=None):
 #         """
-#         Returns an iterator over datetimes generated by the schedule 
-#         and period. 
+#         Returns an iterator over datetimes generated by the schedule
+#         and period.
 
 #         """
 #         # default to now, zero microseconds, initialize minus one second
@@ -1074,18 +1127,18 @@ when_infinite = When(a=time_past, b=time_future)
 #             yield t
 
 def test_tscope():
-    """Test When"""
     # Definite scope
     wdef = When("2009-02-20 13:00:00 ... 2009-02-20 15:00:00")
     assert wdef.duration() == timedelta(0,7200)
     assert wdef.period() is None
     assert wdef.is_definite()
     assert not wdef.is_infinite()
+    assert not wdef.is_repeated()
     assert wdef.in_scope(parse_time("2009-02-20 14:15:16"))
     assert not wdef.in_scope(parse_time("2009-02-21 14:15:16"))
     assert wdef.sort_scope(parse_time("2009-01-20 22:30:15")) < 0
     assert wdef.sort_scope(parse_time("2010-07-27 22:30:15")) > 0
-    assert wdef.datetimes() == (parse_time("2009-02-20 13:00:00"), 
+    assert wdef.datetimes() == (parse_time("2009-02-20 13:00:00"),
                                  parse_time("2009-02-20 15:00:00"))
     assert wdef.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (3600, 10800)
 
@@ -1093,7 +1146,8 @@ def test_tscope():
     wrel = When("now + 30m / 15s")
     assert wrel.duration() == timedelta(0,1800)
     assert wrel.period() == timedelta(0,15)
-    assert not wrel.is_definite() 
+    assert not wrel.is_definite()
+    assert not wrel.is_repeated()
     assert wrel.is_immediate()
     assert wrel.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
     assert wrel.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
@@ -1104,16 +1158,90 @@ def test_tscope():
     # Infinite scope
     assert when_infinite.duration() is None
     assert when_infinite.period() is None
+    assert not when_infinite.is_repeated()
     assert wdef.follows(when_infinite)
     assert wrel.follows(when_infinite)
     assert (when_infinite.datetimes()) == (None, None)
 
+    # repeated when without inner-when (should be the same as immediate scrope with period)
+    wrep = When("repeat now + 30m / 15s")
+    assert wrep.is_repeated()
+    assert wrep.duration() == timedelta(0,1800)
+    assert wrep.period() == timedelta(0,15)
+    assert not wrep.is_definite()
+    assert wrep.is_immediate()
+    assert wrep.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
+    assert wrep.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
+
+    # repeated when with period and inner-when
+    wrep = When("repeat now + 30m / 1m { now + 5s / 1s }")
+    assert wrep.is_repeated()
+    assert wrep.duration() == timedelta(0,1800)
+    assert wrep.period() == timedelta(0,60)
+    assert not wrep.is_definite()
+    assert wrep.is_immediate()
+    assert wrep.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 14:00:00"))
+    assert wrep.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (0, 1800)
+
+    # check when from subspec (first iteration)
+    iter = wrep.iterator(parse_time("2009-02-20 13:30:00"))
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-02-20 13:30:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 13:30:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:30:00"), parse_time("2009-02-20 13:30:05"))
+    assert wrep_subspec.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (5400, 5405)
+
+    # check when from subspec (second iteration)
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-02-20 13:31:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 13:31:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-02-20 13:31:00"), parse_time("2009-02-20 13:31:05"))
+    assert wrep_subspec.follows(wdef, tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-02-20 12:00:00")) == (5460, 5465)
+
+    # cron when (first monday each month)
+    wcron = When("repeat now ... future cron 0 0 * 1,2,3,4,5,6,7 1 * { now + 5s / 1s }")
+    assert wcron.is_repeated()
+    assert not wcron.is_definite()
+    assert wcron.is_immediate()
+    assert wcron.in_scope(parse_time("2009-02-20 13:44:45"), tzero=parse_time("2009-02-20 13:30:00"))
+
+    # check when from subspec (first iteration)
+    iter = wcron.iterator(parse_time("2009-02-20 13:30:00"))
+    wrep_subspec = next(iter)
+    assert wrep_subspec.duration() == timedelta(0,5)
+    assert wrep_subspec.period() == timedelta(0,1)
+    assert wrep_subspec.is_definite()
+    assert not wrep_subspec.is_immediate()
+    assert wrep_subspec.in_scope(parse_time("2009-03-02 00:00:04"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert not wrep_subspec.in_scope(parse_time("2009-02-20 00:06:06"), tzero=parse_time("2009-02-20 13:30:00"))
+    assert wrep_subspec.datetimes(tzero=parse_time("2009-02-20 13:30:00")) == \
+           (parse_time("2009-03-02 00:00:00"), parse_time("2009-03-02 00:00:05"))
+    assert wrep_subspec.follows(When("2009-03-02 00:00:00 ... 2009-03-02 15:00:00"), tzero=parse_time("2009-03-02 00:00:03"))
+    assert wrep_subspec.timer_delays(tzero=parse_time("2009-03-01 23:00:00")) == (3600, 3605)
 
 #######################################################################
 # Primitive Types
 #######################################################################
 
-class Primitive(object):
+class _Primitive(object):
     """
     Represents a primitive mPlane data type. Primitive types define
     textual and native representations for data elements, and convert
@@ -1131,14 +1259,14 @@ class Primitive(object):
     def __str__(self):
         return self.name
 
-    def __repr__(self):                
+    def __repr__(self):
         return "<special mplane primitive "+self.name+">"
 
     def parse(self, sval):
         """
-        Convert a string to a value; default implementation
+        Converts a string to a value; default implementation
         returns the string directly, returning None for the
-        special string "*", which represents "all values" in 
+        special string "*", which represents "all values" in
         mPlane.
 
         """
@@ -1149,7 +1277,7 @@ class Primitive(object):
 
     def unparse(self, val):
         """
-        Convert a value to a string; default implementation
+        Converts a value to a string; default implementation
         uses native __str__ representation, replaces None with a
         the special string "*", representing all values.
 
@@ -1159,7 +1287,7 @@ class Primitive(object):
         else:
             return str(val)
 
-class StringPrimitive(Primitive):
+class _StringPrimitive(_Primitive):
     """
     Represents a string. Uses the default implementation.
     If necessary, use the prim_string instance of this class;
@@ -1169,10 +1297,10 @@ class StringPrimitive(Primitive):
     def __init__(self):
         super().__init__("string")
 
-    def __repr__(self):                
+    def __repr__(self):
         return "mplane.model.prim_string"
 
-class NaturalPrimitive(Primitive):
+class _NaturalPrimitive(_Primitive):
     """
     Represents a natural number (unsigned integer).
 
@@ -1184,7 +1312,7 @@ class NaturalPrimitive(Primitive):
     def __init__(self):
         super().__init__("natural")
 
-    def __repr__(self):                
+    def __repr__(self):
         return "mplane.model.prim_natural"
 
     def parse(self, sval):
@@ -1195,7 +1323,7 @@ class NaturalPrimitive(Primitive):
             # also converts values like 100.0 or 10E2
             return int(float(sval))
 
-class RealPrimitive(Primitive):
+class _RealPrimitive(_Primitive):
     """
     Represents a real number (floating point).
 
@@ -1206,8 +1334,8 @@ class RealPrimitive(Primitive):
     """
     def __init__(self):
         super().__init__("real")
-    
-    def __repr__(self):                
+
+    def __repr__(self):
         return "mplane.model.prim_real"
 
     def parse(self, sval):
@@ -1217,8 +1345,8 @@ class RealPrimitive(Primitive):
         else:
             return float(sval)
 
-class BooleanPrimitive(Primitive):
-    """ 
+class _BooleanPrimitive(_Primitive):
+    """
     Represents a real number (floating point).
 
     Uses a Python bool as the native representation.
@@ -1229,9 +1357,9 @@ class BooleanPrimitive(Primitive):
     def __init__(self):
         super().__init__("boolean")
 
-    def __repr__(self):                
+    def __repr__(self):
         return "mplane.model.prim_boolean"
-    
+
     def parse(self, sval):
         """Convert a string to a boolean value."""
         if sval is None or sval == VALUE_NONE:
@@ -1250,18 +1378,18 @@ class BooleanPrimitive(Primitive):
         else:
             raise ValueError("Invalid boolean value "+sval)
 
-class AddressPrimitive(Primitive):
+class _AddressPrimitive(_Primitive):
     """
     Represents a IPv4 or IPv6 host or network address.
 
     Uses the Python standard library ipaddress module
-    for the native representation. 
+    for the native representation.
 
     """
     def __init__(self):
         super().__init__("address")
-    
-    def __repr__(self):                
+
+    def __repr__(self):
         return "mplane.model.prim_address"
 
     def parse(self, sval):
@@ -1271,7 +1399,7 @@ class AddressPrimitive(Primitive):
         else:
             return ip_address(sval)
 
-class URLPrimitive(Primitive):
+class _URLPrimitive(_Primitive):
     """
     Represents a URL. For now, URLs are implemented only as strings,
     without any parsing or validation.
@@ -1280,10 +1408,10 @@ class URLPrimitive(Primitive):
     def __init__(self):
         super().__init__("url")
 
-    def __repr__(self):                
+    def __repr__(self):
         return "mplane.model.prim_url"
 
-class TimePrimitive(Primitive):
+class _TimePrimitive(_Primitive):
     """
     Represents a UTC timestamp with arbitrary precision.
     Also handles special-purpose mPlane timestamps.
@@ -1291,34 +1419,33 @@ class TimePrimitive(Primitive):
     """
     def __init__(self):
         super().__init__("time")
-    
-    def __repr__(self):                
+
+    def __repr__(self):
         return "mplane.model.prim_time"
 
     def parse(self, valstr):
         return parse_time(valstr)
-    
+
     def unparse(self, val):
         return unparse_time(val)
 
-prim_string = StringPrimitive()
-prim_natural = NaturalPrimitive()
-prim_real = RealPrimitive()
-prim_boolean = BooleanPrimitive()
-prim_time = TimePrimitive()
-prim_address = AddressPrimitive()
-prim_url = URLPrimitive()
+prim_string = _StringPrimitive()
+prim_natural = _NaturalPrimitive()
+prim_real = _RealPrimitive()
+prim_boolean = _BooleanPrimitive()
+prim_time = _TimePrimitive()
+prim_address = _AddressPrimitive()
+prim_url = _URLPrimitive()
 
-_prim = {x.name: x for x in [prim_string, 
-                             prim_natural, 
-                             prim_real, 
+_prim = {x.name: x for x in [prim_string,
+                             prim_natural,
+                             prim_real,
                              prim_boolean,
                              prim_time,
-                             prim_address, 
+                             prim_address,
                              prim_url]}
 
 def test_primitives():
-    """Test primitive parsing and unparsing"""
     import math
     assert prim_string.parse("foo") == 'foo'
     assert prim_string.unparse("foo") == 'foo'
@@ -1353,8 +1480,8 @@ def test_primitives():
 
 class Element(object):
     """
-    An Element represents a name for a particular type of data with 
-    a specific semantic meaning; it is analogous to an IPFIX Information 
+    An Element represents a name for a particular type of data with
+    a specific semantic meaning; it is analogous to an IPFIX Information
     Element, or a named column in a relational database.
 
     An Element has a Name by which it can be compared to other Elements,
@@ -1379,36 +1506,36 @@ class Element(object):
         return "<Element "+self._qualname+" "+repr(self._prim)+" >"
 
     def name(self):
-        """Return the name of this Element"""
+        """Returns the name of this Element"""
         return self._name
 
     def desc(self):
-        """Return the description of this Element"""
+        """Returns the description of this Element"""
         return self._desc
 
     def qualified_name(self):
-        """Return the name of this Element along with its namespace"""
+        """Returns the name of this Element along with its namespace"""
         return self._qualname
 
     def primitive_name(self):
-        """Return the name of this Element's primitive"""
+        """Returns the name of this Element's primitive"""
         return self._prim.name
 
     def parse(self, sval):
         """
-        Convert a string to a value for this Element; delegates to primitive.
+        Converts a string to a value for this Element; delegates to primitive.
         """
         return self._prim.parse(sval)
 
     def unparse(self, val):
         """
-        Convert a value to a string for this Element; delegates to primitive.
+        Converts a value to a string for this Element; delegates to primitive.
         """
         return self._prim.unparse(val)
 
     def compatible_with(self, rval):
         """
-        Determine based on naming rules if this element is compatible with
+        Determines based on naming rules if this element is compatible with
         element rval; that is, if transformation_to will return a function
         for turning a value of this element to the other. Compatibility based
         on name structure is a future feature; this method currently checks for
@@ -1421,7 +1548,7 @@ class Element(object):
         """
         Returns a function which will transform values of this element
         into values of element rval; used to support unit conversions.
-        This is a future feature, and is currently a no-op. 
+        This is a future feature, and is currently a no-op.
         Only valid if compatible_with returns True.
 
         """
@@ -1434,16 +1561,22 @@ class Registry(object):
 
     """
 
-    def __init__(self, uri=REGURI_DEFAULT, parse=True):
+    def __init__(self, uri=None, filename=None, noparse=False):
         super().__init__()
         self._revision = None
         self._elements = collections.OrderedDict()
         self._namespaces = set()
 
         # stash URI and parse the registry
-        self._uri = uri
-        if parse:
-            self._parse_from_uri(self._uri)
+        if uri:
+            if noparse:
+                self._uri = uri
+            else:
+                self._parse_from_uri(uri)
+        elif filename:
+            self._parse_from_file(filename)
+        else:
+            self._parse_from_file()
 
     def __len__(self):
         return len(self._elements)
@@ -1453,6 +1586,10 @@ class Registry(object):
 
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
+
+    def _include_registry(self, other_registry):
+        for elem in other_registry._elements.values():
+            self._add_element(elem)
 
     def _parse_json_bytestream(self, stream):
         # Turn the stream into a dict
@@ -1468,17 +1605,17 @@ class Registry(object):
         # stash revision
         self._revision = int(d[KEY_REGREV])
 
-        # get namespace and check for loops
-        namespace = d[KEY_REGURI]
+        # get namespace, store it and check for loops
+        self._uri = d[KEY_REGURI]
 
-        if namespace in self._namespaces:
-            raise ValueError("Registry include loop at "+namespace)
-        self._namespaces.add(namespace)
+        if self._uri in self._namespaces:
+            raise ValueError("Registry include loop at "+self._uri)
+        self._namespaces.add(self._uri)
 
         # now parse includes depth-first
         if KEY_REGINCLUDE in d:
             for incuri in d[KEY_REGINCLUDE]:
-                self._parse_from_uri(incuri)
+                self._include_registry(registry_for_uri(incuri))
 
         # finally, iterate over elements and add them to the table
         for elem in d[KEY_ELEMENTS]:
@@ -1488,15 +1625,33 @@ class Registry(object):
                 desc = elem[KEY_ELEMDESC]
             else:
                 desc = None
-            self._add_element(Element(name, prim, desc, namespace))
+            # Add the element in the subordinate in the parent namespace --
+            # FIXME probably want to check to make sure this is the right
+            # thing to do
+            self._add_element(Element(name, prim, desc, self._uri))
+
+    def _parse_from_file(self, filename=None):
+        if filename is None:
+            filename = os.path.join(os.path.dirname(__file__), "registry.json")
+        with open(filename, "r") as stream:
+            self._parse_json_bytestream(stream)
 
     def _parse_from_uri(self, uri):
         if uri == REGURI_DEFAULT:
             with open(os.path.join(os.path.dirname(__file__), "registry.json"), "r") as stream:
                 self._parse_json_bytestream(stream)
         else:
-            with urllib.request.urlopen(uri) as stream:
-                self._parse_json_bytestream(stream)
+            # normalize path if is a file or if no scheme is given
+            # (we assume that is is a file)
+            scheme = urllib.parse.urlparse(uri).scheme
+            if scheme == "file" or scheme == "":
+                uri = "file://" + normalize_path(uri)
+
+            try:
+                with urllib.request.urlopen(uri) as stream:
+                    self._parse_json_bytestream(stream)
+            except:
+                raise ValueError("Invalid Registry uri: " + uri)
 
     def _dump_json(self):
         d = collections.OrderedDict()
@@ -1515,15 +1670,19 @@ class Registry(object):
 
         return json.dumps(d, indent=4)
 
-    def uri():
+    def uri(self):
         """
-        Return the URI by which this registry is known.
+        Returns the URI by which this registry is known.
 
          """
-        return _uri
+        return self._uri
 
 _base_registry = None
 _registries = {}
+
+def preload_registry(filename=None):
+    global _registries
+    _registries[uri] = Registry(filename=filename)
 
 def initialize_registry(uri=REGURI_DEFAULT):
     """
@@ -1535,27 +1694,28 @@ def initialize_registry(uri=REGURI_DEFAULT):
     """
     global _base_registry
     global _registries
-    _base_registry = Registry(uri)
+    _base_registry = Registry(uri=uri)
     _registries[uri] = _base_registry
 
 def registry_for_uri(uri):
     """
     Get a registry for a given URI, maintaining a local cache.
-    Called when parsing statements; generally not useful in client code. 
+    Called when parsing statements; generally not useful in client code.
 
     """
     global _registries
 
     if uri not in _registries:
-        _registries[uri] = Registry(uri)
+        _registries[uri] = Registry(uri=uri)
 
     return _registries[uri]
 
-def base_registry():
-    global _base_registry
-    return _base_registry
-
 def element(name, reguri=None):
+    """
+    Returns the Element with the given name.
+    If reguri is given, searches the speficied Registry,
+    otherwise searches the base Registry.
+    """
     global _base_registry
     global _registries
     if reguri:
@@ -1563,88 +1723,52 @@ def element(name, reguri=None):
     else:
         return _base_registry[name]
 
-#######################################################################
-# Old registry methods
-#######################################################################
+def test_registry():
+    # default registry trough the Registry-Object
+    base_registry = Registry()
+    assert repr(base_registry["start"]) == "<Element " + REGURI_DEFAULT + "#start mplane.model.prim_time >"
+    assert base_registry["start"].name() == "start"
+    assert base_registry["start"].primitive_name() == "time"
+    assert base_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
 
-# _typedef_re = re.compile('^([a-zA-Z0-9\.\_]+)\s*\:\s*(\S+)')
-# _desc_re = re.compile('^\s+([^#]+)')
-# _comment_re = re.compile('^\s*\#')
+    # registry with a parent
 
-# def _old_parse_elements(lines):
-#     """
-#     Given an iterator over lines from a file or stream describing
-#     a set of Elements, returns a list of Elements. This file should 
-#     contain element names and primitive names separated by ":" in the 
-#     leftmost column, followed by zero or more indented lines of 
-#     description. Used to initialize the mPlane element registry from a file;
-#     call initialize_registry instead
-       
-#     """
-#     elements = []
-#     desclines = []
+    test_registry = Registry(os.path.join(os.path.dirname(__file__), os.pardir, "testdata", "registry_with_parent.json"))
+    assert repr(test_registry["testName"]) == "<Element testdata/registry_with_parent.json#testName mplane.model.prim_time >"
+    assert test_registry["testName"].name() == "testName"
+    assert test_registry["testName"].primitive_name() == "time"
+    assert test_registry["testName"].desc() == "testDesc"
+    # element from the parent registry
+    assert repr(test_registry["start"]) == "<Element http://ict-mplane.eu/registry/core#start mplane.model.prim_time >"
+    assert test_registry["start"].name() == "start"
+    assert test_registry["start"].primitive_name() == "time"
+    assert test_registry["start"].desc() == "Start time of an event/flow that may have a non-zero duration"
+    # overwritten element
+    assert repr(test_registry["end"]) == "<Element testdata/registry_with_parent.json#end mplane.model.prim_time >"
+    assert test_registry["end"].name() == "end"
+    assert test_registry["end"].primitive_name() == "time"
+    assert test_registry["end"].desc() == "overwritten end"
 
-#     for line in lines:
-#         m = _typedef_re.match(line)
-#         if m:
-#             if len(elements) and len(desclines):
-#                 elements[-1]._desc = " ".join(desclines)
-#                 desclines.clear()
-#             elements.append(Element(m.group(1), _prim[m.group(2)]))
-#         else:
-#             m = _desc_re.match(line)
-#             if m:
-#                 desclines.append(m.group(1))
+    # default registry through the element-method
+    initialize_registry()
+    assert repr(element("start")) == "<Element http://ict-mplane.eu/registry/core#start mplane.model.prim_time >"
+    assert element("start").name() == "start"
+    assert element("start").primitive_name() == "time"
+    assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
 
-#     if len(elements) and len(desclines):
-#         elements[-1]._desc = "".join(desclines)
 
-#     return elements
-
-# _old_element_registry = collections.OrderedDict()
-
-# def _old_parse_registry(filename=None):
-#     """
-#     Initializes the mPlane registry from a file; if no filename is given,
-#     initializes the registry from the internal set of Elements.
-#     """
-#     _old_element_registry.clear()
-
-#     if filename is None:
-#         filename = os.path.join(os.path.dirname(__file__), "registry.txt")
-
-#     with open(filename, mode="r") as file:
-#         for elem in _old_parse_elements(file):
-#             _old_element_registry[elem._name] = elem
-
-# def convert_registry(in_filename=None, out_filename=None, uri=REGURI_DEFAULT):
-#     _old_parse_registry(in_filename)
-    
-#     reg = Registry(uri=uri, parse=False)
-#     reg._revision = 0
-
-#     for elem in _old_element_registry.values():
-#         reg._add_element(elem)
-
-#     jstr = reg._dump_json()
-
-#     if out_filename is not None:
-#         with open(out_filename, "w") as jfile:
-#             jfile.write(jstr)
-#     else:
-#         print(jstr)
 
 #######################################################################
 # Constraints
 #######################################################################
 
-class Constraint(object):
+class _Constraint(object):
     """
     Represents a set of acceptable values for an element.
     The default constraint accepts everything; use
     the special instance constraint_all for this.
 
-    Clients and components will generally interact with the 
+    Clients and components will generally interact with the
     Constraint classes through Parameters.
 
     """
@@ -1653,28 +1777,28 @@ class Constraint(object):
         self._prim = prim
 
     def __str__(self):
-        """Represent this Constraint as a string"""
+        """Represents this Constraint as a string"""
         return CONSTRAINT_ALL
 
     def __repr__(self):
         return "mplane.model.constraint_all"
 
     def met_by(self, val):
-        """Determine if this constraint is met by a given value."""
+        """Determines if this constraint is met by a given value."""
         return True
 
     def single_value(self):
         """
-        If this constraint only allows a single value, return it. 
+        If this constraint only allows a single value, return it.
         Otherwise, return None. The default constraint allows all values,
         so this always returns None.
 
         """
         return None
 
-constraint_all = Constraint(None)
+constraint_all = _Constraint(None)
 
-class RangeConstraint(Constraint):
+class _RangeConstraint(_Constraint):
     """Represents acceptable values for an element as an inclusive range"""
 
     def __init__(self, prim, sval=None, a=None, b=None):
@@ -1703,7 +1827,7 @@ class RangeConstraint(Constraint):
                                              ", "+repr(str(self))+")"
 
     def met_by(self, val):
-        """Determine if the value is within the range"""
+        """Determines if the value is within the range"""
         return (val >= self.a) and (val <= self.b)
 
     def single_value(self):
@@ -1713,7 +1837,7 @@ class RangeConstraint(Constraint):
         else:
             return None
 
-class SetConstraint(Constraint):
+class _SetConstraint(_Constraint):
     """Represents acceptable values as a discrete set."""
     def __init__(self, prim, sval=None, vs=None):
         super().__init__(prim)
@@ -1732,7 +1856,7 @@ class SetConstraint(Constraint):
                                              ", "+repr(str(self))+")"
 
     def met_by(self, val):
-        """Determine if the value is a mamber of the set"""
+        """Determines if the value is a mamber of the set"""
         return val in self.vs
 
     def single_value(self):
@@ -1744,21 +1868,19 @@ class SetConstraint(Constraint):
 
 def parse_constraint(prim, sval):
     """
-    Given a primitive and a string value, parse a constraint 
-    string (returned via str(constraint)) into an instance of an 
-    appropriate Constraint class.
+    Given a primitive and a string value, parses a constraint
+    string (returned via str(constraint)) into an instance of an
+    appropriate constraint class.
 
     """
     if sval == CONSTRAINT_ALL:
         return constraint_all
     elif sval.find(RANGE_SEP) > 0:
-        return RangeConstraint(prim=prim, sval=sval)
+        return _RangeConstraint(prim=prim, sval=sval)
     else:
-        return SetConstraint(prim=prim, sval=sval)
+        return _SetConstraint(prim=prim, sval=sval)
 
 def test_constraints():
-    """Test range and set constraints"""
-
     assert constraint_all.met_by("whatever")
     assert constraint_all.met_by(None)
 
@@ -1780,7 +1902,7 @@ def test_constraints():
 
 class Parameter(Element):
     """
-    A Parameter is an element which can take a constraint and a value. 
+    A Parameter is an element which can take a constraint and a value.
     In Capabilities, Parameters have constraints and no value; in
     Specifications and Results, Parameters have both constraints and
     values.
@@ -1792,7 +1914,7 @@ class Parameter(Element):
 
         if isinstance(constraint, str):
             self._constraint = parse_constraint(self._prim, constraint)
-        elif isinstance(constraint, Constraint):
+        elif isinstance(constraint, _Constraint):
             self._constraint = constraint
         else:
             self._constraint = SetConstraint(vs=set([constraint]), prim=self._prim)
@@ -1804,8 +1926,26 @@ class Parameter(Element):
                str(self._constraint)+" value "+repr(self._val)+">"
 
     def has_value(self):
-        """Return True if this component has a value."""
+        """Returns True if this component has a value."""
         return self._val is not None
+
+    def is_single_value(self):
+        """
+        Returns True if this parameter's Constraint only allows a single value
+
+        """
+        return self._constraint.single_value() is not None
+
+    def get_single_value(self):
+        """
+        If this parameter's Constraint only allows a single value, returns it
+
+        """
+        single_val = self._constraint.single_value()
+        if single_val is not None:
+            return single_val
+        else:
+            return None
 
     def set_single_value(self):
         """
@@ -1817,10 +1957,24 @@ class Parameter(Element):
         if not self.has_value():
             self._val = self._constraint.single_value()
 
+    def can_set_value(self, val):
+        """
+        Returns True if the parameter can take the specified value,
+        False otherwise.
+        Either takes a value of the correct type for the associated
+        Primitive, or a string, which will be parsed to a value of
+        the correct type.
+
+        """
+        if isinstance(val, str):
+            val = self._prim.parse(val)
+
+        return self._constraint.met_by(val)
+
     def set_value(self, val):
         """
-        Set the value of the Parameter. 
-        Either takes a value of the correct type for the associated Primitive, or 
+        Sets the value of the Parameter.
+        Either takes a value of the correct type for the associated Primitive, or
         a string, which will be parsed to a value of the correct type.
 
         Raises ValueError if the value is not allowable for the Constraint.
@@ -1835,7 +1989,7 @@ class Parameter(Element):
             raise ValueError(repr(self) + " cannot take value " + repr(val))
 
     def get_value(self):
-        """Return this Parameter's value"""
+        """Returns this Parameter's value"""
         return self._val
 
     def _as_tuple(self):
@@ -1862,11 +2016,16 @@ class Metavalue(Element):
                " value "+repr(self._val)+" >"
 
     def set_value(self, val):
+        """
+        Sets the value.
+        If the value is a string it parses it.
+        """
         if isinstance(val, str):
             val = self._prim.parse(val)
         self._val = val
 
     def get_value(self):
+        """ Returns the value """
         return self._val
 
     def _as_tuple(self):
@@ -1874,7 +2033,7 @@ class Metavalue(Element):
 
 class ResultColumn(Element):
     """
-    A ResultColumn is an element which can take an array of values. 
+    A ResultColumn is an element which can take an array of values.
     In Capabilities and Specifications, this array is empty, while in
     Results it has one or more values, such that all the ResultColumns
     in the Result have the same number of values.
@@ -1916,24 +2075,24 @@ class ResultColumn(Element):
         return iter(self._vals)
 
     def clear(self):
+        """ Clears values. """
         self._vals.clear()
 
 class Statement(object):
     """
     A Statement is an assertion about the properties of a measurement
-    or other action performed by an mPlane component. This class 
+    or other action performed by an mPlane component. This class
     contains common implementation for the three kinds of mPlane
     statement. Clients and components should use the
-    :class:`mplane.model.Capability`, :class:`mplane.model.Specification`, 
+    :class:`mplane.model.Capability`, :class:`mplane.model.Specification`,
     and :class:`mplane.model.Result` classes instead.
 
     """
-    
+
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
         super().__init__()
         # Make a blank statement
         self._version = MPLANE_VERSION
-        self._reguri = REGURI_DEFAULT
         self._params = collections.OrderedDict()
         self._metadata = collections.OrderedDict()
         self._resultcolumns = collections.OrderedDict()
@@ -1954,10 +2113,14 @@ class Statement(object):
             if when is None:
                 when = when_infinite
             elif isinstance(when, str):
-                when = When(when)           
+                when = When(when)
             self._when = when
             if reguri is not None:
                 self._reguri = reguri
+            else:
+                for uri in _registries:
+                    self._reguri = uri
+                    break
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -1981,128 +2144,142 @@ class Statement(object):
         raise NotImplementedError("Cannot instantiate a raw Statement")
 
     def verb(self):
-        """Get this statement's verb"""
+        """Returns this statement's verb"""
         return self._verb
 
     def is_query(self):
+        """ FIXME: This method should be called is_schedulable(). Check implementations where this method is used. """
         return self._verb == VERB_QUERY
 
     def add_parameter(self, elem_name, constraint=constraint_all, val=None):
-        """Programatically add a parameter to this statement."""
-        self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri), 
+        """Programatically adds a parameter to this Statement."""
+        self._params[elem_name] = Parameter(element(elem_name, reguri=self._reguri),
                                             constraint=constraint,
                                             val = val)
 
     def has_parameter(self, elem_name):
-        """Return True if the statement has a parameter with the given name"""
+        """Returns True if the statement has a parameter with the given name."""
         return elem_name in self._params
 
     def parameter_names(self):
-        """Iterate over the names of parameters in this Statement"""
+        """Iterates over the names of parameters in this Statement."""
         yield from self._params.keys()
 
     def parameter_values(self):
         """
-        Returns a dict mapping parameter names to values 
+        Returns a dict mapping parameter names to values
         for each parameter with a value.
         """
         d = {}
-        for k in parameter_names:
+        for k in self.parameter_names():
             v = self.get_parameter_value(k)
             if v:
                 d[k] = v
         return d
 
     def count_parameters(self):
-        """Return the number of parameters in this Statement"""
+        """Returns the number of parameters in this Statement."""
         return len(self._params)
 
     def count_parameter_values(self):
-        """Return the number of parameters with values in this Statement"""
+        """Returns the number of parameters with values in this Statement."""
         return sum(map(lambda p: p.has_value(), self._params.values()))
 
     def get_parameter_value(self, elem_name):
-        """Return the value for a named parameter on this Statement."""
+        """Returns the value for a named parameter on this Statement."""
         return self._params[elem_name].get_value()
 
     def set_parameter_value(self, elem_name, value):
-        """Programatically set a value for a parameter on this Statement."""
+        """Programatically sets a value for a parameter on this Statement."""
         elem = self._params[elem_name]
         elem.set_value(value)
 
+    def can_set_parameter_value(self, elem_name, value):
+        """Determines whether a given Parameter can take a value."""
+        elem = self._params[elem_name]
+        return elem.can_set_value(value)
+
+    def get_single_parameter_value(self, elem_name):
+        """
+        If a given parameter is single-valued returns
+        that value, otherwise returns None
+        """
+        return self._params[elem_name].get_single_value()
+
     def add_metadata(self, elem_name, val):
-        """Programatically add a metadata element to this statement."""
+        """Programatically adds a metadata element to this Statement."""
         self._metadata[elem_name] = Metavalue(element(elem_name, reguri=self._reguri), val)
 
     def has_metadata(self, elem_name):
-        """Return True if the statement has a metadata element with the given name"""
+        """Returns True if the statement has a metadata element with the given name."""
         return elem_name in self._metadata
 
     def metadata_names(self):
-        """Iterate over the names of metadata elements in this Statement"""
+        """Iterates over the names of metadata elements in this Statement."""
         yield from self._metadata.keys()
 
     def count_metadata(self):
-        """Return the number of metavalues in this Statement"""
+        """Returns the number of metavalues in this Statement."""
         return len(self._metadata)
 
     def add_result_column(self, elem_name):
-        """Programatically add a result column to this Statement."""
+        """Programatically adds a result column to this Statement."""
         self._resultcolumns[elem_name] = ResultColumn(element(elem_name, reguri=self._reguri))
 
     def has_result_column(self, elem_name):
+        """Returns True if the statement has results column with the given name."""
         return elem_name in self._resultcolumns
 
     def result_column_names(self):
-        """Iterate over the names of result columns in this statement"""
+        """Iterates over the names of result columns in this Statement."""
         yield from self._resultcolumns.keys()
 
     def count_result_columns(self):
-        """Return the number of result columns in this Statement"""
+        """Returns the number of result columns in this Statement."""
         return len(self._resultcolumns)
 
     def count_result_rows(self):
-        """Return the number of result rows in this Statement"""
-        return functools.reduce(max, 
+        """Returns the number of result rows in this Statement."""
+        return functools.reduce(max,
                    [len(col) for col in self._resultcolumns.values()], 0)
 
     def get_link(self):
         """
-        Get the statement's link URL, which specifies where the next message 
+        Returns the statement's link URL, which specifies where the next message
         in the workflow should be sent to or retrieved from.
         """
         return self._link
 
     def set_link(self, link):
-        """Set the statement's link URL"""
+        """Sets the Statement's link URL"""
         self._link = link
 
     def get_export(self):
         """
-        Get the statement's export URL, which specifies where 
+        Returns the Statement's export URL, which specifies where
         results will be indirectly exported.
         """
         return self._export
 
     def set_export(self, export):
-        """Set the statement's export URL"""
+        """Sets the Statement's export URL."""
         self._export = export
 
     def get_label(self):
-        """Return the statement's label"""
+        """Returns the Statement's label."""
         return self._label
 
-    def relabel(self, label):
-        """Set the statement's label"""
+    def set_label(self, label):
+        """Sets the statement's label"""
         self._label = label
 
     def when(self):
-        """Get the statement's temporal scope"""
+        """Returns the statement's temporal scope."""
         return self._when
 
     def set_when(self, when, force=False):
         """
-        Set the statement's temporal scope. Ensures that the temporal scope is
+        Sets the statement's temporal scope. Ensures that the temporal scope is
         within the previous temporal scope unless force is True.
         Takes either an instance of
         mplane.model.When, or a string describing the scope.
@@ -2118,7 +2295,7 @@ class Statement(object):
 
     def _schema_hash(self, lim=None):
         """
-        Return a hex string uniquely identifying the set of parameters
+        Returns a hex string uniquely identifying the set of parameters
         and result columns (the schema) of this statement.
 
         """
@@ -2133,8 +2310,8 @@ class Statement(object):
 
     def _pv_hash(self, lim=None, astr=None):
         """
-        Return a hex string uniquely identifying the set of parameters,
-        temporal scope, parameter values, and result columns 
+        Returns a hex string uniquely identifying the set of parameters,
+        temporal scope, parameter values, and result columns
         of this statement. Used as a specification key.
 
         """
@@ -2154,8 +2331,8 @@ class Statement(object):
 
     def _mpcv_hash(self, lim=None, astr=None):
         """
-        Return a hex string uniquely identifying the set of parameters,
-        temporal scope, parameter constraints, parameter values, metadata, metadata values, 
+        Returns a hex string uniquely identifying the set of parameters,
+        temporal scope, parameter constraints, parameter values, metadata, metadata values,
         and result columns (the extended specification) of this statement.
         Used as a complete token for statements.
 
@@ -2181,12 +2358,20 @@ class Statement(object):
             return hstr
 
     def get_token(self, lim=None):
+        """
+        Returns the token of a Statement.
+        If a token has not been explicitely set,
+        it returns the default token for the Statement type.
+        """
         if self._token is None:
           self._token = self._default_token()
         if lim is not None and len(self._token) > lim:
           return self._token[:lim]
         else:
           return self._token
+
+    def set_token(self, token):
+        self._token = token
 
     def _default_token(self):
       return self._mpcv_hash()
@@ -2204,9 +2389,9 @@ class Statement(object):
                 row.append(valstr)
         return rows
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         """
-        Convert a Statement to a dictionary (for further conversion 
+        Converts a Statement to a dictionary (for further conversion
         to JSON or YAML), which can be passed as the dictval
         argument of the appropriate statement constructor.
 
@@ -2234,11 +2419,11 @@ class Statement(object):
         d[KEY_WHEN] = str(self._when)
 
         if self.count_parameters() > 0:
-            d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple() 
+            d[KEY_PARAMETERS] = {t[0] : t[1] for t in [v._as_tuple()
                                         for v in self._params.values()]}
 
         if self.count_metadata() > 0:
-            d[KEY_METADATA] = {t[0] : t[1] for t in [v._as_tuple() 
+            d[KEY_METADATA] = {t[0] : t[1] for t in [v._as_tuple()
                                         for v in self._metadata.values()]}
 
         if self.count_result_columns() > 0:
@@ -2250,7 +2435,7 @@ class Statement(object):
 
     def _params_from_dict(self, d):
         """
-        Fill in parameters from a dictionary; used internally.
+        Fills in parameters from a dictionary; used internally.
         The default implementation interprets dictionary values
         as parameter values.
 
@@ -2260,9 +2445,9 @@ class Statement(object):
 
     def _from_dict(self, d):
         """
-        Fill in this Statement with values from a dictionary
+        Fills in this Statement with values from a dictionary
         produced with to_dict (i.e., as taken from JSON or YAML).
-        Ignores result values, as these are handled by :func:`Result._from_dict()`; 
+        Ignores result values, as these are handled by :func:`Result._from_dict()`;
         ignores the schedule section, as this is handled in :func:`Specification._from_dict()`.
 
         """
@@ -2317,14 +2502,13 @@ class Capability(Statement):
 
     Capabilities can either be created programatically, using the
     add_parameter(), add_metadata(), and add_result_column()
-    methods, or by reading from a JSON or YAML object [FIXME document
-    how this works once it's written]
+    methods, or by reading from a JSON object using parse_json().
 
     """
 
     def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
-        
+
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
                str(self.count_metadata())+"/"+\
@@ -2338,7 +2522,10 @@ class Capability(Statement):
         super().set_when(when, force)
 
     def validate(self):
-        pval = functools.reduce(operator.__or__, 
+        """
+        Checks that this is a valid Capability; i.e., capabilites can not parameter nor results values.
+        """
+        pval = functools.reduce(operator.__or__,
                                 (p.has_value() for p in self._params.values()),
                                 False)
 
@@ -2348,7 +2535,7 @@ class Capability(Statement):
 
     def _params_from_dict(self, d):
         """
-        Fill in parameters from a dictionary; used internally.
+        Fills in parameters from a dictionary; used internally.
         The Capability implementation interprets dictionary values
         as constraints.
 
@@ -2358,17 +2545,17 @@ class Capability(Statement):
 
 class Specification(Statement):
     """
-    A Specification represents a request for an mPlane component to do 
-    something it has advertised in a Capability.  
+    A Specification represents a request for an mPlane component to do
+    something it has advertised in a Capability.
     Capabilities contain verbs (strings identifying the thing the
     component can do), parameters (which must be given by a client
     in a Specification in order for the component to do that thing),
     metadata (additional information about the process used to do
-    that thing), and result columns (the data that thing will return). 
+    that thing), and result columns (the data that thing will return).
 
     Specifications are created either by passing a Capability the
     Specification is intended to use as the capability= argument of
-    the constructor, or by reading from a JSON or YAML object 
+    the constructor, or by reading from a JSON or YAML object
     [FIXME document how this works once it's written]
 
     """
@@ -2383,10 +2570,15 @@ class Specification(Statement):
             self._metadata = capability._metadata
             self._params = deepcopy(capability._params)
             self._resultcolumns = deepcopy(capability._resultcolumns)
+            self._reguri = capability._reguri
 
             # inherit from capability only when necessary
             if when is None:
                 self._when = capability._when
+
+            # now set values we know we can
+            for param in self._params.values():
+                param.set_single_value()
 
     def _more_repr(self):
         return " p(v)/m/r "+str(self.count_parameters())+"("+\
@@ -2398,7 +2590,8 @@ class Specification(Statement):
         return KIND_SPECIFICATION
 
     def fulfills(self, capability):
-        # verify that the schema hash is equal 
+        """ Returns True if this Speficication fulfills the Capability"""
+        # verify that the schema hash is equal
         if self._schema_hash() != capability._schema_hash():
             return False
 
@@ -2411,11 +2604,10 @@ class Specification(Statement):
 
     def validate(self):
         """
-        Check that this is a valid Specification; i.e., that all parameters have values.
+        Checks that this is a valid Specification; i.e., that all parameters have values.
 
         """
-
-        pval = functools.reduce(operator.__and__, 
+        pval = functools.reduce(operator.__and__,
                         (p.has_value() for p in self._params.values()),
                         True)
 
@@ -2425,40 +2617,43 @@ class Specification(Statement):
     def _default_token(self):
         return self._pv_hash()
 
-    def retoken(self, tzero = None):
+    def retoken(self, force=False):
         """
-        Generate a new token, if necessary, taking into account the current time
+        Generates a new token, if necessary, taking into account the current time
         if a specification has a relative temporal scope.
 
         """
-        if not self._when.is_definite():
-            self._token = self._pv_hash(astr = repr(self._when.datetimes))
-
-    def set_single_values(self):
-        """Fill in values for all parameters whose constraints allow only one value."""
-        for param in self._params.values():
-            param.set_single_value()
+        if force:
+            self._token = self._default_token()
+        elif not self._when.is_definite():
+            self._token = self._pv_hash(astr = repr(self._when.datetimes()))
 
     def subspec_iterator(self):
         """
-        Iterate over subordinate specifications if this specification is repeated 
-        (i.e., has a repeated Temporal Scope); otherwise yields self once. Each subordinate 
+        Iterates over subordinate specifications if this specification is repeated
+        (i.e., has a repeated Temporal Scope); otherwise yields self once. Each subordinate
         specification has an absolute temporal scope derived from this specification's
         relative temporal scope and schedule.
         """
         if self._when.is_repeated():
-            subspec = deepcopy(self)
+            subspec = deepcopy(self)  # Brian does not like that but he said it is okay
 
             iter = self._when.iterator()
             while 1:
                 subspec._when = next(iter)
+                subspec.retoken(True)
                 yield subspec
         else:
             yield self
 
 
 class Result(Statement):
-    """docstring for Result: note the token is generally inherited from the specification"""
+    """
+    A result is a statement that a component measured
+    a given set of values at a given point in time according to a specification.
+
+    Note, tits token is generally inherited from the respective specification.
+    """
     def __init__(self, dictval=None, specification=None, verb=VERB_MEASURE, label=None, token=None, when=None):
         super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when)
         if dictval is None and specification is not None:
@@ -2486,7 +2681,11 @@ class Result(Statement):
         return KIND_RESULT
 
     def validate(self):
-        pval = functools.reduce(operator.__and__, 
+        """
+        Checks that this is a valid Result; i.e., that all parameters have values.
+
+        """
+        pval = functools.reduce(operator.__and__,
                         (p.has_value() for p in self._params.values()),
                         True)
 
@@ -2512,11 +2711,14 @@ class Result(Statement):
                     self._resultcolumns[column_key[j]][i] = val
 
     def set_result_value(self, elem_name, val, row_index=0):
+        """
+        Sets a single result value.
+        """
         self._resultcolumns[elem_name][row_index] = val
 
     def schema_dict_iterator(self):
         """
-        Iterate over each row in this result, yielding a dictionary 
+        Iterates over each row in this result, yielding a dictionary
         mapping all parameter and result column names to their values.
 
         """
@@ -2548,30 +2750,46 @@ class BareNotification(object):
         super().__init__()
         if dictval is not None:
             self._from_dict(dictval)
-        else: 
+        else:
             self._token = token
 
 class Exception(BareNotification):
     """
-    A Component sends an Exception to a Client, or a Client to a 
+    A Component sends an Exception to a Client, or a Client to a
     Component, to present a human-readable message about a failure
-    or non-nominal condition 
+    or non-nominal condition.
+
+    The status field is used to store an HTTP
+    status code corresponding to the exception to the
+    client and component frameworks.
 
     """
-    def __init__(self, dictval=None, token=EXCEPTION_NO_TOKEN, errmsg=None):
+    def __init__(self, token=None, dictval=None, errmsg=None, status=None):
         super().__init__(dictval=dictval, token=token)
         if dictval is None:
             if errmsg is None:
                 errmsg = "Unspecified exception"
             self._errmsg = errmsg
 
+        self.status = status
+
     def __repr__(self):
         return "<Exception: "+self.get_token()+" "+self._errmsg+">"
 
+    def kind_str(self):
+        return KIND_EXCEPTION
+
     def get_token(self):
+        """
+        Returns a token that originates from a message that has caused
+        the Expection or None if the token was explictly not set
+        """
         return self._token
 
-    def to_dict(self):
+    def set_token(self, token):
+        self._token = token
+
+    def to_dict(self, token_only=False):
         d = collections.OrderedDict()
         d[KIND_EXCEPTION] = self._token
         d[KEY_MESSAGE] = self._errmsg
@@ -2581,9 +2799,9 @@ class Exception(BareNotification):
         self._token = d[KIND_EXCEPTION]
         self._errmsg = d[KEY_MESSAGE]
 
-class StatementNotification(Statement):
+class _StatementNotification(Statement):
     """
-    Common implementation superclass for notifications that 
+    Common implementation superclass for notifications that
     may contain all or part of a related Capability or Specification.
 
     Clients and components should use :class:`mplane.model.Receipt`,
@@ -2594,6 +2812,7 @@ class StatementNotification(Statement):
     def __init__(self, dictval=None, statement=None, verb=VERB_MEASURE, token=None):
         super().__init__(dictval=dictval, verb=verb, token=token)
         if dictval is None and statement is not None:
+            self._label = statement._label
             self._verb = statement._verb
             self._when = statement._when
             self._metadata = statement._metadata
@@ -2605,7 +2824,7 @@ class StatementNotification(Statement):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
 
     def to_dict(self, token_only=False):
-        d = super().to_dict()
+        d = super().to_dict(token_only)
 
         if token_only and self._token is not None:
             for sk in (KEY_PARAMETERS, KEY_METADATA, KEY_RESULTS, KEY_LINK, KEY_WHEN):
@@ -2619,7 +2838,7 @@ class StatementNotification(Statement):
     def kind_str(self):
         raise NotImplementedError("Cannot instantiate a raw StatementNotification")
 
-class Receipt(StatementNotification):
+class Receipt(_StatementNotification):
     """
     A component presents a receipt to a Client in lieu of a result, when the
     result will not be available in a reasonable amount of time; or to confirm
@@ -2631,9 +2850,13 @@ class Receipt(StatementNotification):
         return KIND_RECEIPT
 
     def validate(self):
+        """
+        Checks that this is a valid Receipt; performes the same checks as for a Specification.
+
+        """
         Specification.validate(self)
 
-class Redemption(StatementNotification):
+class Redemption(_StatementNotification):
     """
     A client presents a Redemption to a component from which it has received
     a Receipt in order to get the associated Result.
@@ -2648,9 +2871,12 @@ class Redemption(StatementNotification):
         return KIND_REDEMPTION
 
     def validate(self):
+        """
+        Checks that this is a valid Redemption; performes the same checks as for a Specification.
+        """
         Specification.validate(self)
 
-class Withdrawal(StatementNotification):
+class Withdrawal(_StatementNotification):
     """A Withdrawal cancels a Capability"""
     def __init__(self, dictval=None, capability=None, token=None):
         super().__init__(dictval=dictval, statement=capability, token=token)
@@ -2659,9 +2885,12 @@ class Withdrawal(StatementNotification):
         return KIND_WITHDRAWAL
 
     def validate(self):
+        """
+        Checks that this is a valid Withdrawal; performes the same checks as for a Capability.
+        """
         Capability.validate(self)
 
-class Interrupt(StatementNotification):
+class Interrupt(_StatementNotification):
     """An Interrupt cancels a Specification"""
     def __init__(self, dictval=None, specification=None, token=None):
         super().__init__(dictval=dictval, statement=specification, token=token)
@@ -2670,6 +2899,9 @@ class Interrupt(StatementNotification):
         return KIND_INTERRUPT
 
     def validate(self):
+        """
+        Checks that this is a valid Interrupt; performes the same checks as for a Specification.
+        """
         Specification.validate(self)
 
 #######################################################################
@@ -2681,40 +2913,69 @@ class Envelope(object):
     Envelopes are used to contain other Messages.
 
     """
-    _version = MPLANE_VERSION
-    _content_type = None
-    _messages = None
 
-    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE):
+    def __init__(self, dictval=None, content_type=ENVELOPE_MESSAGE, token=None, label=None, when=None):
         super().__init__()
 
+        self._version = MPLANE_VERSION
         self._messages = []
         self._content_type = content_type
+        self._token = token
+        self._label = label
+        self._when = None
+        if when:
+            (start, end) = when.datetimes()
+            self._when = When(a=start,
+                              b=end,
+                              period=when.period())
+
         if dictval is not None:
             self._from_dict(dictval)
 
     def __repr__(self):
-        return "<Envelope "+self._content_type+\
-                " ("+str(len(self._messages))+"): "+\
+        if self._token:
+            token_part = " token "+self.get_token()
+        else:
+            token_part = ""
+
+        return "<envelope: "+self._content_type+\
+                " ("+str(len(self._messages))+")"+token_part+": "+\
                 " ".join(map(repr, self._messages))+">"
 
     def __len__(self):
         return len(self._messages)
 
+    def trim(self, n):
+        """ Removes everything except the last n elements """
+        del self._messages[:-n]
+
     def append_message(self, msg):
+        """ Appends a message to an Envelope """
         self._messages.append(msg)
 
     def messages(self):
+        """ Returns an iterator to iterate over all messages in an Envelope """
         return iter(self._messages)
 
     def kind_str(self):
         return KIND_ENVELOPE
 
-    def to_dict(self):
+    def to_dict(self, token_only=False):
         d = {}
         d[self.kind_str()] = self._content_type
         d[KEY_VERSION] = self._version
-        d[KEY_CONTENTS] = [m.to_dict() for m in self.messages()]
+
+        d[KEY_CONTENTS] = [m.to_dict(token_only=token_only) for m in self.messages()]
+
+        if self._token is not None:
+            d[KEY_TOKEN] = self._token
+
+        if self._when is not None:
+            d[KEY_WHEN] = str(self._when)
+
+        if self._label is not None:
+            d[KEY_LABEL] = self._label
+
         return d
 
     def _from_dict(self, d):
@@ -2724,8 +2985,35 @@ class Envelope(object):
             if int(d[KEY_VERSION]) > MPLANE_VERSION:
                 raise ValueError("Version mismatch")
 
+        if KEY_TOKEN in d:
+          self._token = d[KEY_TOKEN]
+
+        if KEY_WHEN in d:
+          self._when = When(d[KEY_WHEN])
+
+        if KEY_LABEL in d:
+          self._label = d[KEY_LABEL]
+
         for md in d[KEY_CONTENTS]:
             self.append_message(message_from_dict(md))
+
+    def get_label(self):
+        """ Returns the label or None if no label has been set """
+        return self._label
+
+    def get_token(self, lim=None):
+        """ Returns the token or None if no token has been set """
+        if self._token is not None and lim is not None and len(self._token) > lim:
+          return self._token[:lim]
+        else:
+          return self._token
+
+    def set_token(self, token):
+        self._token = token
+
+    def when(self):
+        """ Returns the envelope's temporal scope. (If it's a bunch of multijob results) """
+        return self._when
 
 #######################################################################
 # Utility methods
@@ -2753,10 +3041,20 @@ def message_from_dict(d):
     raise ValueError("Cannot determine message type from "+repr(d))
 
 def parse_json(jstr):
+    """
+    Parse a JSON object in a string and return the associated mPlane message.
+
+    """
     return message_from_dict(json.loads(jstr))
 
-def unparse_json(msg):
-    return json.dumps(msg.to_dict(), 
+def unparse_json(msg, token_only=False):
+    """
+    Transform an mPlane message into a JSON object representing it. If
+    token_only is True, uses tokens only for message types for which that is
+    appropriate (i.e. Reciepts, Redemptions, Withdrawals, and Interrupts).
+
+    """
+    return json.dumps(msg.to_dict(token_only=token_only),
                       sort_keys=True, indent=2, separators=(',',': '))
 
 def parse_yaml(ystr):
@@ -2765,7 +3063,41 @@ def parse_yaml(ystr):
 def unparse_yaml(msg):
     return yaml.dump(dict(msg.to_dict()), default_flow_style=False, indent=4)
 
+def render_text(message):
+    if isinstance(message, Envelope):
+        for msg in message.messages():
+            print(render(msg))
+    else:
+        print(render(message))
 
+def render(msg):
+    d = msg.to_dict()
 
+    if msg.kind_str() == KIND_EXCEPTION:
+        out = KIND_EXCEPTION + ": " + d[KIND_EXCEPTION] + "\n"
+    else:
+        out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
+    for section in (KEY_MESSAGE, KEY_LABEL, KEY_LINK,
+                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+        if section in d:
+            out += "    %-12s: %s\n" % (section, d[section])
 
+    for section in (KEY_PARAMETERS, KEY_METADATA):
+        if section in d:
+            out += "    %-12s(%2u): \n" % (section, len(d[section]))
+            for element in d[section]:
+                out += "        %32s: %s\n" % (element, d[section][element])
+
+    if KEY_RESULTVALUES in d:
+        out += "    %-12s(%2u):\n" % (KEY_RESULTVALUES, len(d[KEY_RESULTVALUES]))
+        for i, row in enumerate(d[KEY_RESULTVALUES]):
+            out += "          result %u:\n" % (i)
+            for j, val in enumerate(row):
+                out += "            %32s: %s\n" % (d[KEY_RESULTS][j], val)
+    elif KEY_RESULTS in d:
+        out += "    %-12s(%2u):\n" % (KEY_RESULTS, len(d[KEY_RESULTS]))
+        for element in d[KEY_RESULTS]:
+            out += "        %s\n" % (element)
+
+    return out
