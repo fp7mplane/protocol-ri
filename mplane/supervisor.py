@@ -140,6 +140,7 @@ class BaseSupervisor(object):
             if not self.from_cli.empty():
                 [msg, identity] = self.from_cli.get()
                 self.handle_message(msg, identity)
+            sleep(0.1)
 
     def handle_message(self, msg, identity):
         if isinstance(msg, mplane.model.Capability):
