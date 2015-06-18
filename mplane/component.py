@@ -39,8 +39,6 @@ if mplane.utils.versiontuple(urllib3.__version__) > mplane.utils.versiontuple("1
 from threading import Thread
 import json
 
-urllib3.disable_warnings()
-
 DEFAULT_MPLANE_PORT = 1228
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
