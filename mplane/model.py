@@ -1723,10 +1723,11 @@ def element(name, reguri=None):
     for reg in _registries:
         if _registries[reg][name] != None:
             return _registries[reg][name]
-    return _base_registry[name] 
+    if _base_registry[name] != None:
+        return _base_registry[name]
     
     # fall-through: no results
-    raise Exception("Key error: " + name + " not present in registries")
+    raise KeyError("Key error: " + name + " not present in registries")
 
 def test_registry():
     # default registry trough the Registry-Object
@@ -2121,9 +2122,7 @@ class Statement(object):
             if reguri is not None:
                 self._reguri = reguri
             else:
-                for uri in _registries:
-                    self._reguri = uri
-                    break
+                self._reguri = _base_registry.uri()
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -3092,7 +3091,7 @@ def render(msg):
         out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
     for section in (KEY_MESSAGE, KEY_LABEL, KEY_LINK,
-                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN, KEY_REGISTRY):
         if section in d:
             out += "    %-12s: %s\n" % (section, d[section])
 
