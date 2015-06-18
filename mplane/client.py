@@ -31,7 +31,6 @@ if mplane.utils.versiontuple(urllib3.__version__) > mplane.utils.versiontuple("1
     urllib3.disable_warnings()
 from threading import Thread
 import queue
-import os
 
 import tornado.web
 import tornado.httpserver
@@ -56,7 +55,7 @@ class BaseClient(object):
 
     """
 
-    def __init__(self, tls_state, config, supervisor=False, exporter=None):
+    def __init__(self, tls_state, supervisor=False, exporter=None):
         self._tls_state = tls_state
         self._capabilities = {}
         self._capability_labels = {}
@@ -67,12 +66,6 @@ class BaseClient(object):
         self._results = {}
         self._result_labels = {}
         self._supervisor = supervisor
-
-        env_ip = os.getenv("SOURCE_IP")
-        if env_ip is not None:
-            self._ip = env_ip
-        else:
-            self._ip = config["client"]["source_ip"]
         if self._supervisor:
             self._exporter = exporter
 
@@ -421,7 +414,7 @@ class HttpInitiatorClient(BaseClient):
         initialize a client with a given
         default URL an a given TLS state
         """
-        super().__init__(tls_state, config, supervisor=supervisor,
+        super().__init__(tls_state, supervisor=supervisor,
                         exporter=exporter)
 
         self._default_url = default_url
@@ -586,7 +579,7 @@ class HttpListenerClient(BaseClient):
     """
     def __init__(self, config, tls_state=None,
                  supervisor=False, exporter=None, io_loop=None):
-        super().__init__(tls_state, config, supervisor=supervisor,
+        super().__init__(tls_state, supervisor=supervisor,
                         exporter=exporter)
 
         listen_port = DEFAULT_PORT
@@ -605,12 +598,8 @@ class HttpListenerClient(BaseClient):
         if "result-path" in config["client"]:
             result_path = config["client"]["result-path"]
 
-        if "TLS" not in config.sections():
-            scheme = "http"
-        else:
-            scheme = "https"
         # link to which results must be sent
-        self._link = mplane.utils.parse_url(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=listen_port, path=result_path))
+        self._link = config["client"]["listen-spec-link"]
 
         # Outgoing messages per component identifier
         self._outgoing = {}

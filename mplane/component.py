@@ -28,7 +28,6 @@ import mplane.model
 import mplane.azn
 import mplane.tls
 import importlib
-import os
 import tornado.web
 import tornado.httpserver
 from datetime import datetime
@@ -64,21 +63,12 @@ class BaseComponent(object):
             registry_uri = None
         mplane.model.initialize_registry(registry_uri)
 
-        env_ip = os.getenv("SOURCE_IP")
-        if env_ip is not None:
-            self._ip = env_ip
-        else:
-            self._ip = self.config["component"]["source_ip"]
-
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
-        if "TLS" not in self.config.sections():
-            scheme = "http"
-        else:
-            scheme = "https"
+
         for service in self._services():
             if config["component"]["workflow"] == "client-initiated":
-                service.set_capability_link(mplane.utils.parse_url(urllib3.util.url.Url(scheme=scheme, host=self._ip, port=self._port, path=self._path)))
+                service.set_capability_link(config["component"]["listen-cap-link"])
             else:
                 service.set_capability_link("")
             self.scheduler.add_service(service)

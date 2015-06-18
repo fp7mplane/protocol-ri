@@ -30,7 +30,6 @@ import mplane.tls
 import queue
 import re
 import tornado.web
-import urllib3
 from time import sleep
 import threading
 from threading import Thread
@@ -93,11 +92,6 @@ class BaseSupervisor(object):
 
         tls_state = mplane.tls.TlsState(config)
 
-        if "TLS" not in self.config.sections():
-            self._scheme = "http"
-        else:
-            self._scheme = "https"
-
         self.from_cli = queue.Queue()
         self._lock = threading.RLock()
         self._spec_messages = dict()
@@ -149,10 +143,7 @@ class BaseSupervisor(object):
                 serv = RelayService(msg, identity, self._client,
                                     self._lock, self._spec_messages)
                 if self.comp_workflow == "client-initiated":
-                    serv.set_capability_link(mplane.utils.parse_url(urllib3.util.url.Url(scheme=self._scheme,
-                                                                  host=self._component._ip,
-                                                                  port=self._component._port,
-                                                                  path=self._component._path)))
+                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
                 self._component.scheduler.add_service(serv)
                 if self.comp_workflow == "component-initiated":
                     self._component.register_to_client([serv.capability()])
