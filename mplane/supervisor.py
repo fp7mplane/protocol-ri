@@ -69,6 +69,7 @@ class RelayService(mplane.scheduler.Service):
                             self._messages[self._identity].remove(msg)
                             break
 
+        result.set_label(spec.get_label())
         result.set_token(spec.get_token())
         return result
 

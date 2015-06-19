@@ -335,7 +335,8 @@ class InitiatorHttpComponent(BaseComponent):
 
                     # hand spec to scheduler
                     reply = self.scheduler.process_message(self._client_identity, spec, callback=self.return_results)
-                    self._result_url[spec.get_token()] = spec.get_link()
+                    if not isinstance(spec, mplane.model.Interrupt):
+                        self._result_url[spec.get_token()] = spec.get_link()
 
                     # send receipt to the Client/Supervisor
                     res = self.pool.urlopen('POST', self.result_path,
