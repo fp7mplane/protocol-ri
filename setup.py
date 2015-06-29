@@ -34,7 +34,7 @@ setup(name='mplane-sdk',
       packages=find_packages(exclude=['tests*']),
       package_data={'mplane': ['registry.json']},
       scripts=['scripts/mpcli', 'scripts/mpcom'],
-      install_requires=['pyyaml', 'tornado', 'urllib3'],
+      install_requires=['pyyaml', 'tornado', 'urllib3', 'nose'],
       classifiers=["Development Status :: 3 - Alpha",
                    "Intended Audience :: Developers",
                    "License :: OSI Approved :: "
