@@ -489,7 +489,7 @@ def parse_dur(valstr):
             for i in range(4):
                 if mg[2*i + 1]:
                     valsec += _dur_seclabel[i][0] * int(mg[2*i + 1])
-            return timedelta(seconds=valsec)        
+            return timedelta(seconds=valsec)
         else:
             raise ValueError(repr(valstr)+" does not appear to be an mPlane duration")
 
@@ -1684,7 +1684,7 @@ class Registry(object):
         return self._uri
 
 _base_registry = None
-_registries = {}
+_registries = collections.OrderedDict()
 
 def preload_registry(filename=None):
     global _registries
@@ -1723,13 +1723,13 @@ def element(name, reguri=None):
     """
     global _base_registry
     global _registries
-    
+
     for reg in _registries:
         if _registries[reg][name] != None:
             return _registries[reg][name]
     if _base_registry[name] != None:
         return _base_registry[name]
-    
+
     # fall-through: no results
     raise KeyError("Key error: " + name + " not present in registries")
 
@@ -2508,8 +2508,8 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
-        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when, reguri=reguri)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, registry_uri=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when, reguri=registry_uri)
 
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
