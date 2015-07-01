@@ -348,6 +348,8 @@ VALUE_NONE = "*"
 TIME_PAST = "past"
 TIME_NOW = "now"
 TIME_FUTURE = "future"
+#FIX ME
+MAX_TIME = 100000
 
 WHEN_REPEAT = "repeat "
 WHEN_CRON = " cron "
@@ -479,13 +481,15 @@ def parse_dur(valstr):
         return None
     else:
         m = _dur_re.match(valstr)
-        if m:
+        if "inf" == valstr:
+            return timedelta(seconds=MAX_TIME*_dur_seclabel[0][0])
+        elif m:
             mg = m.groups()
             valsec = 0
             for i in range(4):
                 if mg[2*i + 1]:
                     valsec += _dur_seclabel[i][0] * int(mg[2*i + 1])
-            return timedelta(seconds=valsec)
+            return timedelta(seconds=valsec)        
         else:
             raise ValueError(repr(valstr)+" does not appear to be an mPlane duration")
 
