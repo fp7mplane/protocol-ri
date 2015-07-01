@@ -32,7 +32,7 @@ To run the CI components (with SSL), from the protocol-ri directory, run:
 
 This will launch the supervisor. Then:
 
-```python3 -m mplane.tstat_proxy -T ./conf/runtime.conf -c ./conf/CI-component-certs.conf```
+```python3 -m mplane.scamper -T ./conf/runtime.conf -c ./conf/CI-component-certs.conf```
 
 At this point, the tstat proxy will automatically register its capabilities to the Supervisor. Now launch the client:
 

@@ -22,34 +22,23 @@
 Implements Tracebox for integration into 
 the mPlane reference implementation.
 
-integrated tools:
+contains:
     -  ping                            OK
     -  trace                           OK
     -  tracelb                         OK
-    -  sting                           MAC OS ONLY
-    -  tbit                            MAC OS ONLY
     -  tracebox                        OK
 
 """
 
-import re
-import collections
-import subprocess
+import re, collections, subprocess
+import random, subprocess
 from datetime import datetime, timedelta
-import random
+import argparse
+import json
 
-"""
-import ipaddress
-import threading
-
-"""
-import subprocess
 import mplane.model
 import mplane.scheduler
 import mplane.utils
-
-import argparse
-import json
 
 # DEFAULTS
 
@@ -63,20 +52,23 @@ LOOP6 = "::1"
 MIN_SPORT = 1024
 MAX_SPORT = 65535
 
+def _random_sport():
+   return random.randint(MIN_SPORT,MAX_SPORT)
+
 ###############################################################################
 #################################  ARGUMENTS  #################################
 ###############################################################################
 
-_scampercmd = ["scamper", "-c"]
+_scampercmd  = ["scamper", "-c"]
 _scamper_dip = "-i"
 
-_traceboxcmd = _scampercmd + ["tracebox"]
+_traceboxcmd    = _scampercmd + ["tracebox"]
 _traceboxopt_v6 = "-6"
 
-_traceboxopt_udp = "-u"
+_traceboxopt_udp   = "-u"
 _traceboxopt_dport = "-d"
 _traceboxopt_probe = "-p"
-_traceboxopt_ipl = "-t" # icmp payload length
+_traceboxopt_ipl   = "-t" # icmp payload length
 
 _pingcmd = _scampercmd + ["ping"]
 _pingopt_period   = "-i" # -
@@ -113,7 +105,6 @@ _traceopt_sport      = "-s"
 _traceopt_srcaddr    = "-S"
 _traceopt_tos        = "-t"
 _traceopt_T          = "-T"
-_traceopt_userid     = "-U"
 _traceopt_wait       = "-w"
 _traceopt_waitprobe  = "-W"
 _traceopt_gssentry   = "-z"
@@ -131,7 +122,6 @@ _dealiasopt_attempts    = "-q"
 _dealiasopt_waitround   = "-r"
 _dealiasopt_sport       = "-s"
 _dealiasopt_t           = "-t"
-_dealiasopt_userid      = "-U"
 _dealiasopt_waittimeout = "-w"
 _dealiasopt_waitprobe   = "-W"
 _dealiasopt_exclude     = "-x"
@@ -156,7 +146,6 @@ _tracelbopt_attempts    = "-q"
 _tracelbopt_maxprobec   = "-Q"
 _tracelbopt_sport       = "-s"
 _tracelbopt_tos         = "-t"
-_tracelbopt_userid      = "-U"
 _tracelbopt_waittimeout = "-w"
 _tracelbopt_waitprobe   = "-W"
 
@@ -235,13 +224,13 @@ def _tracebox_process(sipaddr, dipaddr, v, udp=None, dport=None, probe=None, get
     tracebox_argv = list(_traceboxcmd)
     if v is 6:
         tracebox_argv[-1] += " "+_traceboxopt_v6
-    if udp is not None:
+    if udp is not None and udp is not "0":
         tracebox_argv[-1] += " "+_traceboxopt_udp
     if get_icmp_payload_len is not None:
         tracebox_argv[-1] += " "+_traceboxopt_ipl
     if dport is not None:
         tracebox_argv[-1] += " "+_traceboxopt_dport+" "+str(dport)
-    if probe is not None:
+    if probe is not None and udp is not "":
         tracebox_argv[-1] += " "+_traceboxopt_probe+" "+str(probe)
 
     tracebox_argv += [_scamper_dip, str(dipaddr)]
@@ -316,7 +305,7 @@ def pings_start_time(pings):
 def pings_end_time(pings):
     return pings[-1].time
 
-def _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, userid, wait, waitprobe, lssname):
+def _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, wait, waitprobe, lssname):
     trace_argv = list(_tracecmd)
 
     if confidence is not None and confidence is not -1:
@@ -353,8 +342,6 @@ def _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapa
         trace_argv[-1] += " "+_traceopt_tos+" "+str(tos)
     if T:
         trace_argv[-1] += " "+_traceopt_T
-    if userid is not None and userid is not -1:
-        trace_argv[-1] += " "+_traceopt_userid+" "+str(userid)
     if wait is not None and wait is not -1:
         trace_argv[-1] += " "+_traceopt_wait+" "+str(wait)
     if waitprobe is not None and waitprobe is not -1:
@@ -370,7 +357,7 @@ def _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapa
     return subprocess.Popen(trace_argv, stdout=subprocess.PIPE)
 
 
-def _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, userid, waittimeout, waitprobe):
+def _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, waittimeout, waitprobe):
     tracelb_argv = list(_tracelbcmd)
 
     if confidence is not None and confidence is not -1:
@@ -391,8 +378,6 @@ def _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  m
         tracelb_argv[-1] += " "+_tracelbopt_sport+" "+str(sport)
     if tos is not None and tos is not -1:
         tracelb_argv[-1] += " "+_tracelbopt_tos+" "+str(tos)
-    if userid is not None and userid is not -1:
-        tracelb_argv[-1] += " "+_tracelbopt_userid+" "+str(userid)
     if waittimeout is not None and waittimeout is not -1:
         tracelb_argv[-1] += " "+_tracelbopt_waittimeout+" "+str(waittimeout)
     if waitprobe is not None and waitprobe is not -1:
@@ -403,100 +388,127 @@ def _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  m
     print("running " + " ".join(tracelb_argv))
     return subprocess.Popen(tracelb_argv, stdout=subprocess.PIPE)
 
-##################################  DEFAULTS  #################################
-
-def _random_sport():
-   return random.randint(MIN_SPORT,MAX_SPORT)
-
 ###############################################################################
 ###############################  CAPABILITIES  ################################
 ###############################################################################
 
 def tracebox4_standard_capability(ipaddr):
     cap = mplane.model.Capability(label="tracebox-standard-ip4", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_result_column("tracebox.hop.ip4")
-    cap.add_result_column("tracebox.hop.modifications")
+
+    cap.add_result_column("scamper.tracebox.hop.ip4")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
     return cap
 
 def tracebox4_specific_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ 
     cap = mplane.model.Capability(label="tracebox-specific-ip4", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_parameter("tracebox.udp")
-    cap.add_parameter("tracebox.dport")
-    cap.add_parameter("tracebox.probe")
-    cap.add_result_column("tracebox.hop.ip4")
-    cap.add_result_column("tracebox.hop.modifications")
+
+    #cap.add_parameter("scamper.tracebox.udp","0,1")#,"0")
+    cap.add_parameter("scamper.tracebox.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.tracebox.probe","*")#,"")
+
+    cap.add_result_column("scamper.tracebox.hop.ip4")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
     return cap
 
 def tracebox4_specific_quotesize_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ 
     cap = mplane.model.Capability(label="tracebox-specific-quotesize-ip4", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_parameter("tracebox.udp")
-    cap.add_parameter("tracebox.dport")
-    cap.add_parameter("tracebox.probe")
-    cap.add_result_column("tracebox.hop.ip4")
-    cap.add_result_column("tracebox.hop.modifications")
-    cap.add_result_column("tracebox.hop.icmp.payload.len")
+
+    #cap.add_parameter("scamper.tracebox.udp","0,1")#,"0")
+    cap.add_parameter("scamper.tracebox.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.tracebox.probe","*")#,"")
+
+    cap.add_result_column("scamper.tracebox.hop.ip4")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
+    cap.add_result_column("scamper.tracebox.hop.icmp.payload.len")
     return cap
 
 
 def tracebox6_standard_capability(ipaddr):
     cap = mplane.model.Capability(label="tracebox-standard-ip6", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_result_column("tracebox.hop.ip6")
-    cap.add_result_column("tracebox.hop.modifications")
+
+    cap.add_result_column("scamper.tracebox.hop.ip6")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
     return cap
 
 def tracebox6_specific_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ (opposite is ok)
     cap = mplane.model.Capability(label="tracebox-specific-ip6", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_parameter("tracebox.udp")
-    cap.add_parameter("tracebox.dport")
-    cap.add_parameter("tracebox.probe")
-    cap.add_result_column("tracebox.hop.ip6")
-    cap.add_result_column("tracebox.hop.modifications")
+
+    #cap.add_parameter("scamper.tracebox.udp","0,1")#,"0")
+    cap.add_parameter("scamper.tracebox.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.tracebox.probe","*")#,"")
+
+    cap.add_result_column("scamper.tracebox.hop.ip6")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
     return cap
 
 def tracebox6_specific_quotesize_capability(ipaddr):
-    #!!! do not set udp=1 with probe=IP/TCP/ (opposite is ok)
     cap = mplane.model.Capability(label="tracebox-specific-quotesize-ip6", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_parameter("tracebox.udp")
-    cap.add_parameter("tracebox.dport")
-    cap.add_parameter("tracebox.probe")
-    cap.add_result_column("tracebox.hop.ip6")
-    cap.add_result_column("tracebox.hop.modifications")
-    cap.add_result_column("tracebox.hop.icmp.payload.len")
+
+    #cap.add_parameter("scamper.tracebox.udp","0,1")#,"0")
+    cap.add_parameter("scamper.tracebox.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.tracebox.probe","*")#,"")
+
+    cap.add_result_column("scamper.tracebox.hop.ip6")
+    cap.add_result_column("scamper.tracebox.hop.modifications")
+    cap.add_result_column("scamper.tracebox.hop.icmp.payload.len")
     return cap
 
 def ping4_aggregate_capability(ipaddr):
     cap = mplane.model.Capability(label="ping-average-ip4", when = "now ... future / 1s")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
 
-    cap.add_parameter("ping.payload","")
-    cap.add_parameter("ping.icmp.checksum","")
-    cap.add_parameter("ping.dport",-1)
-    cap.add_parameter("ping.sport",-1)
-    cap.add_parameter("ping.ttl",64)
-    cap.add_parameter("ping.rcount",0)
-    cap.add_parameter("ping.pattern","")
-    cap.add_parameter("ping.method","icmp-echo")
-    cap.add_parameter("ping.rr",0)
-    cap.add_parameter("ping.size",84)
-    cap.add_parameter("ping.tos",0)
+    cap.add_parameter("scamper.ping.payload","*")#,"")
+    cap.add_parameter("scamper.ping.icmp.checksum","*")#,"")
+    cap.add_parameter("scamper.ping.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.ping.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.ping.ttl","0 ... 255")#,64)
+    cap.add_parameter("scamper.ping.pattern","*")#,"")
+    cap.add_parameter("scamper.ping.method","icmp-echo,icmp-time,tcp-ack,tcp-ack-sport,udp,udp-dport")#,"icmp-echo")
+    cap.add_parameter("scamper.ping.rr","0,1")#,0)
+    cap.add_parameter("scamper.ping.size","84 ... 140")#,84)
+    cap.add_parameter("scamper.ping.tos","0 ... 255")#,0)
 
-    #default values
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
@@ -505,18 +517,23 @@ def ping4_aggregate_capability(ipaddr):
 
 def ping4_singleton_capability(ipaddr):
     cap = mplane.model.Capability(label="ping-detail-ip4", when = "now ... future / 1s")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
-    cap.add_parameter("ping.payload","")
-    cap.add_parameter("ping.icmp.checksum","")
-    cap.add_parameter("ping.dport",-1)
-    cap.add_parameter("ping.sport",-1)
-    cap.add_parameter("ping.ttl",64)
-    cap.add_parameter("ping.pattern","")
-    cap.add_parameter("ping.method","icmp-echo")
-    cap.add_parameter("ping.rr",0)
-    cap.add_parameter("ping.size",84)
-    cap.add_parameter("ping.tos",0)
+
+    cap.add_parameter("scamper.ping.payload","*")#,"")
+    cap.add_parameter("scamper.ping.icmp.checksum","*")#,"")
+    cap.add_parameter("scamper.ping.dport","0 ... 65535")#"80")
+    cap.add_parameter("scamper.ping.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.ping.ttl","0 ... 255")#,64)
+    cap.add_parameter("scamper.ping.pattern","*")#,"")
+    cap.add_parameter("scamper.ping.method","icmp-echo,icmp-time,tcp-ack,tcp-ack-sport,udp,udp-dport")#,"icmp-echo")
+    cap.add_parameter("scamper.ping.rr","0,1")#,0)
+    cap.add_parameter("scamper.ping.size","84 ... 140")#,84)
+    cap.add_parameter("scamper.ping.tos","0 ... 255")#,0)
 
     cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
@@ -524,19 +541,24 @@ def ping4_singleton_capability(ipaddr):
 
 def ping6_aggregate_capability(ipaddr):
     cap = mplane.model.Capability(label="ping-average-ip6", when = "now ... future / 1s")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6") 
-    cap.add_parameter("ping.payload","")
-    cap.add_parameter("ping.icmp.checksum","")
-    cap.add_parameter("ping.dport",-1)
-    cap.add_parameter("ping.sport",-1)
-    cap.add_parameter("ping.ttl",64)
-    cap.add_parameter("ping.rcount",0)
-    cap.add_parameter("ping.pattern","")
-    cap.add_parameter("ping.method","icmp-echo")
-    cap.add_parameter("ping.rr",0)
-    cap.add_parameter("ping.size",56)
-    cap.add_parameter("ping.tos",0)
+
+    cap.add_parameter("scamper.ping.payload","*")#,"")
+    cap.add_parameter("scamper.ping.icmp.checksum","*")#,"")
+    cap.add_parameter("scamper.ping.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.ping.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.ping.ttl","0 ... 255")#,64)
+    cap.add_parameter("scamper.ping.pattern","*")#,"")
+    cap.add_parameter("scamper.ping.method","icmp-echo,icmp-time,tcp-ack,tcp-ack-sport,udp,udp-dport")#,"icmp-echo")
+    cap.add_parameter("scamper.ping.rr","0,1")#,0)
+    cap.add_parameter("scamper.ping.size","56 ... 140")#,56)
+    cap.add_parameter("scamper.ping.tos","0 ... 255")#,0)
+
     cap.add_result_column("delay.twoway.icmp.us.min")
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.us.max")
@@ -545,138 +567,156 @@ def ping6_aggregate_capability(ipaddr):
 
 def ping6_singleton_capability(ipaddr):
     cap = mplane.model.Capability(label="ping-detail-ip6", when = "now ... future / 1s")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
-    cap.add_parameter("ping.payload","")
-    cap.add_parameter("ping.icmp.checksum","")
-    cap.add_parameter("ping.dport",-1)
-    cap.add_parameter("ping.sport",-1)
-    cap.add_parameter("ping.ttl",64)
-    cap.add_parameter("ping.pattern","")
-    cap.add_parameter("ping.method","icmp-echo")
-    cap.add_parameter("ping.rr",0)
-    cap.add_parameter("ping.size",56)
-    cap.add_parameter("ping.tos",0)
+
+    cap.add_parameter("scamper.ping.payload","*")#,"")
+    cap.add_parameter("scamper.ping.icmp.checksum","*")#,"")
+    cap.add_parameter("scamper.ping.dport","0 ... 65535")#,"80")
+    cap.add_parameter("scamper.ping.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.ping.ttl","0 ... 255")#,64)
+    cap.add_parameter("scamper.ping.pattern","*")#,"")
+    cap.add_parameter("scamper.ping.method","icmp-echo,icmp-time,tcp-ack,tcp-ack-sport,udp,udp-dport")#,"icmp-echo")
+    cap.add_parameter("scamper.ping.rr","0,1")#,0)
+    cap.add_parameter("scamper.ping.size","56 ... 140")#,56)
+    cap.add_parameter("scamper.ping.tos","0 ... 255")#,0)
+
     cap.add_result_column("time")
     cap.add_result_column("delay.twoway.icmp.us")
     return cap
 
 def trace4_standard_capability(ipaddr):
     """
-          natural to float: trace.confidence, trace.dport, 
-                            trace.loopaction, trace.sport, 
-                            trace.userid, trace.waitprobe
+          natural to float: scamper.trace.confidence, scamper.trace.dport, 
+                            scamper.trace.loopaction, scamper.trace.sport, 
+                            scamper.trace.waitprobe
     """
     cap = mplane.model.Capability(label="trace-standard-ip4", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
 
-    cap.add_parameter("trace.confidence","95, 99")
-    cap.add_parameter("trace.dport","0 ... 65535")
-    cap.add_parameter("trace.firsthop","0 ... 255", 1)
-    cap.add_parameter("trace.gaplimit","0 ... 255", 5)
-    cap.add_parameter("trace.gapaction","1, 2", 1)
-    cap.add_parameter("trace.maxttl","0 ... 255", 255)
-    cap.add_parameter("trace.M","0,1",0)
-    cap.add_parameter("trace.loops","0 ... 255",1)
-    cap.add_parameter("trace.loopaction","0,1",0)
-    cap.add_parameter("trace.payload","*","")
-    cap.add_parameter("trace.method","UDP-paris, UDP, ICMP, ICMP-paris, TCP, TCP-ACK", "UDP-paris")
-    cap.add_parameter("trace.attempts","0 ... 255",2)
-    cap.add_parameter("trace.Q","0,1",0)
-    cap.add_parameter("trace.sport","0 ... 65535",_random_sport())
-    cap.add_parameter("trace.srcaddr","*",ipaddr)
-    cap.add_parameter("trace.tos","0 ... 255",0)
-    cap.add_parameter("trace.T","0,1",0)
-    #cap.add_parameter("trace.userid",-1)
-    cap.add_parameter("trace.wait","0 ... 255",5)
-    cap.add_parameter("trace.waitprobe","0 ... 2550000",0)
-    cap.add_parameter("trace.gssentry","*")
-    cap.add_parameter("trace.lssname","*")
+    cap.add_parameter("scamper.trace.confidence","95,99")#, 99)
+    cap.add_parameter("scamper.trace.dport","0 ... 65535")#, 33435)
+    cap.add_parameter("scamper.trace.firsthop","0 ... 255")#, 1)
+    cap.add_parameter("scamper.trace.gaplimit","0 ... 255")#, 5)
+    cap.add_parameter("scamper.trace.gapaction","1,2")#, 1)
+    cap.add_parameter("scamper.trace.maxttl","0 ... 255")#, 255)
+    cap.add_parameter("scamper.trace.M","0,1")#,0)
+    cap.add_parameter("scamper.trace.loops","0 ... 255")#,1)
+    cap.add_parameter("scamper.trace.loopaction","0,1")#,0)
+    cap.add_parameter("scamper.trace.payload","*")#,"")
+    cap.add_parameter("scamper.trace.method","UDP-paris,UDP,ICMP,ICMP-paris,TCP,TCP-ACK")#, "UDP-paris")
+    cap.add_parameter("scamper.trace.attempts","0 ... 255")#,2)
+    cap.add_parameter("scamper.trace.Q","0,1")#,0)
+    cap.add_parameter("scamper.trace.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.trace.srcaddr","*")#,ipaddr)
+    cap.add_parameter("scamper.trace.tos","0 ... 255")#,0)
+    cap.add_parameter("scamper.trace.T","0,1")#,0)
+    cap.add_parameter("scamper.trace.wait","0 ... 255")#,5)
+    cap.add_parameter("scamper.trace.waitprobe","0 ... 2550000")#,0)
+    cap.add_parameter("scamper.trace.gssentry","*")
+    cap.add_parameter("scamper.trace.lssname","*")
 
-    cap.add_result_column("trace.hop.ip4")
+    cap.add_result_column("scamper.trace.hop.ip4")
     cap.add_result_column("rtt.ms")
     cap.add_result_column("rtt.us")
     return cap
 
 def trace6_standard_capability(ipaddr):
     """
-          natural to float: trace.confidence, trace.dport, 
-                            trace.loopaction, trace.sport, 
-                            trace.userid, trace.waitprobe
+          natural to float: scamper.trace.confidence, scamper.trace.dport, 
+                            scamper.trace.loopaction, scamper.trace.sport, 
+                            scamper.trace.waitprobe
     """
     cap = mplane.model.Capability(label="trace-standard-ip6", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
 
-    cap.add_parameter("trace.confidence","95, 99")
-    cap.add_parameter("trace.dport","0 ... 65535")
-    cap.add_parameter("trace.firsthop","0 ... 255", 1)
-    cap.add_parameter("trace.gaplimit","0 ... 255", 5)
-    cap.add_parameter("trace.gapaction","1, 2", 1)
-    cap.add_parameter("trace.maxttl","0 ... 255", 255)
-    cap.add_parameter("trace.M","0,1",0)
-    cap.add_parameter("trace.loops","0 ... 255",1)
-    cap.add_parameter("trace.loopaction","0,1",0)
-    cap.add_parameter("trace.payload","*","")
-    cap.add_parameter("trace.method","UDP-paris, UDP, ICMP, ICMP-paris, TCP, TCP-ACK", "UDP-paris")
-    cap.add_parameter("trace.attempts","0 ... 255",2)
-    cap.add_parameter("trace.Q","0,1",0)
-    cap.add_parameter("trace.sport","0 ... 65535",_random_sport())
-    cap.add_parameter("trace.srcaddr","*",ipaddr)
-    cap.add_parameter("trace.tos","0 ... 255",0)
-    cap.add_parameter("trace.T","0,1",0)
-    #cap.add_parameter("trace.userid",-1)
-    cap.add_parameter("trace.wait","0 ... 255",5)
-    cap.add_parameter("trace.waitprobe","0 ... 2550000",0)
-    cap.add_parameter("trace.gssentry","*")
-    cap.add_parameter("trace.lssname","*")
+    cap.add_parameter("scamper.trace.confidence","95,99")#,99)
+    cap.add_parameter("scamper.trace.dport","0 ... 65535")#, 33435)
+    cap.add_parameter("scamper.trace.firsthop","0 ... 255")#, 1)
+    cap.add_parameter("scamper.trace.gaplimit","0 ... 255")#, 5)
+    cap.add_parameter("scamper.trace.gapaction","1,2")#, 1)
+    cap.add_parameter("scamper.trace.maxttl","0 ... 255")#, 255)
+    cap.add_parameter("scamper.trace.M","0,1")#,0)
+    cap.add_parameter("scamper.trace.loops","0 ... 255")#,1)
+    cap.add_parameter("scamper.trace.loopaction","0,1")#,0)
+    cap.add_parameter("scamper.trace.payload","*")#,"")
+    cap.add_parameter("scamper.trace.method","UDP-paris,UDP,ICMP,ICMP-paris,TCP,TCP-ACK")#, "UDP-paris")
+    cap.add_parameter("scamper.trace.attempts","0 ... 255")#,2)
+    cap.add_parameter("scamper.trace.Q","0,1")#,0)
+    cap.add_parameter("scamper.trace.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.trace.srcaddr","*")#,ipaddr)
+    cap.add_parameter("scamper.trace.tos","0 ... 255")#,0)
+    cap.add_parameter("scamper.trace.T","0,1")#,0)
+    cap.add_parameter("scamper.trace.wait","0 ... 255")#,5)
+    cap.add_parameter("scamper.trace.waitprobe","0 ... 2550000")#,0)
+    cap.add_parameter("scamper.trace.gssentry","*")
+    cap.add_parameter("scamper.trace.lssname","*")
 
-    cap.add_result_column("trace.hop.ip6")
+    cap.add_result_column("scamper.trace.hop.ip6")
     cap.add_result_column("rtt.ms")
     cap.add_result_column("rtt.us")
     return cap
 
 def tracelb4_standard_capability(ipaddr):
     cap = mplane.model.Capability(label="tracelb-standard-ip4", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip4",ipaddr)
     cap.add_parameter("destination.ip4")
 
-    cap.add_parameter("tracelb.confidence",95)
-    cap.add_parameter("tracelb.dport",33435)
-    cap.add_parameter("tracelb.firsthop",-1)
-    cap.add_parameter("tracelb.gaplimit",3)
-    cap.add_parameter("tracelb.method","udp-dport")
-    cap.add_parameter("tracelb.attempts",2)
-    cap.add_parameter("tracelb.maxprobec",3000)
-    cap.add_parameter("tracelb.sport",-1)
-    cap.add_parameter("tracelb.tos",0)
-    cap.add_parameter("tracelb.userid",-1)
-    cap.add_parameter("tracelb.waittimeout",5)
-    cap.add_parameter("tracelb.waitprobe",25)
+    cap.add_parameter("scamper.tracelb.confidence","95,99")
+    cap.add_parameter("scamper.tracelb.dport","0 ... 65535")#, 33435)
+    cap.add_parameter("scamper.tracelb.firsthop","0 ... 255")#, 1)
+    cap.add_parameter("scamper.tracelb.gaplimit","0 ... 255")#, 5)
+    cap.add_parameter("scamper.tracelb.method","udp-dport")
+    cap.add_parameter("scamper.tracelb.attempts","0 ... 255")#,2)
+    cap.add_parameter("scamper.tracelb.maxprobec","1 ... 10000")#,3000)
+    cap.add_parameter("scamper.tracelb.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.tracelb.tos","0 ... 255")#,0)
+    cap.add_parameter("scamper.tracelb.waittimeout","0 ... 255")#,5)
+    cap.add_parameter("scamper.tracelb.waitprobe","0 ... 2550000")#,0)
 
-    cap.add_result_column("tracelb.result")
+    cap.add_result_column("scamper.tracelb.result")
     return cap
 
 def tracelb6_standard_capability(ipaddr):
     cap = mplane.model.Capability(label="tracelb-standard-ip6", when = "now ... future")
+    cap.add_metadata("System_type", "Scamper")
+    cap.add_metadata("System_ID", "Scamper-Proxy")
+    cap.add_metadata("System_version", "0.1")
+
     cap.add_parameter("source.ip6",ipaddr)
     cap.add_parameter("destination.ip6")
 
-    cap.add_parameter("tracelb.confidence",95)
-    cap.add_parameter("tracelb.dport",33435)
-    cap.add_parameter("tracelb.firsthop",-1)
-    cap.add_parameter("tracelb.gaplimit",3)
-    cap.add_parameter("tracelb.method","udp-dport")
-    cap.add_parameter("tracelb.attempts",2)
-    cap.add_parameter("tracelb.maxprobec",3000)
-    cap.add_parameter("tracelb.sport",-1)
-    cap.add_parameter("tracelb.tos",0)
-    cap.add_parameter("tracelb.userid",-1)
-    cap.add_parameter("tracelb.waittimeout",5)
-    cap.add_parameter("tracelb.waitprobe",25)
+    cap.add_parameter("scamper.tracelb.confidence","95,99")
+    cap.add_parameter("scamper.tracelb.dport","0 ... 65535")#, 33435)
+    cap.add_parameter("scamper.tracelb.firsthop","0 ... 255")#, 1)
+    cap.add_parameter("scamper.tracelb.gaplimit","0 ... 255")#, 5)
+    cap.add_parameter("scamper.tracelb.method","udp-dport")
+    cap.add_parameter("scamper.tracelb.attempts","0 ... 255")#,2)
+    cap.add_parameter("scamper.tracelb.maxprobec","1 ... 10000")#,3000)
+    cap.add_parameter("scamper.tracelb.sport","0 ... 65535")#,_random_sport())
+    cap.add_parameter("scamper.tracelb.tos","0 ... 255")#,0)
+    cap.add_parameter("scamper.tracelb.waittimeout","0 ... 255")#,5)
+    cap.add_parameter("scamper.tracelb.waitprobe","0 ... 2550000")#,0)
 
-    cap.add_result_column("tracelb.result")
+    cap.add_result_column("scamper.tracelb.result")
     return cap
 
 ###############################################################################
@@ -713,41 +753,41 @@ class ScamperService(mplane.scheduler.Service):
                 self.__service=serv
                 print(serv)
                 break
-        self.__input_funcs={"dealias":self.__input_dealias,
-                            "neighbourdisc":self.__input_neighbourdisc,
-                            "ping":self.__input_ping,
-                            "trace":self.__input_trace,
-                            "tracelb":self.__input_tracelb,
-                            "sniff":self.__input_sniff,
-                            "tracebox":self.__input_tracebox}
-        self.__parsing_funcs={"dealias":self.__input_dealias,
-                              "neighbourdisc":self.__input_neighbourdisc,
-                              "ping":self.__parse_ping,
-                              "trace":_parse_trace,
-                              "tracelb":self.__parse_tracelb,
-                              "sniff":self.__input_sniff,
-                              "tracebox":self.__parse_tracebox}
-        self.__output_funcs={"dealias":self.__input_dealias,
-                             "neighbourdisc":self.__input_neighbourdisc,
-                             "ping":self.__output_ping,
-                             "trace":self.__output_trace,
-                             "tracelb":self.__output_tracelb,
-                             "sniff":self.__input_sniff,
-                             "tracebox":self.__output_tracebox}
-        self.__capabilities_funcs=[tracebox4_standard_capability,
-                                   tracebox4_specific_capability,
-                                   tracebox4_specific_quotesize_capability,
-                                   ping4_aggregate_capability,
-                                   ping4_singleton_capability,
-                                   trace4_standard_capability,
-                                   tracelb4_standard_capability,
-                                   ping6_aggregate_capability,
-                                   ping6_singleton_capability,
-                                   tracebox6_standard_capability,
-                                   tracebox6_specific_capability,
-                                   tracebox6_specific_quotesize_capability,
-                                   trace6_standard_capability,
-                                   tracelb6_standard_capability]
+        self.__input_funcs   = {"dealias":self.__input_dealias,
+                                "neighbourdisc":self.__input_neighbourdisc,
+                                "ping":self.__input_ping,
+                                "trace":self.__input_trace,
+                                "tracelb":self.__input_tracelb,
+                                "sniff":self.__input_sniff,
+                                "tracebox":self.__input_tracebox}
+        self.__parsing_funcs = {"dealias":self.__input_dealias,
+                                "neighbourdisc":self.__input_neighbourdisc,
+                                "ping":self.__parse_ping,
+                                "trace":_parse_trace,
+                                "tracelb":self.__parse_tracelb,
+                                "sniff":self.__input_sniff,
+                                "tracebox":self.__parse_tracebox}
+        self.__output_funcs  = {"dealias":self.__input_dealias,
+                                "neighbourdisc":self.__input_neighbourdisc,
+                                "ping":self.__output_ping,
+                                "trace":self.__output_trace,
+                                "tracelb":self.__output_tracelb,
+                                "sniff":self.__input_sniff,
+                                "tracebox":self.__output_tracebox}
+        self.__capabilities_funcs = [tracebox4_standard_capability,
+                                     tracebox4_specific_capability,
+                                     tracebox4_specific_quotesize_capability,
+                                     ping4_aggregate_capability,
+                                     ping4_singleton_capability,
+                                     trace4_standard_capability,
+                                     tracelb4_standard_capability,
+                                     ping6_aggregate_capability,
+                                     ping6_singleton_capability,
+                                     tracebox6_standard_capability,
+                                     tracebox6_specific_capability,
+                                     tracebox6_specific_quotesize_capability,
+                                     trace6_standard_capability,
+                                     tracelb6_standard_capability]
 
     def capabilities(self):
         """
@@ -770,18 +810,18 @@ class ScamperService(mplane.scheduler.Service):
             count = int(duration / period)
         else:
             count = None
-        payload = spec.get_parameter_value("ping.payload")
-        chksum  = spec.get_parameter_value("ping.icmp.checksum")
-        dport   = spec.get_parameter_value("ping.dport")
-        sport   = spec.get_parameter_value("ping.sport")
-        ttl     = spec.get_parameter_value("ping.ttl")
-        pattern = spec.get_parameter_value("ping.pattern")
-        method  = spec.get_parameter_value("ping.method")
-        rr      = spec.get_parameter_value("ping.rr")  
-        size    = spec.get_parameter_value("ping.size")
-        tos     = spec.get_parameter_value("ping.tos")
-        if spec.has_parameter("ping.rcount"):
-            rcount  = spec.get_parameter_value("ping.rcount")
+        payload = spec.get_parameter_value("scamper.ping.payload")
+        chksum  = spec.get_parameter_value("scamper.ping.icmp.checksum")
+        dport   = spec.get_parameter_value("scamper.ping.dport")
+        sport   = spec.get_parameter_value("scamper.ping.sport")
+        ttl     = spec.get_parameter_value("scamper.ping.ttl")
+        pattern = spec.get_parameter_value("scamper.ping.pattern")
+        method  = spec.get_parameter_value("scamper.ping.method")
+        rr      = spec.get_parameter_value("scamper.ping.rr")  
+        size    = spec.get_parameter_value("scamper.ping.size")
+        tos     = spec.get_parameter_value("scamper.ping.tos")
+        if spec.has_parameter("scamper.ping.rcount"):
+            rcount  = spec.get_parameter_value("scamper.ping.rcount")
         else:
             rcount  = -1
 
@@ -800,66 +840,64 @@ class ScamperService(mplane.scheduler.Service):
 
     def __input_trace(self,spec):
         # retreive parameters. if no value, sets tracebox default value        
-        confidence = spec.get_parameter_value("trace.confidence")
-        dport      = spec.get_parameter_value("trace.dport")
-        firsthop   = spec.get_parameter_value("trace.firsthop")
-        gaplimit   = spec.get_parameter_value("trace.gaplimit")
-        gapaction  = spec.get_parameter_value("trace.gapaction")
-        maxttl     = spec.get_parameter_value("trace.maxttl")
-        M          = spec.get_parameter_value("trace.M")
-        loops      = spec.get_parameter_value("trace.loops")
-        loopaction = spec.get_parameter_value("trace.loopaction")
-        payload    = spec.get_parameter_value("trace.payload")
-        method     = spec.get_parameter_value("trace.method")
-        attempts   = spec.get_parameter_value("trace.attempts")
-        Q          = spec.get_parameter_value("trace.Q")
-        sport      = spec.get_parameter_value("trace.sport")
-        srcaddr    = spec.get_parameter_value("trace.srcaddr")
-        tos        = spec.get_parameter_value("trace.tos")
-        T          = spec.get_parameter_value("trace.T")
-        userid     = spec.get_parameter_value("trace.userid")
-        wait       = spec.get_parameter_value("trace.wait")
-        waitprobe  = spec.get_parameter_value("trace.waitprobe")
-        #gssentry   = spec.get_parameter_value("trace.gssentry")
-        lssname    = spec.get_parameter_value("trace.lssname")     
+        confidence = spec.get_parameter_value("scamper.trace.confidence")
+        dport      = spec.get_parameter_value("scamper.trace.dport")
+        firsthop   = spec.get_parameter_value("scamper.trace.firsthop")
+        gaplimit   = spec.get_parameter_value("scamper.trace.gaplimit")
+        gapaction  = spec.get_parameter_value("scamper.trace.gapaction")
+        maxttl     = spec.get_parameter_value("scamper.trace.maxttl")
+        M          = spec.get_parameter_value("scamper.trace.M")
+        loops      = spec.get_parameter_value("scamper.trace.loops")
+        loopaction = spec.get_parameter_value("scamper.trace.loopaction")
+        payload    = spec.get_parameter_value("scamper.trace.payload")
+        method     = spec.get_parameter_value("scamper.trace.method")
+        attempts   = spec.get_parameter_value("scamper.trace.attempts")
+        Q          = spec.get_parameter_value("scamper.trace.Q")
+        sport      = spec.get_parameter_value("scamper.trace.sport")
+        srcaddr    = spec.get_parameter_value("scamper.trace.srcaddr")
+        tos        = spec.get_parameter_value("scamper.trace.tos")
+        T          = spec.get_parameter_value("scamper.trace.T")
+        wait       = spec.get_parameter_value("scamper.trace.wait")
+        waitprobe  = spec.get_parameter_value("scamper.trace.waitprobe")
+        #gssentry   = spec.get_parameter_value("scamper.trace.gssentry")
+        lssname    = spec.get_parameter_value("scamper.trace.lssname")     
 
         #launch probe
         if spec.has_parameter("destination.ip4"):
             sipaddr = spec.get_parameter_value("source.ip4")
             dipaddr = spec.get_parameter_value("destination.ip4")
-            trace_process = _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, userid, wait, waitprobe, lssname)
+            trace_process = _trace_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, wait, waitprobe, lssname)
         elif spec.has_parameter("destination.ip6"):
             sipaddr = spec.get_parameter_value("source.ip6")
             dipaddr = spec.get_parameter_value("destination.ip6")
-            trace_process = _trace_process(sipaddr, dipaddr,confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, userid, wait, waitprobe, lssname)
+            trace_process = _trace_process(sipaddr, dipaddr,confidence, dport, firsthop, gaplimit, gapaction, maxttl, M, loops, loopaction, payload, method, attempts, Q, sport, srcaddr, tos, T, wait, waitprobe, lssname)
         else:
             raise ValueError("Missing destination")
 
         return trace_process
 
     def __input_tracelb(self,spec):
-        confidence  = spec.get_parameter_value("tracelb.confidence")
-        dport       = spec.get_parameter_value("tracelb.dport")
-        firsthop    = spec.get_parameter_value("tracelb.firsthop")
-        gaplimit    = spec.get_parameter_value("tracelb.gaplimit")
-        method      = spec.get_parameter_value("tracelb.method")
-        attempts    = spec.get_parameter_value("tracelb.attempts")
-        maxprobec   = spec.get_parameter_value("tracelb.maxprobec")
-        sport       = spec.get_parameter_value("tracelb.sport")
-        tos         = spec.get_parameter_value("tracelb.tos")
-        userid      = spec.get_parameter_value("tracelb.userid")
-        waittimeout = spec.get_parameter_value("tracelb.waittimeout")
-        waitprobe   = spec.get_parameter_value("tracelb.waitprobe")
+        confidence  = spec.get_parameter_value("scamper.tracelb.confidence")
+        dport       = spec.get_parameter_value("scamper.tracelb.dport")
+        firsthop    = spec.get_parameter_value("scamper.tracelb.firsthop")
+        gaplimit    = spec.get_parameter_value("scamper.tracelb.gaplimit")
+        method      = spec.get_parameter_value("scamper.tracelb.method")
+        attempts    = spec.get_parameter_value("scamper.tracelb.attempts")
+        maxprobec   = spec.get_parameter_value("scamper.tracelb.maxprobec")
+        sport       = spec.get_parameter_value("scamper.tracelb.sport")
+        tos         = spec.get_parameter_value("scamper.tracelb.tos")
+        waittimeout = spec.get_parameter_value("scamper.tracelb.waittimeout")
+        waitprobe   = spec.get_parameter_value("scamper.tracelb.waitprobe")
 
         #launch probe
         if spec.has_parameter("destination.ip4"):
             sipaddr = spec.get_parameter_value("source.ip4")
             dipaddr = spec.get_parameter_value("destination.ip4")
-            tracelb_process = _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, userid, waittimeout, waitprobe)
+            tracelb_process = _tracelb_process(sipaddr, dipaddr, confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, waittimeout, waitprobe)
         elif spec.has_parameter("destination.ip6"):
             sipaddr = spec.get_parameter_value("source.ip6")
             dipaddr = spec.get_parameter_value("destination.ip6")
-            tracelb_process = _tracelb_process(sipaddr, dipaddr,confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, userid, waittimeout, waitprobe)
+            tracelb_process = _tracelb_process(sipaddr, dipaddr,confidence, dport, firsthop, gaplimit,  method, attempts, maxprobec, sport, tos, waittimeout, waitprobe)
         else:
             raise ValueError("Missing destination")
 
@@ -871,18 +909,18 @@ class ScamperService(mplane.scheduler.Service):
 
     def __input_tracebox(self,spec):
         # retreive parameters. if no value, sets tracebox default value        
-        if spec.has_parameter("tracebox.udp"):
-            udp=spec.get_parameter_value("tracebox.udp")
+        if spec.has_parameter("scamper.tracebox.udp"):
+            udp=spec.get_parameter_value("scamper.tracebox.udp")
             if udp is None:
-                spec.set_parameter_value("tracebox.udp",self._default_udp)
+                spec.set_parameter_value("scamper.tracebox.udp",self._default_udp)
 
-            dport=spec.get_parameter_value("tracebox.dport")
+            dport=spec.get_parameter_value("scamper.tracebox.dport")
             if dport is None:
-                spec.set_parameter_value("tracebox.dport",self._default_dport)
+                spec.set_parameter_value("scamper.tracebox.dport",self._default_dport)
 
-            probe=spec.get_parameter_value("tracebox.probe")
+            probe=spec.get_parameter_value("scamper.tracebox.probe")
             if probe is None:
-                spec.set_parameter_value("tracebox.probe",self._default_probe(udp))
+                spec.set_parameter_value("scamper.tracebox.probe",self._default_probe(udp))
 
         else:
             udp=None
@@ -940,28 +978,25 @@ class ScamperService(mplane.scheduler.Service):
         return tuples
 
     ########################### OUTPUT #########################
-
     def __output_tracebox(self,res,parsed_output):
-
         for i, onehop in enumerate(parsed_output):
             print("tracebox "+repr(onehop))
             if res.has_parameter("destination.ip4"):
-                res.set_result_value("tracebox.hop.ip4", onehop.addr,i)
+                res.set_result_value("scamper.tracebox.hop.ip4", onehop.addr,i)
             else:
-                res.set_result_value("tracebox.hop.ip6", onehop.addr,i)
-            res.set_result_value("tracebox.hop.modifications", onehop.modifs,i)
+                res.set_result_value("scamper.tracebox.hop.ip6", onehop.addr,i)
+            res.set_result_value("scamper.tracebox.hop.modifications", onehop.modifs,i)
             if self._get_ipl:
-                res.set_result_value("tracebox.hop.icmp.payload.len", onehop.payload_len, i)
+                res.set_result_value("scamper.tracebox.hop.icmp.payload.len", onehop.payload_len, i)
         return res
 
     def __output_trace(self,res,parsed_output):
-
         for i, onehop in enumerate(parsed_output):
             print("trace "+repr(onehop))
             if res.has_parameter("destination.ip4"):
-                res.set_result_value("trace.hop.ip4", onehop.addr,i)
+                res.set_result_value("scamper.trace.hop.ip4", onehop.addr,i)
             else:
-                res.set_result_value("trace.hop.ip6", onehop.addr,i)
+                res.set_result_value("scamper.trace.hop.ip6", onehop.addr,i)
 
             
             if onehop.rtt is not "NaN":
@@ -995,15 +1030,13 @@ class ScamperService(mplane.scheduler.Service):
         return res
 
     def __output_tracelb(self,res,lines):
-
         for i, line in enumerate(lines):
             print(line)
-            res.set_result_value("tracelb.result",line, i)
+            res.set_result_value("scamper.tracelb.result",line, i)
 
         return res
 
     ########################### RUN #########################
-    
     def run(self, spec, check_interrupt):
 
         #save probe start time    
@@ -1041,166 +1074,6 @@ class ScamperService(mplane.scheduler.Service):
 
         return res
 
-"""
-def manually_test_tracebox():
-    
-    #standard tcp probe
-    svc = ScamperTraceboxService(tracebox4_standard_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    #standard udp probe
-    svc = ScamperTraceboxService(tracebox4_specific_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_parameter_value("tracebox.udp",1)
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    #changing dport
-    svc = ScamperTraceboxService(tracebox4_specific_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_parameter_value("tracebox.dport",53)
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    #defining multiple tcp options
-    svc = ScamperTraceboxService(tracebox4_specific_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    
-    #testing icmp payload len retreival
-    svc = ScamperTraceboxService(tracebox4_specific_quotesize_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    #same for IPv6
-    svc = ScamperTraceboxService(tracebox6_standard_capability(LOOP6))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip6", LOOP6)
-    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    svc = ScamperTraceboxService(tracebox6_specific_capability(LOOP6))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip6", LOOP6)
-    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
-    spec.set_parameter_value("tracebox.udp",1)
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    svc = ScamperTraceboxService(tracebox6_specific_capability(LOOP6))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip6", LOOP6)
-    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
-    spec.set_parameter_value("tracebox.dport",53)
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    svc = ScamperTraceboxService(tracebox6_specific_capability(LOOP6))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip6", LOOP6)
-    spec.set_parameter_value("destination.ip6", "2a00:1450:400c:c06::8a")
-    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-
-    
-    #testing icmp payload len retreival
-    svc = ScamperTraceboxService(tracebox4_specific_quotesize_capability(LOOP4))
-    spec = mplane.model.Specification(capability=svc.capability())
-    spec.set_parameter_value("source.ip4", LOOP4)
-    spec.set_parameter_value("destination.ip4", "23.212.108.142")
-    spec.set_parameter_value("tracebox.probe","IP/TCP/MSS/SACK/MPJOIN")
-    spec.set_when("now ... future")
-
-    res = svc.run(spec, lambda: False)
-    print(repr(res))
-    print(mplane.model.unparse_yaml(res))
-"""
-"""
-def parse_args():
-    global args
-    parser = argparse.ArgumentParser(description="Run an mPlane scamper probe server")
-    parser.add_argument('--ip4addr', '-4', metavar="source-v4-address",
-                        default="127.0.0.1",dest="IP4",help="Launch Tracebox from the given IPv4 address",)
-    parser.add_argument('--ip6addr', '-6', metavar="source-v6-address",
-                        default="::1",dest="IP6",help="Launch Tracebox from the given IPv6 address")
-    parser.add_argument('--disable-ssl', action='store_true', default=False, dest='DISABLE_SSL',
-                        help='Disable secure communication')
-    parser.add_argument('-c', '--certfile', metavar="path", dest='CERTFILE', default = None,
-                        help="Location of the configuration file for certificates")
-    parser.add_argument('-d', '--supervisor-ip4', metavar='supervisor-ip4', default=DEFAULT_SUPERVISOR_IP4, dest='SUPERVISOR_IP4',
-                        help='Supervisor IP address')
-    parser.add_argument('-p', '--supervisor-port', metavar='supervisor-port', default=DEFAULT_SUPERVISOR_PORT, dest='SUPERVISOR_PORT',
-                        help='Supervisor port number')
-    args = parser.parse_args()
-
-    # check format of Supervisor IP address
-    ip4_pattern = re.compile("^\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}$")
-    if not ip4_pattern.match(args.SUPERVISOR_IP4):
-        print('\nERROR: invalid Supervisor IP format \n')
-        parser.print_help()
-        sys.exit(1)
-
-    # check format of Supervisor port number
-    args.SUPERVISOR_PORT = int(args.SUPERVISOR_PORT)
-    if (args.SUPERVISOR_PORT <= 0 or args.SUPERVISOR_PORT > 65536):
-        print('\nERROR: invalid port number \n')
-        parser.print_help()
-        sys.exit(1)
-
-    # check if the file containing the paths for the 
-    # certificates has been inserted in the command line
-    # (only if security is enabled)
-    if args.DISABLE_SSL == False and not args.CERTFILE:
-        print('\nERROR: missing -C|--certfile\n')
-        parser.print_help()
-        sys.exit(1)
-"""
 
 def services(ip4addr = None, ip6addr = None):
     services = []
@@ -1208,19 +1081,17 @@ def services(ip4addr = None, ip6addr = None):
         services.append(ScamperService(tracebox4_standard_capability(ip4addr)))
         services.append(ScamperService(tracebox4_specific_capability(ip4addr)))
         services.append(ScamperService(tracebox4_specific_quotesize_capability(ip4addr)))
-        #services.append(ScamperService(ping4_aggregate_capability(ip4addr)))
-        #services.append(ScamperService(ping4_singleton_capability(ip4addr)))
+        services.append(ScamperService(ping4_aggregate_capability(ip4addr)))
+        services.append(ScamperService(ping4_singleton_capability(ip4addr)))
         services.append(ScamperService(trace4_standard_capability(ip4addr)))
-        #services.append(ScamperService(tracelb4_standard_capability(ip4addr)))
+        services.append(ScamperService(tracelb4_standard_capability(ip4addr)))
     if ip6addr is not None:
-        #services.append(ScamperService(ping6_aggregate_capability(ip6addr)))
-        #services.append(ScamperService(ping6_singleton_capability(ip6addr)))
+        services.append(ScamperService(ping6_aggregate_capability(ip6addr)))
+        services.append(ScamperService(ping6_singleton_capability(ip6addr)))
         services.append(ScamperService(tracebox6_standard_capability(ip6addr)))
         services.append(ScamperService(tracebox6_specific_capability(ip6addr)))
         services.append(ScamperService(tracebox6_specific_quotesize_capability(ip6addr)))
         services.append(ScamperService(trace6_standard_capability(ip6addr)))
-        #services.append(ScamperService(tracelb6_standard_capability(ip6addr)))
+        services.append(ScamperService(tracelb6_standard_capability(ip6addr)))
     return services
 
-
-        
