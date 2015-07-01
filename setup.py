@@ -15,6 +15,7 @@ setup(name='mplane-sdk',
       packages=['mplane'],
       package_data={'mplane': ['registry.json']},
       scripts=['scripts/mpcli', 'scripts/mpcom'],
+      install_requires=['pyyaml', 'urllib3', 'nose'],
       classifiers=["Development Status :: 3 - Alpha",
                    "Intended Audience :: Developers",
                    "License :: OSI Approved :: "

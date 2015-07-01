@@ -1682,7 +1682,7 @@ class Registry(object):
         return self._uri
 
 _base_registry = None
-_registries = {}
+_registries = collections.OrderedDict()
 
 def preload_registry(filename=None):
     global _registries
@@ -2185,9 +2185,7 @@ class Statement(object):
             if reguri is not None:
                 self._reguri = reguri
             else:
-                for uri in _registries:
-                    self._reguri = uri
-                    break
+                self._reguri = next(reversed(_registries))
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -2569,8 +2567,8 @@ class Capability(Statement):
 
     """
 
-    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, reguri=None):
-        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when, reguri=reguri)
+    def __init__(self, dictval=None, verb=VERB_MEASURE, label=None, token=None, when=None, registry_uri=None):
+        super().__init__(dictval=dictval, verb=verb, label=label, token=token, when=when, reguri=registry_uri)
 
     def _more_repr(self):
         return " p/m/r "+str(self.count_parameters())+"/"+\
