@@ -8,15 +8,15 @@ Measurement statements are fundamentally based on schemas divided into Parameter
 
 ## Learning More
 
-See [doc/HOWTO.md](https://github.com/fp7mplane/protocol-ri/blob/master/doc/HOWTO-component.md) for information on getting started with the mPlane SDK for demonstration purposes.
+See [doc/HOWTO.md](doc/HOWTO-component.md) for information on getting started with the mPlane SDK for demonstration purposes.
 
-See [doc/conf.md](https://github.com/fp7mplane/protocol-ri/blob/master/doc/conf.md) for an introduction to the mPlane SDK configuration file format.
+See [doc/conf.md](doc/conf.md) for an introduction to the mPlane SDK configuration file format.
 
-See [doc/client-shell.md](https://github.com/fp7mplane/protocol-ri/blob/master/doc/client-shell.md) for an introduction to `mpcli` debug client shell.
+See [doc/client-shell.md](doc/client-shell.md) for an introduction to `mpcli` debug client shell.
 
-See [doc/component-dev.md](https://github.com/fp7mplane/protocol-ri/blob/master/doc/component-dev.md) for an introduction to developing components with the mPlane SDK and running them with the `mpcom` runtime.
+See [doc/component-dev.md](doc/component-dev.md) for an introduction to developing components with the mPlane SDK and running them with the `mpcom` runtime.
 
-See [doc/protocol-spec.md](https://github.com/fp7mplane/protocol-ri/blob/master/doc/protocol-spec.md) for the mPlane protocol specification.
+See [doc/protocol-spec.md](doc/protocol-spec.md) for the mPlane protocol specification.
 
 ## Contents
 
