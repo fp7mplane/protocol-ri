@@ -27,8 +27,6 @@ import mplane.component
 import mplane.utils
 import mplane.tls
 
-import argparse
-import configparser
 import queue
 import re
 import tornado.web
@@ -44,7 +42,6 @@ class RelayService(mplane.scheduler.Service):
         self._client = client
         self._lock = lock
         self._messages = messages
-        # cap.add_metadata("probe.DN", identity)
         super(RelayService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
@@ -72,6 +69,8 @@ class RelayService(mplane.scheduler.Service):
                             self._messages[self._identity].remove(msg)
                             break
 
+        if not isinstance(result, mplane.model.Exception):
+            result.set_label(spec.get_label())
         result.set_token(spec.get_token())
         return result
 
@@ -80,8 +79,19 @@ class BaseSupervisor(object):
     def __init__(self, config):
         self._caps = []
         self.config = config
-        # boot the model
-        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+
+        # preload any registries necessary
+        if "registry_preload" in config["component"]:
+            mplane.model.preload_registry(
+                config["component"]["registry_preload"])
+
+        # initialize core registry
+        if "registry_uri" in config["component"]:
+            registry_uri = config["component"]["registry_uri"]
+        else:
+            registry_uri = None
+        mplane.model.initialize_registry(registry_uri)
+
         tls_state = mplane.tls.TlsState(config)
 
         self.from_cli = queue.Queue()
@@ -126,6 +136,7 @@ class BaseSupervisor(object):
             if not self.from_cli.empty():
                 [msg, identity] = self.from_cli.get()
                 self.handle_message(msg, identity)
+            sleep(0.1)
 
     def handle_message(self, msg, identity):
         if isinstance(msg, mplane.model.Capability):
@@ -133,6 +144,8 @@ class BaseSupervisor(object):
                 self._caps.append([msg.get_label(), identity])
                 serv = RelayService(msg, identity, self._client,
                                     self._lock, self._spec_messages)
+                if self.comp_workflow == "client-initiated":
+                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
                 self._component.scheduler.add_service(serv)
                 if self.comp_workflow == "component-initiated":
                     self._component.register_to_client([serv.capability()])
@@ -186,24 +199,3 @@ class BaseSupervisor(object):
                 self._client.result_for(token)
 
             sleep(5)
-
-if __name__ == "__main__":
-    # look for TLS configuration
-    parser = argparse.ArgumentParser(description="mPlane generic Supervisor")
-    parser.add_argument('--config', metavar="config-file",
-                        help="Configuration file")
-    args = parser.parse_args()
-
-    # check if conf file parameter has been inserted in the command line
-    if not args.config:
-        print('\nERROR: missing --config\n')
-        parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.config))
-    
-    # Start the supervisor
-    supervisor = BaseSupervisor(config)

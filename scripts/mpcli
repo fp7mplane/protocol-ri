@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env python3
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
 # mPlane Protocol Reference Implementation
@@ -7,19 +7,15 @@
 # (c) 2013-2014 mPlane Consortium (http://www.ict-mplane.eu)
 #               Author: Brian Trammell <brian@trammell.ch>
 #
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version. This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+# General Public License for more details. You should have received a copy
+# of the GNU General Public License along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
 
 import mplane.model
 import mplane.client
@@ -41,9 +37,26 @@ class ClientShell(cmd.Cmd):
     prompt = '|mplane| '
 
     def __init__(self, config):
+        # We're using our own root.
+        # FIXME figure out how to get
+        urllib3.disable_warnings()
 
-        # boot the model
-        mplane.model.initialize_registry(config["client"]["registry_uri"])
+        # preload any registries necessary
+        if "client" in config:
+
+            if "registry_preload" in config["client"]:
+                mplane.model.preload_registry(
+                    config["client"]["registry_preload"])
+
+            if "registry_uri" in config["client"]:
+                registry_uri = config["client"]["registry_uri"]
+            else:
+                registry_uri = None
+        else:
+            registry_uri = None
+
+        # load default registry
+        mplane.model.initialize_registry(registry_uri)
 
         super().__init__()
         tls_state = mplane.tls.TlsState(config)
@@ -55,25 +68,37 @@ class ClientShell(cmd.Cmd):
         # don't print tracebacks by default
         self._print_tracebacks = False
 
-        if config["client"]["workflow"] == "component-initiated":
-            self.workflow = "component-initiated"
+        # default workflow is client-initiated
+        # FIXME this should be boolean instead
+        self._workflow = "client-initiated"
+
+        if "client" in config:
+            if "workflow" in config["client"]:
+                self._workflow = config["client"]["workflow"]
+
+        if self._workflow == "component-initiated":
             self._client = mplane.client.HttpListenerClient(config=config,
                                                             tls_state=tls_state)
-        elif config["client"]["workflow"] == "client-initiated":
-            self.workflow = "client-initiated"
-            self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
-        else:
-            raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
+        elif self._workflow == "client-initiated":
+            self._client = mplane.client.HttpInitiatorClient(config=config,
+                                                             tls_state=tls_state)
 
-        if "default-url" in config["client"]:
-            self.do_seturl(config["client"]["default-url"])
-        if "capability-url" in config["client"]:
-            self.do_getcap(config["client"]["capability-url"])
+        else:
+            raise ValueError("workflow setting in " + args.CONF +
+                             " can only be 'client-initiated' or 'component-initiated'")
+
+
+        if "client" in config and self._workflow != "component-initiated":
+            if "default-url" in config["client"]:
+                self.do_seturl(config["client"]["default-url"])
+
+            if "capability-url" in config["client"]:
+                self.do_getcap(config["client"]["capability-url"])
 
     def do_seturl(self, arg):
         """
-        Set the default URL for this client. 
-        The default URL is the URL that will be used to invoke 
+        Set the default URL for this client.
+        The default URL is the URL that will be used to invoke
         capabilities which do not have an explicit link.
 
         Usage: seturl [url]
@@ -85,7 +110,7 @@ class ClientShell(cmd.Cmd):
             print("Usage: seturl [url]")
             return
 
-        if self.workflow == "client-initiated":
+        if self._workflow == "client-initiated":
             self._client.set_default_url(url)
         else:
             print("This command can only be used in client-initiated workflows")
@@ -98,7 +123,7 @@ class ClientShell(cmd.Cmd):
         Usage: getcap [url]
 
         """
-        if self.workflow == "client-initiated":
+        if self._workflow == "client-initiated":
             try:
                 url = arg.split()[0]
                 url = urllib3.util.parse_url(url)
@@ -109,13 +134,7 @@ class ClientShell(cmd.Cmd):
                 print("Usage: getcap [url]")
                 return
 
-            while True:
-                try:
-                    self._client.retrieve_capabilities(url)
-                    break
-                except:
-                    print("Url unreachable. Retrying in 5 seconds")
-                sleep(5)
+            self._client.retrieve_capabilities(url)
 
             print("ok")
         else:
@@ -124,10 +143,10 @@ class ClientShell(cmd.Cmd):
 
     def do_listcap(self, arg):
         """
-        List available capabilities by label (if available) or token 
+        List available capabilities by label (if available) or token
         (for unlabeled capabilities)
 
-        Usage: listcap 
+        Usage: listcap
 
         """
         for label in sorted(self._client.capability_labels()):
@@ -143,7 +162,7 @@ class ClientShell(cmd.Cmd):
         """
         Show details for a capability by label or token
 
-        Usage: showcap [label-or-token] 
+        Usage: showcap [label-or-token]
 
         """
         try:
@@ -168,7 +187,7 @@ class ClientShell(cmd.Cmd):
 
     def do_when(self, arg):
         """
-        Get or set a default temporal scope to use for capability 
+        Get or set a default temporal scope to use for capability
         invocation.
 
         Usage: when
@@ -186,7 +205,7 @@ class ClientShell(cmd.Cmd):
 
     def do_set(self, arg):
         """
-        Set a default parameter value for subsequent capability 
+        Set a default parameter value for subsequent capability
         invocation.
 
         Usage: set [parameter-name] [value]
@@ -213,7 +232,7 @@ class ClientShell(cmd.Cmd):
 
     def do_unset(self, arg):
         """
-        Unset values for previously set default parameters. 
+        Unset values for previously set default parameters.
         Without an argument, clears all defaults.
 
         Usage: unset
@@ -245,7 +264,7 @@ class ClientShell(cmd.Cmd):
 
     def do_show(self, arg):
         """
-        Show values for parameter defaults, or all values 
+        Show values for parameter defaults, or all values
         if no parameter names given
 
         Usage: show
@@ -351,7 +370,7 @@ class ClientShell(cmd.Cmd):
         """
         List running/completed measurements by label and/or token
 
-        Usage: listmeas 
+        Usage: listmeas
 
         """
         for label in self._client.receipt_labels():
@@ -383,7 +402,7 @@ class ClientShell(cmd.Cmd):
         """
         Interrupts the measurement identified by label and/or token
 
-        Usage: stopmeas [label-or-token] 
+        Usage: stopmeas [label-or-token]
 
         """
         try:
@@ -417,7 +436,7 @@ class ClientShell(cmd.Cmd):
         """
         Show details of measurements by label and/or token
 
-        Usage: showmeas [label-or-token] 
+        Usage: showmeas [label-or-token]
 
         """
         try:
@@ -473,16 +492,17 @@ if __name__ == "__main__":
                         help="Configuration file")
     args = parser.parse_args()
 
-    # check if conf file parameter has been inserted in the command line
-    if not args.config:
-        print('\nERROR: missing --config\n')
-        parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.config))
+    # Read the configuration file, if given
+    if args.config:
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(mplane.utils.search_path(args.config))
+    else:
+        # hack a default configuration together
+        config = {}
+        config["is_default"] = True
+        config["client"] = {}
+        config["client"]["workflow"] = "client-initiated"
 
     # create a shell
     cs = ClientShell(config)

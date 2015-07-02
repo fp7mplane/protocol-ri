@@ -24,11 +24,11 @@
 
 # ## Common TLS Configuration
 
-# Clients and components should be able to load a configuration file 
-# (`tls.conf`) which refers to CA, private key, and certificate files, 
-# for setting up a TLS context. This TLS context should be common to 
-# all other code (`mplane/tls.py`). When the TLS configuration file 
-# is not present, `https://` URLs will not be supported; when present, 
+# Clients and components should be able to load a configuration file
+# (`tls.conf`) which refers to CA, private key, and certificate files,
+# for setting up a TLS context. This TLS context should be common to
+# all other code (`mplane/tls.py`). When the TLS configuration file
+# is not present, `https://` URLs will not be supported; when present,
 # the use of TLS will be selected based on the URL used.
 
 # - SSB will pull this out of existing utils.py and stepenta/RI code.
@@ -40,12 +40,12 @@ import tornado.httpserver
 from socket import socket
 import mplane.utils
 
-DUMMY_DN = "Dummy.Distinguished.Name"
+DUMMY_DN = "Identity.Unauthenticated.Default"
 
 class TlsState:
-    
+
     def __init__(self, config, forged_identity=None):
-        if "TLS" not in config.sections():
+        if "TLS" not in config:
             self._cafile = None
             self._certfile = None
             self._keyfile = None
@@ -54,18 +54,18 @@ class TlsState:
             self._cafile = mplane.utils.search_path(config["TLS"]["ca-chain"])
             self._certfile = mplane.utils.search_path(config["TLS"]["cert"])
             self._keyfile = mplane.utils.search_path(config["TLS"]["key"])
-        
+
         # load cert and get DN
         self._identity = self.extract_local_identity(forged_identity)
-    
+
     @functools.lru_cache()
     def pool_for(self, scheme, host, port):
         """
         Given a URL (from which a scheme and host can be extracted),
-        return a connection pool (potentially with TLS state) 
+        return a connection pool (potentially with TLS state)
         which can be used to connect to the URL.
         """
-        
+
         if scheme is None:
             if self._keyfile:
                 return urllib3.HTTPSConnectionPool(host, port,
@@ -87,7 +87,7 @@ class TlsState:
                 exit(1)
         elif scheme == "file":
             # FIXME what to do here?
-            raise ValueError("Unsupported scheme "+scheme)            
+            raise ValueError("Unsupported scheme "+scheme)
         else:
             raise ValueError("Unsupported scheme "+scheme)
 
@@ -105,7 +105,7 @@ class TlsState:
         if self._keyfile:
             return dict(certfile=self._certfile,
                          keyfile=self._keyfile,
-                        ca_certs=self._cafile, 
+                        ca_certs=self._cafile,
                        cert_reqs=ssl.CERT_REQUIRED)
         else:
             return None
@@ -114,7 +114,7 @@ class TlsState:
 
     def extract_local_identity(self, forged_identity = None):
         """
-        Extract an identity from the designated name in an X.509 certificate 
+        Extract an identity from the designated name in an X.509 certificate
         file with an ASCII preamble (as used in mPlane)
         """
         if self._keyfile:
@@ -127,7 +127,7 @@ class TlsState:
                         for field in fields:
                             if identity == "":
                                 identity = identity + field.split('=')[1]
-                            else: 
+                            else:
                                identity = identity + "." + field.split('=')[1]
         else:
             if forged_identity is None:
@@ -135,10 +135,10 @@ class TlsState:
             else:
                 identity = forged_identity
         return identity
-    
+
     def extract_peer_identity(self, url_or_req):
         """
-        Extract an identity from a Tornado's 
+        Extract an identity from a Tornado's
         HTTPRequest, or from a Urllib3's Url
         """
         if self._keyfile:
@@ -147,9 +147,9 @@ class TlsState:
                 # Unfortunately, there seems to be no way to do this using urllib3,
                 # thus ssl library is being used
                 s = socket()
-                c = ssl.wrap_socket(s,cert_reqs=ssl.CERT_REQUIRED, 
-                                    keyfile=self._keyfile, 
-                                    certfile=self._certfile, 
+                c = ssl.wrap_socket(s,cert_reqs=ssl.CERT_REQUIRED,
+                                    keyfile=self._keyfile,
+                                    certfile=self._certfile,
                                     ca_certs=self._cafile)
                 c.connect((url_or_req.host, url_or_req.port))
                 cert = c.getpeercert()
@@ -158,12 +158,12 @@ class TlsState:
                 cert = url_or_req.get_ssl_certificate()
             else:
                 raise ValueError("Passed argument is not a urllib3.util.url.Url or tornado.httpserver.HTTPRequest")
-            
+
             identity = ""
             for elem in cert.get('subject'):
                 if identity == "":
                     identity = identity + str(elem[0][1])
-                else: 
+                else:
                     identity = identity + "." + str(elem[0][1])
         else:
             identity = DUMMY_DN

@@ -2,7 +2,7 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
 # mPlane Software Development Kit
-# Component runtime
+# Demonstration supervisor runtime
 #
 # (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
@@ -23,20 +23,19 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import mplane.component
+import mplane.supervisor
 import configparser
 import argparse
 
 if __name__ == "__main__":
-
-    global args
-    parser = argparse.ArgumentParser(description='mplane component runtime')
-    parser.add_argument('--config', metavar='conf-file', dest='CONF',
-                        help='Configuration file for the component')
+    # look for TLS configuration
+    parser = argparse.ArgumentParser(description="mPlane generic Supervisor")
+    parser.add_argument('--config', metavar="config-file",
+                        help="Configuration file")
     args = parser.parse_args()
 
     # check if conf file parameter has been inserted in the command line
-    if not args.CONF:
+    if not args.config:
         print('\nERROR: missing --config\n')
         parser.print_help()
         exit(1)
@@ -44,11 +43,7 @@ if __name__ == "__main__":
     # Read the configuration file
     config = configparser.ConfigParser()
     config.optionxform = str
-    config.read(mplane.utils.search_path(args.CONF))
+    config.read(mplane.utils.search_path(args.config))
 
-    if config["component"]["workflow"] == "component-initiated":
-        component = mplane.component.InitiatorHttpComponent(config)
-    elif config["component"]["workflow"] == "client-initiated":
-        component = mplane.component.ListenerHttpComponent(config)
-    else:
-        raise ValueError("need either a 'client-initiated' or 'component-initiated' workflow in " + args.CONF + "")
+    # Start the supervisor
+    supervisor = mplane.supervisor.BaseSupervisor(config)

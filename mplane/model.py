@@ -350,6 +350,8 @@ VALUE_NONE = "*"
 TIME_PAST = "past"
 TIME_NOW = "now"
 TIME_FUTURE = "future"
+#FIX ME
+MAX_TIME = 100000
 
 WHEN_REPEAT = "repeat "
 WHEN_CRON = " cron "
@@ -481,7 +483,9 @@ def parse_dur(valstr):
         return None
     else:
         m = _dur_re.match(valstr)
-        if m:
+        if "inf" == valstr:
+            return timedelta(seconds=MAX_TIME*_dur_seclabel[0][0])
+        elif m:
             mg = m.groups()
             valsec = 0
             for i in range(4):
@@ -1586,7 +1590,7 @@ class Registry(object):
         return len(self._elements)
 
     def __getitem__(self, name):
-        return self._elements[name]
+        return self._elements.get(name, None)
 
     def _add_element(self, elem):
         self._elements[elem.name()] = elem
@@ -1686,20 +1690,8 @@ _registries = collections.OrderedDict()
 
 def preload_registry(filename=None):
     global _registries
-    _registries[uri] = Registry(filename=filename)
-
-def initialize_registry(uri=REGURI_DEFAULT):
-    """
-    Initializes the mPlane registry from a URI; if no URI is given,
-    initializes the registry from the internal core registry.
-
-    Call this before doing anything else.
-
-    """
-    global _base_registry
-    global _registries
-    _base_registry = Registry(uri=uri)
-    _registries[uri] = _base_registry
+    preloaded = Registry(filename=filename)
+    _registries[preloaded.uri()] = preloaded
 
 def registry_for_uri(uri):
     """
@@ -1714,6 +1706,17 @@ def registry_for_uri(uri):
 
     return _registries[uri]
 
+def initialize_registry(uri=REGURI_DEFAULT):
+    """
+    Initializes the mPlane registry from a URI; if no URI is given,
+    initializes the registry from the internal core registry.
+
+    Call this after preloading registries, but before doing anything else.
+
+    """
+    global _base_registry
+    _base_registry = registry_for_uri(uri)
+
 def element(name, reguri=None):
     """
     Returns the Element with the given name.
@@ -1722,10 +1725,15 @@ def element(name, reguri=None):
     """
     global _base_registry
     global _registries
-    if reguri:
-        return _registries[reguri][name]
-    else:
+
+    for reg in _registries:
+        if _registries[reg][name] != None:
+            return _registries[reg][name]
+    if _base_registry[name] != None:
         return _base_registry[name]
+
+    # fall-through: no results
+    raise KeyError("Key error: " + name + " not present in registries")
 
 def test_registry():
     # default registry trough the Registry-Object
@@ -1759,8 +1767,6 @@ def test_registry():
     assert element("start").name() == "start"
     assert element("start").primitive_name() == "time"
     assert element("start").desc() == "Start time of an event/flow that may have a non-zero duration"
-
-
 
 #######################################################################
 # Constraints
@@ -1910,7 +1916,7 @@ class _SetConstraint(_Constraint):
 
 class _NetworkConstraint(_Constraint):
   """
-  Represents acceptable values as a network address with a prefix length. 
+  Represents acceptable values as a network address with a prefix length.
   Not yet implemented.
 
   """
@@ -2185,7 +2191,7 @@ class Statement(object):
             if reguri is not None:
                 self._reguri = reguri
             else:
-                self._reguri = next(reversed(_registries))
+                self._reguri = _base_registry.uri()
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._verb+self._label_repr()+\
@@ -2893,6 +2899,7 @@ class _StatementNotification(Statement):
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
             self._token = statement.get_token()
+            self._reguri = statement._reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"
@@ -3153,7 +3160,7 @@ def render(msg):
         out = "%s: %s\n" % (msg.kind_str(), msg.verb())
 
     for section in (KEY_MESSAGE, KEY_LABEL, KEY_LINK,
-                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN):
+                    KEY_EXPORT, KEY_TOKEN, KEY_WHEN, KEY_REGISTRY):
         if section in d:
             out += "    %-12s: %s\n" % (section, d[section])
 
