@@ -8,7 +8,7 @@ Measurement statements are fundamentally based on schemas divided into Parameter
 
 ## Learning More
 
-See [doc/HOWTO.md](doc/HOWTO-component.md) for information on getting started with the mPlane SDK for demonstration purposes.
+See [doc/HOWTO.md](doc/HOWTO.md) for information on getting started with the mPlane SDK for demonstration purposes.
 
 See [doc/conf.md](doc/conf.md) for an introduction to the mPlane SDK configuration file format.
 
