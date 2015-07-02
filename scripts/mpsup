@@ -2,7 +2,7 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
 # mPlane Software Development Kit
-# Component runtime
+# Demonstration supervisor runtime
 #
 # (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
@@ -44,6 +44,6 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.optionxform = str
     config.read(mplane.utils.search_path(args.config))
-    
+
     # Start the supervisor
     supervisor = mplane.supervisor.BaseSupervisor(config)

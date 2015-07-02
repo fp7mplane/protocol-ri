@@ -20,6 +20,20 @@ or query. Measurement interoperability is provided at the element level;
 that is, measurements containing the same Parameters and Result Columns
 are considered to be of the same type and therefore comparable.
 
+
+Learning More
+-------------
+
+See `doc/HOWTO.md <https://github.com/fp7mplane/protocol-ri/blob/sdk/doc/HOWTO-component.md>` for information on getting started with the mPlane SDK for demonstration purposes.
+
+See `doc/conf.md <https://github.com/fp7mplane/protocol-ri/blob/sdk/doc/conf.md>` for an introduction to the mPlane SDK configuration file format.
+
+See `doc/client-shell.md <https://github.com/fp7mplane/protocol-ri/blob/sdk/doc/client-shell.md>` for an introduction to `mpcli` debug client shell.
+
+See `doc/component-dev.md <https://github.com/fp7mplane/protocol-ri/blob/sdk/doc/component-dev.md>` for an introduction to developing components with the mPlane SDK and running them with the `mpcom` runtime.
+
+See `doc/protocol-spec.md <https://github.com/fp7mplane/protocol-ri/blob/sdk/doc/protocol-spec.md>` for the mPlane protocol specification.
+
 Using the mPlane SDK
 ====================
 
