@@ -28,8 +28,7 @@ See [https://fp7mplane.github.io/protocol-ri](https://fp7mplane.github.io/protoc
 - `mplane.azn`: Handles access control, mapping identities to roles and authorizing roles to use specific services.
 - `mplane.client`: mPlane client framework. Handles client-initiated (`HttpClient`) and component-initiated (`ListenerHttpClient`) workflows.
 
-There are three scripts installed with the package, as well:
+There are two scripts installed with the package, as well:
 
 - `mpcli`: Simple client with command-line shell for debugging.
 - `mpcom`: mPlane component runtime. Handles client-initiated and component-initiated workflows.
-- `mpsup`: Stub supervisor for demonstration purposes

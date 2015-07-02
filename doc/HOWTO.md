@@ -1,16 +1,16 @@
-# HOWTO
+# Demonstration and Example Component HOWTO
 
-This document describes how to get started with the mPlane SDK, the included component runtime `mpcom`, the debugging client `mpcli`, and the demonstration supervisor `mpsup`.
+This document describes how to get started with the mPlane SDK, the included component runtime `mpcom`, the debugging client `mpcli`, and the demonstration supervisor `mpsup`. It presumes that the software is run from the root directory of a working copy of the https://github.com/fp7mplane/protocol-ri Git repository. The demonstration supervisor and the sample configuration files are *not* installed with the release SDK module.
 
 ## Run Supervisor, Component and Client
 
-To start the demonstration Supervisor with the included sample configuration and certificates, run:
+To start the demonstration Supervisor with the included sample configuration and certificates, change to the repository directory and run:
 
-```mpsup --config ./conf/supervisor.conf```
+```scripts/mpsup --config ./conf/supervisor.conf```
 
 To run the Component:
 
-```mpcom --config ./conf/component.conf```
+```scripts/mpcom --config ./conf/component.conf```
 
 At this point, the Component will automatically register its capabilities to the Supervisor. Now launch the Client:
 
