@@ -69,7 +69,8 @@ class RelayService(mplane.scheduler.Service):
                             self._messages[self._identity].remove(msg)
                             break
 
-        if not isinstance(result, mplane.model.Exception):
+        if (not isinstance(result, mplane.model.Exception)
+           and not isinstance(result, mplane.model.Envelope)):
             result.set_label(spec.get_label())
         result.set_token(spec.get_token())
         return result
