@@ -65,7 +65,8 @@ class BaseComponent(object):
         self.scheduler = mplane.scheduler.Scheduler(config)
 
         for service in self._services():
-            if config["component"]["workflow"] == "client-initiated":
+            if config["component"]["workflow"] == "client-initiated" and \
+                      "listen-cap-link" in config["component"]:
                 service.set_capability_link(config["component"]["listen-cap-link"])
             else:
                 service.set_capability_link("")
