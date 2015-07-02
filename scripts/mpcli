@@ -38,9 +38,16 @@ class ClientShell(cmd.Cmd):
 
     def __init__(self, config):
         # We're using our own root.
-        # FIXME figure out how to get
-        urllib3.disable_warnings()
 
+        # FIXME HACK
+        # some urllib3 versions let you disable warnings about untrusted CAs,
+        # which we use a lot in the project demo. Try to disable warnings if
+        # we can.
+        try:
+            urllib3.disable_warnings()
+        except:
+            pass
+            
         # preload any registries necessary
         if "client" in config:
 

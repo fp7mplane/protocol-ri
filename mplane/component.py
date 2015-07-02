@@ -34,8 +34,15 @@ from datetime import datetime
 import time
 from time import sleep
 import urllib3
-if mplane.utils.versiontuple(urllib3.__version__) > mplane.utils.versiontuple("1.9"):
+
+# FIXME HACK
+# some urllib3 versions let you disable warnings about untrusted CAs,
+# which we use a lot in the project demo. Try to disable warnings if we can.
+try:
     urllib3.disable_warnings()
+except:
+    pass
+
 from threading import Thread
 import json
 
