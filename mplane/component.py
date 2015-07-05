@@ -113,7 +113,7 @@ class ListenerHttpComponent(BaseComponent):
                         ssl_options=self.tls.get_ssl_options())
         http_server.listen(self._port)
         print("ListenerHttpComponent running on port "+str(self._port))
-        comp_t = Thread(target=self.listen_in_background(io_loop))
+        comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
         comp_t.start()
 
