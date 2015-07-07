@@ -411,6 +411,12 @@ class Scheduler(object):
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
 
+    def remove_service(self, service):
+        """Remove a service from this Scheduler"""
+        self.services.remove(service)
+        withdrawn_cap = mplane.model.Withdrawal(capability=service.capability())
+        self._capability_cache[withdrawn_cap.get_token()] = withdrawn_cap
+
     def capability_keys(self):
         """
         Return keys (tokens) for the set of cached capabilities

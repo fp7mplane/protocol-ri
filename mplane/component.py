@@ -92,6 +92,13 @@ class BaseComponent(object):
                     services.append(service)
         return services
 
+    def remove_capability(self, capability):
+        for service in self.scheduler.services:
+            if service.capability().get_label() == capability.get_label():
+                self.scheduler.remove_service(service)
+                return
+        print("No such service with label " + capability.get_label())
+
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
@@ -163,8 +170,10 @@ class DiscoveryHandler(MPlaneHandler):
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
         for key in self.scheduler.capability_keys():
-            if self.scheduler.azn.check(self.scheduler.capability_for_key(key), self.tls.extract_peer_identity(self.request)):
-            	self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
+            if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
+                    self.scheduler.azn.check(self.scheduler.capability_for_key(key),
+                                             self.tls.extract_peer_identity(self.request))):
+                self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
         self.write("</body></html>")
         self.finish()
 
@@ -192,7 +201,9 @@ class MessagePostHandler(MPlaneHandler):
         self.write("This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.<br/>")
         self.write("<a href='/"+CAPABILITY_PATH_ELEM+"'>Capabilities</a> provided by this server:<br/>")
         for key in self.scheduler.capability_keys():
-            if self.scheduler.azn.check(self.scheduler.capability_for_key(key), self.tls.extract_peer_identity(self.request)):
+            if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
+                    self.scheduler.azn.check(self.scheduler.capability_for_key(key),
+                                             self.tls.extract_peer_identity(self.request))):
                 self.write("<br/><pre>")
                 self.write(mplane.model.unparse_json(self.scheduler.capability_for_key(key)))
         self.write("</body></html>")
@@ -206,23 +217,32 @@ class MessagePostHandler(MPlaneHandler):
             # FIXME how do we tell tornado we don't want to handle this?
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
-        # hand message to scheduler
-        reply = self.scheduler.process_message(self.tls.extract_peer_identity(self.request), msg)
+        is_withdrawn = False
+        if isinstance(msg, mplane.model.Specification):
+            for key in self.scheduler.capability_keys():
+                cap = self.scheduler.capability_for_key(key)
+                if msg.fulfills(cap) and isinstance(cap, mplane.model.Withdrawal):
+                    is_withdrawn = True
+                    self._respond_message(cap)
 
-        # wait for immediate delay
-        if self.immediate_ms > 0 and \
-           isinstance(msg, mplane.model.Specification) and \
-           isinstance(reply, mplane.model.Receipt):
-            job = self.scheduler.job_for_message(reply)
-            wait_start = datetime.utcnow()
-            while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
-                time.sleep(SLEEP_QUANTUM)
-                if job.failed() or job.finished():
-                    reply = job.get_reply()
-                    break
+        if not is_withdrawn:
+            # hand message to scheduler
+            reply = self.scheduler.process_message(self.tls.extract_peer_identity(self.request), msg)
 
-        # return reply
-        self._respond_message(reply)
+            # wait for immediate delay
+            if self.immediate_ms > 0 and \
+               isinstance(msg, mplane.model.Specification) and \
+               isinstance(reply, mplane.model.Receipt):
+                job = self.scheduler.job_for_message(reply)
+                wait_start = datetime.utcnow()
+                while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
+                    time.sleep(SLEEP_QUANTUM)
+                    if job.failed() or job.finished():
+                        reply = job.get_reply()
+                        break
+
+            # return reply
+            self._respond_message(reply)
 
 class InitiatorHttpComponent(BaseComponent):
 
@@ -329,8 +349,14 @@ class InitiatorHttpComponent(BaseComponent):
         while(True):
             # FIXME configurable default idle time.
             self.idle_time = 5
+
             # send a request for specifications
-            res = self.pool.request('GET', self.specification_path)
+            try:
+                res = self.pool.request('GET', self.specification_path)
+            except:
+                print("Supervisor down. Trying to re-register...")
+                self.register_to_client()
+
             if res.status == 200:
 
                 # specs retrieved: split them if there is more than one
@@ -354,7 +380,7 @@ class InitiatorHttpComponent(BaseComponent):
             # not registered on supervisor, need to re-register
             elif res.status == 428:
                 print("\nRe-registering capabilities on Client/Supervisor")
-                self.register_to_supervisor()
+                self.register_to_client()
 
             sleep(self.idle_time)
 
@@ -400,3 +426,8 @@ class InitiatorHttpComponent(BaseComponent):
             print("Error returning Result for " + label)
             print("Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
+
+    def remove_capability(self, capability):
+        super(InitiatorHttpComponent, self).remove_capability(capability)
+        withdrawn_cap = mplane.model.Withdrawal(capability=capability)
+        self.register_to_client([withdrawn_cap])

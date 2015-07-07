@@ -145,10 +145,13 @@ class BaseSupervisor(object):
                 self._caps.append([msg.get_label(), identity])
                 serv = RelayService(msg, identity, self._client,
                                     self._lock, self._spec_messages)
-                if self.comp_workflow == "client-initiated":
-                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
                 self._component.scheduler.add_service(serv)
-                if self.comp_workflow == "component-initiated":
+
+                if self.comp_workflow == "client-initiated" and \
+                      "listen-cap-link" in self.config["component"]:
+                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
+                if self.comp_workflow == "component-initiated" and \
+                        not msg.get_label() == "callback":
                     self._component.register_to_client([serv.capability()])
 
         elif isinstance(msg, mplane.model.Receipt):
@@ -160,8 +163,9 @@ class BaseSupervisor(object):
                 mplane.utils.add_value_to(self._spec_messages, identity, msg)
             
         elif isinstance(msg, mplane.model.Withdrawal):
-            # not yet implemented
-            pass
+            if not msg.get_label() == "callback":
+                self._component.remove_capability(self._component.scheduler.capability_for_key(msg.get_token()))
+                self._caps.remove([msg.get_label(), identity])
 
         elif isinstance(msg, mplane.model.Envelope):
             for imsg in msg.messages():
