@@ -118,7 +118,3 @@ def parse_url(url):
     else:
         link = link + "/" + url.path
     return link
-
-
-def versiontuple(version_string):
-    return tuple(map(int, (version_string.split("."))))

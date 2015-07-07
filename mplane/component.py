@@ -34,8 +34,15 @@ from datetime import datetime
 import time
 from time import sleep
 import urllib3
-if mplane.utils.versiontuple(urllib3.__version__) > mplane.utils.versiontuple("1.9"):
+
+# FIXME HACK
+# some urllib3 versions let you disable warnings about untrusted CAs,
+# which we use a lot in the project demo. Try to disable warnings if we can.
+try:
     urllib3.disable_warnings()
+except:
+    pass
+
 from threading import Thread
 import json
 
@@ -65,7 +72,8 @@ class BaseComponent(object):
         self.scheduler = mplane.scheduler.Scheduler(config)
 
         for service in self._services():
-            if config["component"]["workflow"] == "client-initiated":
+            if config["component"]["workflow"] == "client-initiated" and \
+                      "listen-cap-link" in config["component"]:
                 service.set_capability_link(config["component"]["listen-cap-link"])
             else:
                 service.set_capability_link("")
