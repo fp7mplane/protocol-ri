@@ -100,12 +100,12 @@ class ListenerHttpComponent(BaseComponent):
             (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
         ])
+
         http_server = tornado.httpserver.HTTPServer(
-                        application,
-                        ssl_options=self.tls.get_ssl_options())
+                                application,
+                                ssl_options=self.tls.get_ssl_options())
         http_server.listen(self._port)
-        print("ListenerHttpComponent running on port "+str(self._port))
-        comp_t = Thread(target=self.listen_in_background(io_loop))
+        comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
         comp_t.start()
 
