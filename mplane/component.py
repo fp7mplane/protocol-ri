@@ -79,7 +79,7 @@ class ListenerHttpComponent(BaseComponent):
         ])
         http_server = tornado.httpserver.HTTPServer(application, ssl_options=self.tls.get_ssl_options())
         http_server.listen(port)
-        comp_t = Thread(target=self.listen_in_background(io_loop))
+        comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
         comp_t.start()
 

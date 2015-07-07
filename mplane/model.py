@@ -1289,7 +1289,10 @@ class _Primitive(object):
         if val is None:
             return VALUE_NONE
         else:
-            return str(val)
+            if isinstance(val, list) or isinstance(val, tuple):
+                return val
+            else:
+                return str(val)
 
 class _StringPrimitive(_Primitive):
     """
@@ -2380,7 +2383,7 @@ class Statement(object):
         spv = [self._params[k].unparse(self._params[k].get_value()) for k in spk]
         tstr = self._reguri + self._verb + " w " + str(self._when) +\
                " pk " + " ".join(spk) + \
-               " pv " + " ".join(spv) + \
+               " pv " + " ".join([str(x) for x in spv]) + \
                " r " + " ".join(sorted(self._resultcolumns.keys()))
         if astr:
             tstr += astr
@@ -2502,7 +2505,10 @@ class Statement(object):
 
         """
         for (k, v) in d.items():
-            self.add_parameter(k, val=v)
+            if isinstance(v, list) or isinstance(v, tuple):
+                self.add_parameter(k, val=v, constraint=constraint_all_multiple)
+            else:
+                self.add_parameter(k, val=v, constraint=constraint_all)
 
     def _from_dict(self, d):
         """
