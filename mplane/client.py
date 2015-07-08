@@ -812,19 +812,23 @@ class SpecificationHandler(MPlaneHandler):
     def get(self):
         identity = self._tls.extract_peer_identity(self.request)
 
-        # reset timeouts for capabilities from the component
-        for token in self._listenerclient._capabilities_by_identity[identity]:
-            self._listenerclient._capability_timeouts[token] = datetime.utcnow()
+        if identity in self._listenerclient._capabilities_by_identity:
+            # reset timeouts for capabilities from the component
+            for token in self._listenerclient._capabilities_by_identity[identity]:
+                self._listenerclient._capability_timeouts[token] = datetime.utcnow()
 
-        specs = self._listenerclient._outgoing.pop(identity, [])
-        env = mplane.model.Envelope()
-        for spec in specs:
-            env.append_message(spec)
-            if isinstance(spec, mplane.model.Specification):
-                print("Specification " + spec.get_label() + " successfully pulled by " + identity)
-            else:
-                print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
-        self._respond_json_text(200, mplane.model.unparse_json(env))
+            specs = self._listenerclient._outgoing.pop(identity, [])
+            env = mplane.model.Envelope()
+            for spec in specs:
+                env.append_message(spec)
+                if isinstance(spec, mplane.model.Specification):
+                    print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+                else:
+                    print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
+            self._respond_json_text(200, mplane.model.unparse_json(env))
+        else:
+            self._respond_plain_text(428, "not registered")
+
 
 class ResultHandler(MPlaneHandler):
     """
