@@ -169,12 +169,18 @@ class DiscoveryHandler(MPlaneHandler):
         self.set_status(200)
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
+        no_caps_exposed = True
         for key in self.scheduler.capability_keys():
             if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
                     self.scheduler.azn.check(self.scheduler.capability_for_key(key),
                                              self.tls.extract_peer_identity(self.request))):
+                no_caps_exposed = False
                 self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
         self.write("</body></html>")
+
+        if no_caps_exposed is True:
+                print("\nNo Capabilities are being exposed to " + self.tls.extract_peer_identity(self.request) +
+                      ", check permissions in config file")
         self.finish()
 
     def _respond_capability(self, key):
@@ -314,9 +320,11 @@ class InitiatorHttpComponent(BaseComponent):
                     env.append_message(cap)
                     no_caps_exposed = False
 
-            if no_caps_exposed is True and self._supervisor == False:
-                print("\nNo Capabilities are being exposed to " + self._client_identity + ", check permissions in config file. Exiting")
-                exit(0)
+            if no_caps_exposed is True:
+                print("\nNo Capabilities are being exposed to " + self._client_identity +
+                      ", check permissions in config file. Exiting")
+                if self._supervisor is False:
+                    exit(0)
 
             # add callback capability to the list
             callback_cap = mplane.model.Capability(label="callback", when = "now ... future")
