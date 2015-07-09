@@ -421,10 +421,20 @@ class InitiatorHttpComponent(BaseComponent):
 
         if "repository_uri" in self.config["component"]:
             (proto, hostAndPort) = self.config["component"]["repository_uri"].split("://") # udp://127.0.0.1:9900
-            (host, port) = hostAndPort.split(":")
-            if proto == "udp":
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, int(port)))
+            (host, port) = ("", "")
+            try:
+                (host, port) = hostAndPort.split(":")
+                port = int(port)
+            except:
+                raise ValueError("repository_uri given, but in a wrong format")
+            if host and port:
+                if proto == "udp":
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, port))
+                else:
+                    raise ValueError("repository_uri given, but protocol is wrong")
+            else:
+                raise ValueError("repository_uri given, but in a wrong format")
 
         # handle response
         if isinstance(reply, mplane.model.Envelope):
