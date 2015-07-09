@@ -34,6 +34,7 @@ from datetime import datetime
 import time
 from time import sleep
 import urllib3
+import socket
 
 # FIXME HACK
 # some urllib3 versions let you disable warnings about untrusted CAs,
@@ -416,6 +417,14 @@ class InitiatorHttpComponent(BaseComponent):
             res = pool.urlopen('POST', result_url.path,
                     body=mplane.model.unparse_json(reply).encode("utf-8"),
                     headers={"content-type": "application/x-mplane+json"})
+
+
+        if "repository_uri" in self.config["component"]:
+            (proto, hostAndPort) = self.config["component"]["repository_uri"].split("://") # udp://127.0.0.1:9900
+            (host, port) = hostAndPort.split(":")
+            if proto == "udp":
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, int(port)))
 
         # handle response
         if isinstance(reply, mplane.model.Envelope):
