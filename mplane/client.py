@@ -616,8 +616,16 @@ class HttpListenerClient(BaseClient):
             result_path = config["Client"]["Listener"]["result-path"]
 
         ipaddresses = None
-        if "interfaces" in config["Client"]["Listener"]:
+        if "interfaces" in config["Client"]["Listener"] and config["Client"]["Listener"]["interfaces"]:
             ipaddresses = config["Client"]["Listener"]["interfaces"]
+            if "TLS" in config:
+                self._link = "https://"
+            else:
+                self._link = "http://"
+            self._link = self._link + ipaddresses[0] + ":"
+            self._link = self._link + config["Client"]["Listener"]["port"] + "/" + result_path
+        else:
+            self._link = ""
 
         # Outgoing messages per component identifier
         self._outgoing = {}

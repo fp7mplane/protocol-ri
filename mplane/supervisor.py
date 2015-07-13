@@ -106,38 +106,39 @@ class BaseSupervisor(object):
         self._spec_messages = dict()
         self._io_loop = tornado.ioloop.IOLoop.instance()
         if config is None:
-            self._client = mplane.client.HttpListenerClient(config=config["Supervisor"],
+            self._client = mplane.client.HttpListenerClient(config=config,
                                                             tls_state=tls_state, supervisor=True,
                                                             exporter=self.from_cli,
                                                             io_loop=self._io_loop)
 
-            self._component = mplane.component.ListenerHttpComponent(config["Supervisor"],
+            self._component = mplane.component.ListenerHttpComponent(config,
                                                                      io_loop=self._io_loop)
         else:
-            if "Initiator" in self.config["Supervisor"]["Client"] and "Listener" in self.config["Supervisor"]["Client"]:
+            if ("Initiator" in self.config["Client"]
+                    and "Listener" in self.config["Client"]):
                 raise ValueError("The supervisor client-side cannot be 'Initiator' and 'Listener' simultaneously. "
                                  "Remove one of them from " + self.config + "[\"Client\"]")
-            elif "Listener" in self.config["Supervisor"]["Client"]:
-                self._client = mplane.client.HttpListenerClient(config=self.config["Supervisor"],
+            elif "Listener" in self.config["Client"]:
+                self._client = mplane.client.HttpListenerClient(config=self.config,
                                                                 tls_state=tls_state, supervisor=True,
                                                                 exporter=self.from_cli,
                                                                 io_loop=self._io_loop)
-            elif "Initiator" in self.config["Supervisor"]["Client"]:
+            elif "Initiator" in self.config["Client"]:
                 self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state, supervisor=True,
                                                                  exporter=self.from_cli)
-                self._urls = self.config["Supervisor"]["Client"]["capability-url"]
+                self._urls = self.config["Client"]["capability-url"]
             else:
                 raise ValueError("Need either a 'Initiator' or 'Listener' object under 'Client' in config file")
 
-            if ("Initiator" in self.config["Supervisor"]["Component"]
-                and "Listener" in self.config["Supervisor"]["Component"]):
+            if ("Initiator" in self.config["Component"]
+                and "Listener" in self.config["Component"]):
                 raise ValueError("The supervisor component-side cannot be 'Initiator' and 'Listener' simultaneously. "
                                  "Remove one of them from " + args.config + "[\"Component\"]")
-            if "Initiator" in self.config["Supervisor"]["Component"]:
-                self._component = mplane.component.InitiatorHttpComponent(self.config["Supervisor"],
+            elif "Initiator" in self.config["Component"]:
+                self._component = mplane.component.InitiatorHttpComponent(self.config,
                                                                           supervisor=True)
-            elif "Listener" in self.config["Supervisor"]["Component"]:
-                self._component = mplane.component.ListenerHttpComponent(self.config["Supervisor"],
+            elif "Listener" in self.config["Component"]:
+                self._component = mplane.component.ListenerHttpComponent(self.config,
                                                                          io_loop=self._io_loop)
             else:
                 raise ValueError("Need either a 'Initiator' or 'Listener' object under 'Component' in config file")
@@ -145,12 +146,12 @@ class BaseSupervisor(object):
         self.run()
 
     def run(self):
-        if ("Listener" in self.config["Supervisor"]["Client"] or
-            "Listener" in self.config["Supervisor"]["Component"]):
+        if ("Listener" in self.config["Client"] or
+            "Listener" in self.config["Component"]):
             t_listen = Thread(target=self.listen_in_background)
             t_listen.daemon = True
             t_listen.start()
-        if "Initiator" in self.config["Supervisor"]["Client"]:
+        if "Initiator" in self.config["Client"]:
             t_poll = Thread(target=self.poll_in_background)
             t_poll.daemon = True
             t_poll.start()
@@ -168,20 +169,20 @@ class BaseSupervisor(object):
                                     self._lock, self._spec_messages)
                 self._component.scheduler.add_service(serv)
 
-                if "Listener" in self.config["Supervisor"]["Component"]:
-                    if "interfaces" in self.config["Supervisor"]["Component"]["Listener"] and \
-                            self.config["Supervisor"]["Component"]["Listener"]["interfaces"]:
+                if "Listener" in self.config["Component"]:
+                    if "interfaces" in self.config["Component"]["Listener"] and \
+                            self.config["Component"]["Listener"]["interfaces"]:
                         if "TLS" in self.config:
                             link = "https://"
                         else:
                             link = "http://"
-                        link = link + self.config["Supervisor"]["Component"]["Listener"]["interfaces"][0] + ":"
-                        link = link + self.config["Supervisor"]["Component"]["Listener"]["port"] + "/"
+                        link = link + self.config["Component"]["Listener"]["interfaces"][0] + ":"
+                        link = link + self.config["Component"]["Listener"]["port"] + "/"
                         serv.set_capability_link(link)
                     else:
                         serv.set_capability_link("")
 
-                if "Initiator" in self.config["Supervisor"]["Component"] and \
+                if "Initiator" in self.config["Component"] and \
                         not msg.get_label() == "callback":
                     self._component.register_to_client([serv.capability()])
 

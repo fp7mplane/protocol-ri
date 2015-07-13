@@ -18,30 +18,28 @@
     "default": "http://ict-mplane.eu/registry/demo",
     "preload": ["foo/bar.json", "foo/baz.json"]
   },
-  "Supervisor": {
-    "Component": {
-      "Listener": {
-        "port": "8890",
-        "interfaces": ["127.0.0.1"]
-      },
-      "Initiator": {
-        "capability-url": "https://127.0.0.1:8891/register/capability",
-        "specification-url": "https://127.0.0.1:8891/show/specification",
-        "result-url": "https://127.0.0.1:8891/register/result"
-      },
-      "scheduler_max_results": "20"
+  "Component": {
+    "Listener": {
+      "port": "8890",
+      "interfaces": ["127.0.0.1"]
     },
-    "Client": {
-      "Listener": {
-        "port": "8889",
-        "interfaces": ["127.0.0.1"],
-        "capability-path": "register/capability",
-        "specification-path": "show/specification",
-        "result-path": "register/result"
-      },
-      "Initiator": {
-        "capability-url": ["127.0.0.1:8888/"]
-      }
+    "Initiator": {
+      "capability-url": "https://127.0.0.1:8891/register/capability",
+      "specification-url": "https://127.0.0.1:8891/show/specification",
+      "result-url": "https://127.0.0.1:8891/register/result"
+    },
+    "scheduler_max_results": "20"
+  },
+  "Client": {
+    "Listener": {
+      "port": "8889",
+      "interfaces": ["127.0.0.1"],
+      "capability-path": "register/capability",
+      "specification-path": "show/specification",
+      "result-path": "register/result"
+    },
+    "Initiator": {
+      "capability-url": ["127.0.0.1:8888/"]
     }
   }
 }
