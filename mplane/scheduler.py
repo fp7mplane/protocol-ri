@@ -351,12 +351,10 @@ class Scheduler(object):
         if config:
             self.azn = mplane.azn.Authorization(config)
 
-            if "component" not in config.sections() or \
-                    "scheduler_max_results" not in config["component"]:
+            if "Component" not in config or "scheduler_max_results" not in config["Component"]:
                 self._max_results = 0
             else:
-                self._max_results = \
-                    int(config["component"]["scheduler_max_results"])
+                self._max_results = int(config["Component"]["scheduler_max_results"])
         else:
             self._max_results = 0
             self.azn = mplane.azn.Authorization()

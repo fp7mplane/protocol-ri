@@ -56,38 +56,49 @@ class BaseComponent(object):
     def __init__(self, config):
         self.config = config
 
-        # preload any registries necessary
-        if "registry_preload" in config["component"]:
-            mplane.model.preload_registry(
-                config["component"]["registry_preload"])
-
-        # initialize core registry
-        if "registry_uri" in config["component"]:
-            registry_uri = config["component"]["registry_uri"]
+        if config is not None:
+            # preload any registries necessary
+            if "Registries" in config:
+                if "preload" in config["Registries"]:
+                    for reg in config["Registries"]["preload"]:
+                        mplane.model.preload_registry(reg)
+                if "default" in config["Registries"]:
+                    registry_uri = config["Registries"]["default"]
+                else:
+                    registry_uri = None
+            else:
+                registry_uri = None
         else:
             registry_uri = None
+
+        # load default registry
         mplane.model.initialize_registry(registry_uri)
 
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
 
         for service in self._services():
-            if config["component"]["workflow"] == "client-initiated" and \
-                      "listen-cap-link" in config["component"]:
-                service.set_capability_link(config["component"]["listen-cap-link"])
-            else:
-                service.set_capability_link("")
+            if "Listener" in config["Component"]:
+                if "interfaces" in config["Component"]["Listener"] and config["Component"]["Listener"]["interfaces"]:
+                    if "TLS" in config:
+                        link = "https://"
+                    else:
+                        link = "http://"
+                    link = link + config["Component"]["Listener"]["interfaces"][0] + ":"
+                    link = link + config["Component"]["Listener"]["port"] + SPECIFICATION_PATH_ELEM
+                    service.set_capability_link(link)
+                else:
+                    service.set_capability_link("")
             self.scheduler.add_service(service)
 
     def _services(self):
         services = []
-        for section in self.config.sections():
-            if section.startswith("module_"):
-                module = importlib.import_module(self.config[section]["module"])
+        if "Modules" in self.config["Component"]:
+            for mod_name in self.config["Component"]["Modules"]:
+                module = importlib.import_module(mod_name)
                 kwargs = {}
-                for arg in self.config[section]:
-                    if not arg.startswith("module"):
-                        kwargs[arg] = self.config[section][arg]
+                for arg in self.config["Component"]["Modules"][mod_name]:
+                        kwargs[arg] = self.config["Component"]["Modules"][mod_name][arg]
                 for service in module.services(**kwargs):
                     services.append(service)
         return services
@@ -102,10 +113,10 @@ class BaseComponent(object):
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        if "listen-port" in config["component"]:
-            self._port = int(config["component"]["listen-port"])
-        else:
-            self._port = DEFAULT_MPLANE_PORT
+        self._port = DEFAULT_MPLANE_PORT
+        if "port" in config["Component"]["Listener"]:
+            self._port = int(config["Component"]["Listener"]["port"])
+
         self._path = SPECIFICATION_PATH_ELEM
 
         super(ListenerHttpComponent, self).__init__(config)
@@ -256,32 +267,13 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
-        # FIXME: Configuration should take a URL, not build one from components.
+        self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["capability-url"])
+        self.specification_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["specification-url"])
+        self.result_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["result-url"])
 
-        if "TLS" not in self.config.sections():
-            scheme = "http"
-        else:
-            scheme = "https"
-
-        host = self.config["component"]["client_host"]
-
-        if "client_port" in config["component"]:
-            port = int(config["component"]["client_port"])
-        else:
-            port = DEFAULT_MPLANE_PORT
-
-        self.url = urllib3.util.url.Url(scheme=scheme, host=host, port=port)
-        self.registration_path = self.config["component"]["registration_path"]
-        if not self.registration_path.startswith("/"):
-            self.registration_path = "/" + self.registration_path
-        self.specification_path = self.config["component"]["specification_path"]
-        if not self.specification_path.startswith("/"):
-            self.specification_path = "/" + self.specification_path
-        self.result_path = self.config["component"]["result_path"]
-        if not self.result_path.startswith("/"):
-            self.result_path = "/" + self.result_path
-
-        self.pool = self.tls.pool_for(self.url.scheme, self.url.host, self.url.port)
+        self.pool = self.tls.pool_for(self.registration_url.scheme,
+                                      self.registration_url.host,
+                                      self.registration_url.port)
         self._result_url = dict()
         self.register_to_client()
 
@@ -300,7 +292,7 @@ class InitiatorHttpComponent(BaseComponent):
         connected = False
         while not connected:
             try:
-                self._client_identity = self.tls.extract_peer_identity(self.url)
+                self._client_identity = self.tls.extract_peer_identity(self.registration_url)
                 connected = True
             except:
                 print("Client/Supervisor unreachable. Retrying connection in 5 seconds")
@@ -331,9 +323,7 @@ class InitiatorHttpComponent(BaseComponent):
             env.append_message(callback_cap)
 
         # send the envelope to the client
-        res = self.pool.urlopen('POST',self.registration_path,
-                    body=mplane.model.unparse_json(env).encode("utf-8"),
-                    headers={"content-type": "application/x-mplane+json"})
+        res = self.send_message(self.registration_url, "POST", env)
 
         # handle response message
         if res.status == 200:
@@ -354,13 +344,13 @@ class InitiatorHttpComponent(BaseComponent):
         Poll the client for specifications
 
         """
-        while(True):
+        while True:
             # FIXME configurable default idle time.
             self.idle_time = 5
 
             # send a request for specifications
             try:
-                res = self.pool.request('GET', self.specification_path)
+                res = self.send_message(self.specification_url, "GET")
             except:
                 print("Supervisor down. Trying to re-register...")
                 self.register_to_client()
@@ -371,7 +361,7 @@ class InitiatorHttpComponent(BaseComponent):
                 env = mplane.model.parse_json(res.data.decode("utf-8"))
                 for spec in env.messages():
                     # handle callbacks
-                    if spec.get_label()  == "callback":
+                    if spec.get_label() == "callback":
                         self.idle_time = spec.when().timer_delays()[1]
                         break
 
@@ -381,9 +371,7 @@ class InitiatorHttpComponent(BaseComponent):
                         self._result_url[spec.get_token()] = spec.get_link()
 
                     # send receipt to the Client/Supervisor
-                    res = self.pool.urlopen('POST', self.result_path,
-                            body=mplane.model.unparse_json(reply).encode("utf-8"),
-                            headers={"content-type": "application/x-mplane+json"})
+                    res = self.send_message(self._result_url[spec.get_token()], "POST", reply)
 
             # not registered on supervisor, need to re-register
             elif res.status == 428:
@@ -405,17 +393,7 @@ class InitiatorHttpComponent(BaseComponent):
             job.failed() is not True):
             return
 
-        result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
-        # send result to the Client/Supervisor
-        if result_url != "" and self.pool.is_same_host(mplane.utils.parse_url(result_url)):
-            res = self.pool.urlopen('POST', self.result_path,
-                    body=mplane.model.unparse_json(reply).encode("utf-8"),
-                    headers={"content-type": "application/x-mplane+json"})
-        else:
-            pool = self.tls.pool_for(result_url.scheme, result_url.host, result_url.port)
-            res = pool.urlopen('POST', result_url.path,
-                    body=mplane.model.unparse_json(reply).encode("utf-8"),
-                    headers={"content-type": "application/x-mplane+json"})
+        res = self.send_message(self._result_url[reply.get_token()], "POST", reply)
 
         # handle response
         if isinstance(reply, mplane.model.Envelope):
@@ -423,17 +401,38 @@ class InitiatorHttpComponent(BaseComponent):
                 label = msg.get_label()
                 break
         else:
+            label = reply.get_label()
             if isinstance(reply, mplane.model.Exception):
                 print("Exception for " + reply.get_token() + " successfully returned!")
                 return
 
-            label = reply.get_label()
         if res.status == 200:
             print("Result for " + label + " successfully returned!")
         else:
             print("Error returning Result for " + label)
             print("Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
+
+    def send_message(self, url_or_str, method, msg=None):
+        url = url_or_str
+        if isinstance(url_or_str, str):
+            url = urllib3.util.parse_url(url_or_str)
+
+        if self.pool.is_same_host(mplane.utils.unparse_url(url)):
+            pool = self.pool
+        else:
+            pool = self.tls.pool_for(url.scheme, url.host, url.port)
+
+        if method == "POST" and msg is not None:
+            # post message
+            res = pool.urlopen('POST', url.path,
+                               body=mplane.model.unparse_json(msg).encode("utf-8"),
+                               headers={"content-type": "application/x-mplane+json"})
+        elif method == "GET":
+            # get message
+            res = pool.request('GET', url.path)
+
+        return res
 
     def remove_capability(self, capability):
         super(InitiatorHttpComponent, self).remove_capability(capability)

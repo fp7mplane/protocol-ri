@@ -1,0 +1,16 @@
+{
+  "TLS": {
+    "cert": "PKI/ca/certs/Client-SSB.crt",
+    "key": "PKI/ca/certs/Client-SSB-plaintext.key",
+    "ca-chain": "PKI/ca/root-ca/root-ca.crt"
+  },
+  "Registries": {
+    "default": "http://ict-mplane.eu/registry/demo",
+    "preload": []
+  },
+  "Client": {
+    "Initiator": {
+      "capability-url": "127.0.0.1:8890/"
+    }
+  }
+}

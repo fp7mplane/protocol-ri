@@ -27,11 +27,11 @@ def Authorization(config=None):
     if config is None:
         return AuthorizationOff()
     else:
-        if "TLS" not in config.sections():
+        if config is None or "TLS" not in config:
             return AuthorizationOff()
         else:
             return AuthorizationOn(config)
-        
+
 class AuthorizationOff(object):
         
     def check(self, cap, identity):
@@ -42,16 +42,11 @@ always_authorized = AuthorizationOff()
 class AuthorizationOn(object):
     
     def __init__(self, config):
-        self.id_role = self._load_roles(config["Roles"])
-        self.cap_role = self._load_roles(config["Authorizations"])
-
-    def _load_roles(self, config_obj):
-        """ Loads user-role-capability associations and keeps them in cache """
-        r = {}
-        for elem in config_obj:
-            roles = set(config_obj[elem].split(','))
-            r[elem] = roles
-        return r
+        if "Access" in config:
+            self.role_id = config["Access"]["Roles"]
+            self.cap_role = config["Access"]["Authorizations"]
+        else:
+            raise ValueError("'Access' object missing in conf file. See documentation for details")
             
     def check(self, cap, identity): 
         """
@@ -66,8 +61,8 @@ class AuthorizationOn(object):
             if label in cap._label:
                 cap_label = label
 
-        if ((cap_label in self.cap_role) and (identity in self.id_role)): # Deny unless explicitly allowed in .conf files
-            intersection = self.cap_role[cap_label] & self.id_role[identity]
-            if len(intersection) > 0:
-                return True
+        if cap_label in self.cap_role:
+            for role in self.cap_role[cap_label]:
+                if identity in self.role_id[role]:
+                    return True
         return False

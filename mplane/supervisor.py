@@ -81,16 +81,22 @@ class BaseSupervisor(object):
         self._caps = []
         self.config = config
 
-        # preload any registries necessary
-        if "registry_preload" in config["component"]:
-            mplane.model.preload_registry(
-                config["component"]["registry_preload"])
-
-        # initialize core registry
-        if "registry_uri" in config["component"]:
-            registry_uri = config["component"]["registry_uri"]
+        if config is not None:
+            # preload any registries necessary
+            if "Registries" in config:
+                if "preload" in config["Registries"]:
+                    for reg in config["Registries"]["preload"]:
+                        mplane.model.preload_registry(reg)
+                if "default" in config["Registries"]:
+                    registry_uri = config["Registries"]["default"]
+                else:
+                    registry_uri = None
+            else:
+                registry_uri = None
         else:
             registry_uri = None
+
+        # load default registry
         mplane.model.initialize_registry(registry_uri)
 
         tls_state = mplane.tls.TlsState(config)
@@ -99,37 +105,52 @@ class BaseSupervisor(object):
         self._lock = threading.RLock()
         self._spec_messages = dict()
         self._io_loop = tornado.ioloop.IOLoop.instance()
-        if self.config["client"]["workflow"] == "component-initiated":
-            self.cli_workflow = "component-initiated"
-            self._client = mplane.client.HttpListenerClient(config=config,
+        if config is None:
+            self._client = mplane.client.HttpListenerClient(config=config["Supervisor"],
                                                             tls_state=tls_state, supervisor=True,
                                                             exporter=self.from_cli,
                                                             io_loop=self._io_loop)
-        elif self.config["client"]["workflow"] == "client-initiated":
-            self.cli_workflow = "client-initiated"
-            self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state, supervisor=True,
-                                                             exporter=self.from_cli)
-            self._urls = self.config["client"]["component-urls"].split(",")
-        else:
-            raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
 
-        if self.config["component"]["workflow"] == "component-initiated":
-            self.comp_workflow = "component-initiated"
-            self._component = mplane.component.InitiatorHttpComponent(config, supervisor=True)
-        elif self.config["component"]["workflow"] == "client-initiated":
-            self.comp_workflow = "client-initiated"
-            self._component = mplane.component.ListenerHttpComponent(config, io_loop=self._io_loop)
+            self._component = mplane.component.ListenerHttpComponent(config["Supervisor"],
+                                                                     io_loop=self._io_loop)
         else:
-            raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
+            if "Initiator" in self.config["Supervisor"]["Client"] and "Listener" in self.config["Supervisor"]["Client"]:
+                raise ValueError("The supervisor client-side cannot be 'Initiator' and 'Listener' simultaneously. "
+                                 "Remove one of them from " + self.config + "[\"Client\"]")
+            elif "Listener" in self.config["Supervisor"]["Client"]:
+                self._client = mplane.client.HttpListenerClient(config=self.config["Supervisor"],
+                                                                tls_state=tls_state, supervisor=True,
+                                                                exporter=self.from_cli,
+                                                                io_loop=self._io_loop)
+            elif "Initiator" in self.config["Supervisor"]["Client"]:
+                self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state, supervisor=True,
+                                                                 exporter=self.from_cli)
+                self._urls = self.config["Supervisor"]["Client"]["capability-url"]
+            else:
+                raise ValueError("Need either a 'Initiator' or 'Listener' object under 'Client' in config file")
+
+            if ("Initiator" in self.config["Supervisor"]["Component"]
+                and "Listener" in self.config["Supervisor"]["Component"]):
+                raise ValueError("The supervisor component-side cannot be 'Initiator' and 'Listener' simultaneously. "
+                                 "Remove one of them from " + args.config + "[\"Component\"]")
+            if "Initiator" in self.config["Supervisor"]["Component"]:
+                self._component = mplane.component.InitiatorHttpComponent(self.config["Supervisor"],
+                                                                          supervisor=True)
+            elif "Listener" in self.config["Supervisor"]["Component"]:
+                self._component = mplane.component.ListenerHttpComponent(self.config["Supervisor"],
+                                                                         io_loop=self._io_loop)
+            else:
+                raise ValueError("Need either a 'Initiator' or 'Listener' object under 'Component' in config file")
+
         self.run()
 
     def run(self):
-        if (self.cli_workflow == "component-initiated" or
-            self.comp_workflow == "client-initiated"):
+        if ("Listener" in self.config["Supervisor"]["Client"] or
+            "Listener" in self.config["Supervisor"]["Component"]):
             t_listen = Thread(target=self.listen_in_background)
             t_listen.daemon = True
             t_listen.start()
-        if self.cli_workflow == "client-initiated":
+        if "Initiator" in self.config["Supervisor"]["Client"]:
             t_poll = Thread(target=self.poll_in_background)
             t_poll.daemon = True
             t_poll.start()
@@ -147,10 +168,20 @@ class BaseSupervisor(object):
                                     self._lock, self._spec_messages)
                 self._component.scheduler.add_service(serv)
 
-                if self.comp_workflow == "client-initiated" and \
-                      "listen-cap-link" in self.config["component"]:
-                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
-                if self.comp_workflow == "component-initiated" and \
+                if "Listener" in self.config["Supervisor"]["Component"]:
+                    if "interfaces" in self.config["Supervisor"]["Component"]["Listener"] and \
+                            self.config["Supervisor"]["Component"]["Listener"]["interfaces"]:
+                        if "TLS" in self.config:
+                            link = "https://"
+                        else:
+                            link = "http://"
+                        link = link + self.config["Supervisor"]["Component"]["Listener"]["interfaces"][0] + ":"
+                        link = link + self.config["Supervisor"]["Component"]["Listener"]["port"] + "/"
+                        serv.set_capability_link(link)
+                    else:
+                        serv.set_capability_link("")
+
+                if "Initiator" in self.config["Supervisor"]["Component"] and \
                         not msg.get_label() == "callback":
                     self._component.register_to_client([serv.capability()])
 

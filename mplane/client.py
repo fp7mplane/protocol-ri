@@ -425,7 +425,7 @@ class HttpInitiatorClient(BaseClient):
 
     """
 
-    def __init__(self, config, tls_state, default_url=None,
+    def __init__(self, tls_state, default_url=None,
                  supervisor=False, exporter=None):
         """
         initialize a client with a given
@@ -600,23 +600,24 @@ class HttpListenerClient(BaseClient):
                         exporter=exporter)
 
         listen_port = DEFAULT_PORT
-        if "listen-port" in config["client"]:
-            listen_port = int(config["client"]["listen-port"])
+        if "port" in config["Client"]["Listener"]:
+            listen_port = int(config["Client"]["Listener"]["port"])
 
         registration_path = DEFAULT_REGISTRATION_PATH
-        if "registration-path" in config["client"]:
-            registration_path = config["client"]["registration-path"]
+        if "capability-path" in config["Client"]["Listener"]:
+            registration_path = config["Client"]["Listener"]["capability-path"]
 
         specification_path = DEFAULT_SPECIFICATION_PATH
-        if "registration-path" in config["client"]:
-            specification_path = config["client"]["specification-path"]
+        if "specification-path" in config["Client"]["Listener"]:
+            specification_path = config["Client"]["Listener"]["specification-path"]
 
         result_path = DEFAULT_RESULT_PATH
-        if "result-path" in config["client"]:
-            result_path = config["client"]["result-path"]
+        if "result-path" in config["Client"]["Listener"]:
+            result_path = config["Client"]["Listener"]["result-path"]
 
-        # link to which results must be sent
-        self._link = config["client"]["listen-spec-link"]
+        ipaddresses = None
+        if "interfaces" in config["Client"]["Listener"]:
+            ipaddresses = config["Client"]["Listener"]["interfaces"]
 
         # Outgoing messages per component identifier
         self._outgoing = {}
@@ -640,7 +641,13 @@ class HttpListenerClient(BaseClient):
         http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
         # run the server
-        http_server.listen(listen_port)
+        # FIXME: not really a fixme, but the listen function has not been tested for multiple IPs
+        if ipaddresses is not None:
+            for ip in ipaddresses:
+                http_server.listen(listen_port, ip)
+        else:
+            http_server.listen(listen_port)
+
         if io_loop is not None:
             cli_t = Thread(target=self.listen_in_background(io_loop))
             timeout_callback = tornado.ioloop.PeriodicCallback(self._check_timeouts, 5000, io_loop)

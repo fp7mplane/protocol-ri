@@ -110,7 +110,7 @@ def split_stmt_list(msg):
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
 
-def parse_url(url):
+def unparse_url(url):
     """ Returns a link in string format from an Url object """
     link = url.scheme + "://" + url.host + ":" + str(url.port)
     if url.path.startswith("/"):
