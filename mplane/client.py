@@ -48,7 +48,7 @@ CAPABILITY_PATH_ELEM = "capability"
 FORGED_DN_HEADER = "Forged-MPlane-Identity"
 DEFAULT_IDENTITY = "default"
 
-DEFAULT_PORT = 8888
+DEFAULT_PORT = 8889
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_REGISTRATION_PATH = "register/capability"
 DEFAULT_SPECIFICATION_PATH = "show/specification"
@@ -600,32 +600,44 @@ class HttpListenerClient(BaseClient):
                         exporter=exporter)
 
         listen_port = DEFAULT_PORT
-        if "port" in config["Client"]["Listener"]:
-            listen_port = int(config["Client"]["Listener"]["port"])
-
-        registration_path = DEFAULT_REGISTRATION_PATH
-        if "capability-path" in config["Client"]["Listener"]:
-            registration_path = config["Client"]["Listener"]["capability-path"]
-
-        specification_path = DEFAULT_SPECIFICATION_PATH
-        if "specification-path" in config["Client"]["Listener"]:
-            specification_path = config["Client"]["Listener"]["specification-path"]
-
-        result_path = DEFAULT_RESULT_PATH
-        if "result-path" in config["Client"]["Listener"]:
-            result_path = config["Client"]["Listener"]["result-path"]
+        self.registration_path = DEFAULT_REGISTRATION_PATH
+        self.specification_path = DEFAULT_SPECIFICATION_PATH
+        self.result_path = DEFAULT_RESULT_PATH
 
         ipaddresses = None
-        if "interfaces" in config["Client"]["Listener"] and config["Client"]["Listener"]["interfaces"]:
-            ipaddresses = config["Client"]["Listener"]["interfaces"]
-            if "TLS" in config:
-                self._link = "https://"
-            else:
-                self._link = "http://"
-            self._link = self._link + ipaddresses[0] + ":"
-            self._link = self._link + config["Client"]["Listener"]["port"] + "/" + result_path
-        else:
-            self._link = ""
+        self._link = ""
+
+        if config is not None and "Client" in config and "Listener" in config["Client"]:
+            if "port" in config["Client"]["Listener"]:
+                listen_port = int(config["Client"]["Listener"]["port"])
+
+            if "capability-path" in config["Client"]["Listener"]:
+                self.registration_path = config["Client"]["Listener"]["capability-path"]
+
+            if "specification-path" in config["Client"]["Listener"]:
+                self.specification_path = config["Client"]["Listener"]["specification-path"]
+
+            if "result-path" in config["Client"]["Listener"]:
+                self.result_path = config["Client"]["Listener"]["result-path"]
+
+            if "interfaces" in config["Client"]["Listener"] and config["Client"]["Listener"]["interfaces"]:
+                ipaddresses = config["Client"]["Listener"]["interfaces"]
+                if "TLS" in config:
+                    self._link = "https://"
+                else:
+                    self._link = "http://"
+                self._link = self._link + ipaddresses[0] + ":"
+                if not self.result_path.startswith("/"):
+                    self._link = self._link + config["Client"]["Listener"]["port"] + "/" + self.result_path
+                else:
+                    self._link = self._link + config["Client"]["Listener"]["port"] + self.result_path
+
+        if not self.registration_path.startswith("/"):
+            self.registration_path = "/" + self.registration_path
+        if not self.specification_path.startswith("/"):
+            self.specification_path = "/" + self.specification_path
+        if not self.result_path.startswith("/"):
+            self.result_path = "/" + self.result_path
 
         # Outgoing messages per component identifier
         self._outgoing = {}
@@ -639,12 +651,12 @@ class HttpListenerClient(BaseClient):
 
         # Create a request handler pointing at this client
         self._tornado_application = tornado.web.Application([
-            (r"/" + registration_path, RegistrationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
-            (r"/" + registration_path + "/", RegistrationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
-            (r"/" + specification_path, SpecificationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
-            (r"/" + specification_path + "/", SpecificationHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
-            (r"/" + result_path, ResultHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
-            (r"/" + result_path + "/", ResultHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.registration_path, InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.registration_path + "/", InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.specification_path, InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.specification_path + "/", InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.result_path, InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
+            (self.result_path + "/", InteractionsHandler, {'listenerclient': self, 'tlsState': self._tls_state}),
         ])
         http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
@@ -779,91 +791,105 @@ class MPlaneHandler(tornado.web.RequestHandler):
             self.write(text)
         self.finish()
 
-class RegistrationHandler(MPlaneHandler):
+class InteractionsHandler(MPlaneHandler):
     """
     Handles the probes that want to register to this supervisor
     Each capability is registered indipendently
 
-    """
-    def initialize(self, listenerclient, tlsState):
-        self._listenerclient = listenerclient
-        self._tls = tlsState
-
-
-    def post(self):
-        # unwrap json message from body
-        if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            env = mplane.model.parse_json(self.request.body.decode("utf-8"))
-        else:
-            self._respond_plain_text(400, "Invalid format")
-            return
-
-        self._listenerclient.handle_message(env,
-                            self._tls.extract_peer_identity(self.request))
-
-        # reply to the component
-        response = ""
-        for msg in env.messages():
-            if isinstance(msg, mplane.model.Capability):
-                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"ok\"},"
-            elif isinstance(msg, mplane.model.Withdrawal):
-                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Withdrawn\"},"
-            else:
-                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
-        response = "{" + response[:-1].replace("\n", "") + "}"
-        self._respond_json_text(200, response)
-        return
-
-class SpecificationHandler(MPlaneHandler):
-    """
     Exposes the specifications, that will be periodically pulled by the
     components
 
-    """
-    def initialize(self, listenerclient, tlsState):
-        self._listenerclient = listenerclient
-        self._tls = tlsState
-
-    def get(self):
-        identity = self._tls.extract_peer_identity(self.request)
-
-        if identity in self._listenerclient._capabilities_by_identity:
-            # reset timeouts for capabilities from the component
-            for token in self._listenerclient._capabilities_by_identity[identity]:
-                self._listenerclient._capability_timeouts[token] = datetime.utcnow()
-
-            specs = self._listenerclient._outgoing.pop(identity, [])
-            env = mplane.model.Envelope()
-            for spec in specs:
-                env.append_message(spec)
-                if isinstance(spec, mplane.model.Specification):
-                    print("Specification " + spec.get_label() + " successfully pulled by " + identity)
-                else:
-                    print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
-            self._respond_json_text(200, mplane.model.unparse_json(env))
-        else:
-            self._respond_plain_text(428, "not registered")
-
-
-class ResultHandler(MPlaneHandler):
-    """
     Receives results of specifications
 
     """
-
     def initialize(self, listenerclient, tlsState):
         self._listenerclient = listenerclient
         self._tls = tlsState
 
     def post(self):
         # unwrap json message from body
-        if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
+        if self.request.headers["Content-Type"] == "application/x-mplane+json":
             env = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
             self._respond_plain_text(400, "Invalid format")
             return
 
-        self._listenerclient.handle_message(env,
-                            self._tls.extract_peer_identity(self.request))
-        self._respond_plain_text(200)
-        return
+        if self._listenerclient.registration_path != self._listenerclient.result_path:
+            if self.request.path == self._listenerclient.result_path:
+                if isinstance(env, mplane.model.Result) or isinstance(env, mplane.model.Receipt):
+                    self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
+                    self._respond_plain_text(200)
+                elif isinstance(env, mplane.model.Envelope):
+                    for msg in env.messages():
+                        if not isinstance(msg, mplane.model.Result) and not isinstance(msg, mplane.model.Receipt):
+                            self._respond_plain_text(401, "Not a result (or receipt) received on result path")
+                            return
+                    # fall through
+                    self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
+                    self._respond_plain_text(200)
+                    return
+                else:
+                    self._respond_plain_text(401, "Not authorized: not a result (or receipt) received on result path")
+                    return
+            elif self.request.path == self._listenerclient.registration_path:
+                if isinstance(env, mplane.model.Envelope):
+                    self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
+                    response = self.generate_response(env)
+                    self._respond_json_text(200, response)
+                    return
+                else:
+                    self._respond_plain_text(400, "Not a capability / Wrong format")
+                    return
+        else:
+            if isinstance(env, mplane.model.Result) or isinstance(env, mplane.model.Receipt):
+                self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
+                self._respond_plain_text(200)
+                return
+            elif isinstance(env, mplane.model.Envelope):
+                self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
+                for msg in env.messages():
+                    if isinstance(msg, mplane.model.Result) or isinstance(env, mplane.model.Receipt):
+                        self._respond_plain_text(200)
+                        return
+                    elif isinstance(msg, mplane.model.Capability) or isinstance(msg, mplane.model.Withdrawal):
+                        response = self.generate_response(env)
+                        self._respond_json_text(200, response)
+                        return
+            else:
+                self._respond_plain_text(401, "Not authorized")
+                return
+
+    def generate_response(self, env):
+        response = ""
+        for msg in env.messages():
+            if isinstance(msg, mplane.model.Capability):
+                response += "\"" + msg.get_label() + "\":{\"registered\":\"ok\"},"
+            elif isinstance(msg, mplane.model.Withdrawal):
+                response += "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Withdrawn\"},"
+            else:
+                response += "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
+        response = "{" + response[:-1].replace("\n", "") + "}"
+        return response
+
+    def get(self):
+        if self.request.path == self._listenerclient.specification_path:
+            identity = self._tls.extract_peer_identity(self.request)
+
+            if identity in self._listenerclient._capabilities_by_identity:
+                # reset timeouts for capabilities from the component
+                for token in self._listenerclient._capabilities_by_identity[identity]:
+                    self._listenerclient._capability_timeouts[token] = datetime.utcnow()
+
+                specs = self._listenerclient._outgoing.pop(identity, [])
+                env = mplane.model.Envelope()
+                for spec in specs:
+                    env.append_message(spec)
+                    if isinstance(spec, mplane.model.Specification):
+                        print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+                    else:
+                        print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
+                self._respond_json_text(200, mplane.model.unparse_json(env))
+            else:
+                self._respond_plain_text(428, "not registered")
+        else:
+            self._respond_plain_text(401, "Wrong path for specification requests")

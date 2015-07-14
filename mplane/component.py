@@ -46,10 +46,14 @@ except:
 from threading import Thread
 import json
 
-DEFAULT_MPLANE_PORT = 1228
+DEFAULT_MPLANE_PORT = 8890
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 SPECIFICATION_PATH_ELEM = "/"
+
+DEFAULT_CAPABILITY_URL = "http://127.0.0.1:8889/register/capability"
+DEFAULT_SPECIFICATION_URL = "http://127.0.0.1:8889/show/specification"
+DEFAULT_RESULT_URL = "http://127.0.0.1:8889/register/result"
 
 class BaseComponent(object):
 
@@ -77,9 +81,11 @@ class BaseComponent(object):
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
 
+        self._ipaddresses = None
         for service in self._services():
             if "Listener" in config["Component"]:
                 if "interfaces" in config["Component"]["Listener"] and config["Component"]["Listener"]["interfaces"]:
+                    self._ipaddresses = config["Component"]["Listener"]["interfaces"]
                     if "TLS" in config:
                         link = "https://"
                     else:
@@ -93,14 +99,15 @@ class BaseComponent(object):
 
     def _services(self):
         services = []
-        if "Modules" in self.config["Component"]:
-            for mod_name in self.config["Component"]["Modules"]:
-                module = importlib.import_module(mod_name)
-                kwargs = {}
-                for arg in self.config["Component"]["Modules"][mod_name]:
-                        kwargs[arg] = self.config["Component"]["Modules"][mod_name][arg]
-                for service in module.services(**kwargs):
-                    services.append(service)
+        if self.config is not None:
+            if "Modules" in self.config["Component"]:
+                for mod_name in self.config["Component"]["Modules"]:
+                    module = importlib.import_module(mod_name)
+                    kwargs = {}
+                    for arg in self.config["Component"]["Modules"][mod_name]:
+                            kwargs[arg] = self.config["Component"]["Modules"][mod_name][arg]
+                    for service in module.services(**kwargs):
+                        services.append(service)
         return services
 
     def remove_capability(self, capability):
@@ -114,8 +121,9 @@ class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
         self._port = DEFAULT_MPLANE_PORT
-        if "port" in config["Component"]["Listener"]:
-            self._port = int(config["Component"]["Listener"]["port"])
+        if config is not None and "Component" in config and "Listener" in config["Component"]:
+            if "port" in config["Component"]["Listener"]:
+                self._port = int(config["Component"]["Listener"]["port"])
 
         self._path = SPECIFICATION_PATH_ELEM
 
@@ -129,7 +137,14 @@ class ListenerHttpComponent(BaseComponent):
         http_server = tornado.httpserver.HTTPServer(
                         application,
                         ssl_options=self.tls.get_ssl_options())
-        http_server.listen(self._port)
+        # run the server
+        # FIXME: not really a fixme, but the listen function has not been tested for multiple IPs
+        if self._ipaddresses is not None:
+            for ip in self._ipaddresses:
+                http_server.listen(self._port, ip)
+        else:
+            http_server.listen(self._port)
+
         print("ListenerHttpComponent running on port "+str(self._port))
         comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
@@ -267,9 +282,24 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
-        self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["capability-url"])
-        self.specification_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["specification-url"])
-        self.result_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["result-url"])
+        if self.config is not None and "Component" in self.config and "Initiator" in self.config["Component"]:
+            if ("capability-url" in self.config["Component"]["Initiator"]
+                and "specification-url" in self.config["Component"]["Initiator"]
+                and "result-url" in self.config["Component"]["Initiator"]):
+                self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["capability-url"])
+                self.specification_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["specification-url"])
+                self.result_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["result-url"])
+            elif "url" in self.config["Component"]["Initiator"]:
+                self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["url"])
+                self.specification_url = self.registration_url
+                self.result_url = self.registration_url
+            else:
+                raise ValueError("Config file is missing information on URLs in Component.Initiator. "
+                                 "See documentation for details")
+        else:
+            self.registration_url = urllib3.util.parse_url(DEFAULT_CAPABILITY_URL)
+            self.specification_url = urllib3.util.parse_url(DEFAULT_SPECIFICATION_URL)
+            self.result_url = urllib3.util.parse_url(DEFAULT_RESULT_URL)
 
         self.pool = self.tls.pool_for(self.registration_url.scheme,
                                       self.registration_url.host,
@@ -313,8 +343,11 @@ class InitiatorHttpComponent(BaseComponent):
                     no_caps_exposed = False
 
             if no_caps_exposed is True:
-                print("\nNo Capabilities are being exposed to " + self._client_identity +
-                      ", check permissions in config file. Exiting")
+                if self.config is None:
+                    print("\nNo Capabilities loaded, run again this script with the --config parameter")
+                else:
+                    print("\nNo Capabilities are being exposed to " + self._client_identity +
+                          ", check permissions in config file. Exiting")
                 if self._supervisor is False:
                     exit(0)
 
@@ -356,7 +389,6 @@ class InitiatorHttpComponent(BaseComponent):
                 self.register_to_client()
 
             if res.status == 200:
-
                 # specs retrieved: split them if there is more than one
                 env = mplane.model.parse_json(res.data.decode("utf-8"))
                 for spec in env.messages():
@@ -377,6 +409,10 @@ class InitiatorHttpComponent(BaseComponent):
             elif res.status == 428:
                 print("\nRe-registering capabilities on Client/Supervisor")
                 self.register_to_client()
+
+            else:
+                print("Request for specifications failed. "
+                      "Client/Supervisor replied with " + str(res.status) + ": " + res.data.decode("utf-8"))
 
             sleep(self.idle_time)
 
@@ -414,9 +450,13 @@ class InitiatorHttpComponent(BaseComponent):
         pass
 
     def send_message(self, url_or_str, method, msg=None):
-        url = url_or_str
+        if not url_or_str:
+            url_or_str = self.result_url
+
         if isinstance(url_or_str, str):
             url = urllib3.util.parse_url(url_or_str)
+        else:
+            url = url_or_str
 
         if self.pool.is_same_host(mplane.utils.unparse_url(url)):
             pool = self.pool

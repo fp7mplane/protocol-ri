@@ -77,6 +77,7 @@ class ClientShell(cmd.Cmd):
         self._print_tracebacks = False
 
         if config is None:
+            self._initiator = True
             self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
         else:
             if "Initiator" in config["Client"] and "Listener" in config["Client"]:
@@ -493,7 +494,7 @@ if __name__ == "__main__":
 
     # check if conf file parameter has been inserted in the command line
     if not args.config:
-        print('\nWARNING: missing --config, using default settings\n')
+        print('\nWARNING: missing --config, using default settings. Client may be unstable\n')
         parser.print_help()
         config = None
     else:

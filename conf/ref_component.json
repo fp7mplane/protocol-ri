@@ -27,6 +27,8 @@
       "interfaces": ["127.0.0.1"]
     },
     "Initiator": {
+      "url": "https://127.0.0.1:8889/",
+
       "capability-url": "https://127.0.0.1:8889/register/capability",
       "specification-url": "https://127.0.0.1:8889/show/specification",
       "result-url": "https://127.0.0.1:8889/register/result"

@@ -146,15 +146,20 @@ class BaseSupervisor(object):
         self.run()
 
     def run(self):
-        if ("Listener" in self.config["Client"] or
-            "Listener" in self.config["Component"]):
+        if self.config is not None:
+            if (("Client" in self.config and "Listener" in self.config["Client"]) or
+                ("Component" in self.config and "Listener" in self.config["Component"])):
+                t_listen = Thread(target=self.listen_in_background)
+                t_listen.daemon = True
+                t_listen.start()
+            if "Initiator" in self.config["Client"]:
+                t_poll = Thread(target=self.poll_in_background)
+                t_poll.daemon = True
+                t_poll.start()
+        else:
             t_listen = Thread(target=self.listen_in_background)
             t_listen.daemon = True
             t_listen.start()
-        if "Initiator" in self.config["Client"]:
-            t_poll = Thread(target=self.poll_in_background)
-            t_poll.daemon = True
-            t_poll.start()
         while True:
             if not self.from_cli.empty():
                 [msg, identity] = self.from_cli.get()
@@ -169,20 +174,23 @@ class BaseSupervisor(object):
                                     self._lock, self._spec_messages)
                 self._component.scheduler.add_service(serv)
 
-                if "Listener" in self.config["Component"]:
-                    if "interfaces" in self.config["Component"]["Listener"] and \
-                            self.config["Component"]["Listener"]["interfaces"]:
-                        if "TLS" in self.config:
-                            link = "https://"
+                if self.config is not None:
+                    if "Listener" in self.config["Component"]:
+                        if "interfaces" in self.config["Component"]["Listener"] and \
+                                self.config["Component"]["Listener"]["interfaces"]:
+                            if "TLS" in self.config:
+                                link = "https://"
+                            else:
+                                link = "http://"
+                            link = link + self.config["Component"]["Listener"]["interfaces"][0] + ":"
+                            link = link + self.config["Component"]["Listener"]["port"] + "/"
+                            serv.set_capability_link(link)
                         else:
-                            link = "http://"
-                        link = link + self.config["Component"]["Listener"]["interfaces"][0] + ":"
-                        link = link + self.config["Component"]["Listener"]["port"] + "/"
-                        serv.set_capability_link(link)
-                    else:
-                        serv.set_capability_link("")
+                            serv.set_capability_link("")
+                else:
+                    serv.set_capability_link("")
 
-                if "Initiator" in self.config["Component"] and \
+                if self.config is not None and "Initiator" in self.config["Component"] and \
                         not msg.get_label() == "callback":
                     self._component.register_to_client([serv.capability()])
 
