@@ -574,6 +574,7 @@ class HttpInitiatorClient(BaseClient):
         if res.status == 200:
             ctype = res.getheader("Content-Type")
             if ctype == "application/x-mplane+json":
+
                 # Probably an envelope. Process the message.
                 self.handle_message(
                     mplane.model.parse_json(res.data.decode("utf-8")), identity)
@@ -606,31 +607,35 @@ class HttpListenerClient(BaseClient):
 
         ipaddresses = None
         self._link = ""
+        self.config = config
 
-        if config is not None and "Client" in config and "Listener" in config["Client"]:
-            if "port" in config["Client"]["Listener"]:
-                listen_port = int(config["Client"]["Listener"]["port"])
+        if self.config is not None and "Client" in self.config and "Listener" in self.config["Client"]:
+            if "port" in self.config["Client"]["Listener"]:
+                listen_port = int(self.config["Client"]["Listener"]["port"])
 
-            if "capability-path" in config["Client"]["Listener"]:
-                self.registration_path = config["Client"]["Listener"]["capability-path"]
+            if "capability-path" in self.config["Client"]["Listener"]:
+                self.registration_path = self.config["Client"]["Listener"]["capability-path"]
 
-            if "specification-path" in config["Client"]["Listener"]:
-                self.specification_path = config["Client"]["Listener"]["specification-path"]
+            if "specification-path" in self.config["Client"]["Listener"]:
+                self.specification_path = self.config["Client"]["Listener"]["specification-path"]
 
-            if "result-path" in config["Client"]["Listener"]:
-                self.result_path = config["Client"]["Listener"]["result-path"]
+            if "result-path" in self.config["Client"]["Listener"]:
+                self.result_path = self.config["Client"]["Listener"]["result-path"]
 
-            if "interfaces" in config["Client"]["Listener"] and config["Client"]["Listener"]["interfaces"]:
-                ipaddresses = config["Client"]["Listener"]["interfaces"]
-                if "TLS" in config:
-                    self._link = "https://"
+            if "interfaces" in self.config["Client"]["Listener"] and self.config["Client"]["Listener"]["interfaces"]:
+                ipaddresses = self.config["Client"]["Listener"]["interfaces"]
+                if len(ipaddresses) != 1:
+                    self._link = ""
                 else:
-                    self._link = "http://"
-                self._link = self._link + ipaddresses[0] + ":"
-                if not self.result_path.startswith("/"):
-                    self._link = self._link + config["Client"]["Listener"]["port"] + "/" + self.result_path
-                else:
-                    self._link = self._link + config["Client"]["Listener"]["port"] + self.result_path
+                    if "TLS" in self.config:
+                        self._link = "https://"
+                    else:
+                        self._link = "http://"
+                    self._link = self._link + ipaddresses[0] + ":"
+                    if not self.result_path.startswith("/"):
+                        self._link = self._link + self.config["Client"]["Listener"]["port"] + "/" + self.result_path
+                    else:
+                        self._link = self._link + self.config["Client"]["Listener"]["port"] + self.result_path
 
         if not self.registration_path.startswith("/"):
             self.registration_path = "/" + self.registration_path
@@ -883,6 +888,15 @@ class InteractionsHandler(MPlaneHandler):
                 specs = self._listenerclient._outgoing.pop(identity, [])
                 env = mplane.model.Envelope()
                 for spec in specs:
+
+                    if not spec.get_link():
+                        if "TLS" in self._listenerclient.config:
+                            link = "https://"
+                        else:
+                            link = "http://"
+                        link = link + self.request.host + self._listenerclient.result_path
+                        spec.set_link(link)
+
                     env.append_message(spec)
                     if isinstance(spec, mplane.model.Specification):
                         print("Specification " + spec.get_label() + " successfully pulled by " + identity)

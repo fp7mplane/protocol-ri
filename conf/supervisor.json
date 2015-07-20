@@ -21,14 +21,14 @@
   "Component": {
     "Listener": {
       "port": "8890",
-      "interfaces": ["127.0.0.1"]
+      "interfaces": ["192.168.3.188", "127.0.0.1"]
     },
     "scheduler_max_results": "20"
   },
   "Client": {
     "Listener": {
       "port": "8889",
-      "interfaces": ["127.0.0.1"],
+      "interfaces": ["192.168.3.188", "127.0.0.1"],
       "capability-path": "register/capability",
       "specification-path": "show/specification",
       "result-path": "register/result"

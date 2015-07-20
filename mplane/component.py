@@ -86,13 +86,16 @@ class BaseComponent(object):
             if "Listener" in config["Component"]:
                 if "interfaces" in config["Component"]["Listener"] and config["Component"]["Listener"]["interfaces"]:
                     self._ipaddresses = config["Component"]["Listener"]["interfaces"]
-                    if "TLS" in config:
-                        link = "https://"
+                    if len(self._ipaddresses) != 1:
+                        service.set_capability_link("")
                     else:
-                        link = "http://"
-                    link = link + config["Component"]["Listener"]["interfaces"][0] + ":"
-                    link = link + config["Component"]["Listener"]["port"] + SPECIFICATION_PATH_ELEM
-                    service.set_capability_link(link)
+                        if "TLS" in config:
+                            link = "https://"
+                        else:
+                            link = "http://"
+                        link = link + config["Component"]["Listener"]["interfaces"][0] + ":"
+                        link = link + config["Component"]["Listener"]["port"] + SPECIFICATION_PATH_ELEM
+                        service.set_capability_link(link)
                 else:
                     service.set_capability_link("")
             self.scheduler.add_service(service)
@@ -131,8 +134,12 @@ class ListenerHttpComponent(BaseComponent):
 
         application = tornado.web.Application([
             (r"/", MessagePostHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
-            (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
-            (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
+            (r"/" + CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler,
+                                                             'tlsState': self.tls,
+                                                             'config': config}),
+            (r"/" + CAPABILITY_PATH_ELEM + "/.*", DiscoveryHandler, {'scheduler': self.scheduler,
+                                                                     'tlsState': self.tls,
+                                                                     'config': config}),
         ])
         http_server = tornado.httpserver.HTTPServer(
                         application,
@@ -175,9 +182,10 @@ class DiscoveryHandler(MPlaneHandler):
 
     """
 
-    def initialize(self, scheduler, tlsState):
+    def initialize(self, scheduler, tlsState, config):
         self.scheduler = scheduler
         self.tls = tlsState
+        self.config = config
 
     def get(self):
         # capabilities
@@ -210,7 +218,15 @@ class DiscoveryHandler(MPlaneHandler):
         self.finish()
 
     def _respond_capability(self, key):
-        self._respond_message(self.scheduler.capability_for_key(key))
+        cap = self.scheduler.capability_for_key(key)
+        if not cap.get_link():
+            if "TLS" in self.config:
+                link = "https://"
+            else:
+                link = "http://"
+            link = link + self.request.host + SPECIFICATION_PATH_ELEM
+            cap.set_link(link)
+        self._respond_message(cap)
 
 class MessagePostHandler(MPlaneHandler):
     """

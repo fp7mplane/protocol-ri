@@ -178,13 +178,16 @@ class BaseSupervisor(object):
                     if "Listener" in self.config["Component"]:
                         if "interfaces" in self.config["Component"]["Listener"] and \
                                 self.config["Component"]["Listener"]["interfaces"]:
-                            if "TLS" in self.config:
-                                link = "https://"
+                            if len(self.config["Component"]["Listener"]["interfaces"]) != 1:
+                                serv.set_capability_link("")
                             else:
-                                link = "http://"
-                            link = link + self.config["Component"]["Listener"]["interfaces"][0] + ":"
-                            link = link + self.config["Component"]["Listener"]["port"] + "/"
-                            serv.set_capability_link(link)
+                                if "TLS" in self.config:
+                                    link = "https://"
+                                else:
+                                    link = "http://"
+                                link = link + self.config["Component"]["Listener"]["interfaces"][0] + ":"
+                                link = link + self.config["Component"]["Listener"]["port"] + "/"
+                                serv.set_capability_link(link)
                         else:
                             serv.set_capability_link("")
                 else:
