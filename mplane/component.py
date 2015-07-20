@@ -453,10 +453,10 @@ class InitiatorHttpComponent(BaseComponent):
                 label = msg.get_label()
                 break
         else:
-            label = reply.get_label()
             if isinstance(reply, mplane.model.Exception):
                 print("Exception for " + reply.get_token() + " successfully returned!")
                 return
+            label = reply.get_label()
 
         if res.status == 200:
             print("Result for " + label + " successfully returned!")

@@ -821,12 +821,16 @@ class InteractionsHandler(MPlaneHandler):
 
         if self._listenerclient.registration_path != self._listenerclient.result_path:
             if self.request.path == self._listenerclient.result_path:
-                if isinstance(env, mplane.model.Result) or isinstance(env, mplane.model.Receipt):
+                if isinstance(env, mplane.model.Result) \
+                        or isinstance(env, mplane.model.Receipt) \
+                        or isinstance(env, mplane.model.Exception):
                     self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
                     self._respond_plain_text(200)
                 elif isinstance(env, mplane.model.Envelope):
                     for msg in env.messages():
-                        if not isinstance(msg, mplane.model.Result) and not isinstance(msg, mplane.model.Receipt):
+                        if not isinstance(msg, mplane.model.Result) \
+                                and not isinstance(msg, mplane.model.Receipt) \
+                                and not isinstance(msg, mplane.model.Exception):
                             self._respond_plain_text(401, "Not a result (or receipt) received on result path")
                             return
                     # fall through
