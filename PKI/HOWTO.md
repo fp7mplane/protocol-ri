@@ -5,7 +5,7 @@ There are three .sh scripts in this folder:
 -   create-component-cert.sh
 -   create-client-cert.sh
 -   create-supervisor-cert.sh
--   create-ca.sh (this one should not be used, see [Generating a new CA](#generating-a-new-ca) below for more info)
+-   create-ca.sh (use this only in case you don't care about compatibility with mPlane PKI, see [Generating a new CA](#generating-a-new-ca) below for more info)
 
 In the ./etc/ folder there are the configuration files for each of those scripts.
 
