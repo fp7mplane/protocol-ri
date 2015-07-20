@@ -894,7 +894,7 @@ class InteractionsHandler(MPlaneHandler):
                 for spec in specs:
 
                     if not spec.get_link():
-                        if "TLS" in self._listenerclient.config:
+                        if self._listenerclient.config is not None and "TLS" in self._listenerclient.config:
                             link = "https://"
                         else:
                             link = "http://"

@@ -83,7 +83,7 @@ class BaseComponent(object):
 
         self._ipaddresses = None
         for service in self._services():
-            if "Listener" in config["Component"]:
+            if config is not None and "Listener" in config["Component"]:
                 if "interfaces" in config["Component"]["Listener"] and config["Component"]["Listener"]["interfaces"]:
                     self._ipaddresses = config["Component"]["Listener"]["interfaces"]
                     if len(self._ipaddresses) != 1:
@@ -220,7 +220,7 @@ class DiscoveryHandler(MPlaneHandler):
     def _respond_capability(self, key):
         cap = self.scheduler.capability_for_key(key)
         if not cap.get_link():
-            if "TLS" in self.config:
+            if self.config is not None and "TLS" in self.config:
                 link = "https://"
             else:
                 link = "http://"
