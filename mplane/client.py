@@ -104,6 +104,10 @@ class BaseClient(object):
             mplane.utils.add_value_to(self._capabilities_by_identity, identity, token)
 
     def _remove_capability(self, token):
+        """
+        Remove a capability from all the structures
+
+        """
         if token in self._capabilities:
             label = self._capabilities[token].get_label()
             del self._capabilities[token]
@@ -232,6 +236,12 @@ class BaseClient(object):
             self._receipt_labels[msg.get_label()] = msg
 
     def _remove_receipt(self, msg):
+        """
+        Remove a receipt from internal state.
+
+        Internal use only; use handle_message instead.
+
+        """
         token = msg.get_token()
         if token in self._receipts:
             receipt = self._receipts[token]
@@ -241,8 +251,7 @@ class BaseClient(object):
                 del self._receipt_labels[label]
 
     def _handle_result(self, msg, identity):
-        # FIXME check the result identity
-        # against where we sent the specification to
+        # FIXME check the result identity against where we sent the specification to
         self._add_result(msg, identity)
 
     def _add_result(self, msg, identity=None):
@@ -290,8 +299,9 @@ class BaseClient(object):
 
     def result_for(self, token_or_label):
         """
-        return a result for the token if available;
+        Return a result for the token if available;
         return the receipt for the token otherwise.
+
         """
         # first look in state
         if token_or_label in self._receipt_labels:
@@ -468,9 +478,13 @@ class HttpInitiatorClient(BaseClient):
             path = dst_url.path
         else:
             path = "/"
+
+        # send message
         res = pool.urlopen('POST', path,
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
+
+        # process reply
         if (res.status == 200 and
             res.getheader("Content-Type") == "application/x-mplane+json"):
             component_identity = self._tls_state.extract_peer_identity(dst_url)
@@ -541,7 +555,7 @@ class HttpInitiatorClient(BaseClient):
 
     def retrieve_capabilities(self, url, urlchain=[], pool=None, identity=None):
         """
-        connect to the given URL, retrieve and process the
+        Connect to the given URL, retrieve and process the
         capabilities/withdrawals found there
         """
 
@@ -609,6 +623,7 @@ class HttpListenerClient(BaseClient):
         self._link = ""
         self.config = config
 
+        # if config file contains the needed keys: use them. Otherwise use default values
         if self.config is not None and "Client" in self.config and "Listener" in self.config["Client"]:
             if "port" in self.config["Client"]["Listener"]:
                 listen_port = int(self.config["Client"]["Listener"]["port"])
@@ -624,6 +639,10 @@ class HttpListenerClient(BaseClient):
 
             if "interfaces" in self.config["Client"]["Listener"] and self.config["Client"]["Listener"]["interfaces"]:
                 ipaddresses = self.config["Client"]["Listener"]["interfaces"]
+
+                # 'link' construction: if there are multiple IPs to listen on, we have no way to determine
+                # which will be the correct URI for a component. In this case, let's delegate the construction to the
+                # request handlers (see InteractionsHandler.get())
                 if len(ipaddresses) != 1:
                     self._link = ""
                 else:
@@ -666,7 +685,6 @@ class HttpListenerClient(BaseClient):
         http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
         # run the server
-        # FIXME: not really a fixme, but the listen function has not been tested for multiple IPs
         if ipaddresses is not None:
             for ip in ipaddresses:
                 http_server.listen(listen_port, ip)
@@ -699,7 +717,7 @@ class HttpListenerClient(BaseClient):
                 expired_tokens.append(token)
 
         for token in expired_tokens:
-            cap_withdraw = mplane.model.Withdrawal(capability = self._capabilities[token])
+            cap_withdraw = mplane.model.Withdrawal(capability=self._capabilities[token])
             self.handle_message(cap_withdraw, self.identity_for(token))
 
     def _push_outgoing(self, identity, msg):
@@ -812,6 +830,11 @@ class InteractionsHandler(MPlaneHandler):
         self._tls = tlsState
 
     def post(self):
+        """
+        Receives POST requests that may contain Capabilities, Results, Receipts and Exceptions
+
+        """
+
         # unwrap json message from body
         if self.request.headers["Content-Type"] == "application/x-mplane+json":
             env = mplane.model.parse_json(self.request.body.decode("utf-8"))
@@ -820,6 +843,10 @@ class InteractionsHandler(MPlaneHandler):
             return
 
         if self._listenerclient.registration_path != self._listenerclient.result_path:
+            # registration and result path are different, we need to check if the requests have been
+            # sent on the correct path
+
+            # if is a Result, Receipt, Exception or Envelope (containing results)
             if self.request.path == self._listenerclient.result_path:
                 if isinstance(env, mplane.model.Result) \
                         or isinstance(env, mplane.model.Receipt) \
@@ -840,6 +867,8 @@ class InteractionsHandler(MPlaneHandler):
                 else:
                     self._respond_plain_text(401, "Not authorized: not a result (or receipt) received on result path")
                     return
+
+            # if is an Envelope (containing capabilities)
             elif self.request.path == self._listenerclient.registration_path:
                 if isinstance(env, mplane.model.Envelope):
                     self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
@@ -850,7 +879,11 @@ class InteractionsHandler(MPlaneHandler):
                     self._respond_plain_text(400, "Not a capability / Wrong format")
                     return
         else:
-            if isinstance(env, mplane.model.Result) or isinstance(env, mplane.model.Receipt):
+            # registration and result path are the same, so we need to differentiate the handling of the
+            # request based on what's in the request body
+            if isinstance(env, mplane.model.Result) \
+                    or isinstance(env, mplane.model.Receipt) \
+                    or isinstance(env, mplane.model.Exception):
                 self._listenerclient.handle_message(env, self._tls.extract_peer_identity(self.request))
                 self._respond_plain_text(200)
                 return
@@ -869,6 +902,10 @@ class InteractionsHandler(MPlaneHandler):
                 return
 
     def generate_response(self, env):
+        """
+        Generate the response for the request containing the capabilities
+
+        """
         response = ""
         for msg in env.messages():
             if isinstance(msg, mplane.model.Capability):
@@ -881,11 +918,19 @@ class InteractionsHandler(MPlaneHandler):
         return response
 
     def get(self):
+        """
+        Receives GET specification requests
+
+        """
+
+        # check if the path is correct (since we can receive a GET request also on registration_path or result_path)
         if self.request.path == self._listenerclient.specification_path:
             identity = self._tls.extract_peer_identity(self.request)
 
             if identity in self._listenerclient._capabilities_by_identity:
-                # reset timeouts for capabilities from the component
+
+                # specification requests from a component are used as keep-alive,
+                # so let's reset timeouts for capabilities from that component when we receive one
                 for token in self._listenerclient._capabilities_by_identity[identity]:
                     self._listenerclient._capability_timeouts[token] = datetime.utcnow()
 
@@ -893,6 +938,7 @@ class InteractionsHandler(MPlaneHandler):
                 env = mplane.model.Envelope()
                 for spec in specs:
 
+                    # if the 'link' field is empty, compose it using the host requested by the component/supervisor
                     if not spec.get_link():
                         if self._listenerclient.config is not None and "TLS" in self._listenerclient.config:
                             link = "https://"

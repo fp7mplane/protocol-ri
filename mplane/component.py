@@ -60,8 +60,8 @@ class BaseComponent(object):
     def __init__(self, config):
         self.config = config
 
+        # registry initialization phase (preload + fetch from URI)
         if config is not None:
-            # preload any registries necessary
             if "Registries" in config:
                 if "preload" in config["Registries"]:
                     for reg in config["Registries"]["preload"]:
@@ -74,18 +74,20 @@ class BaseComponent(object):
                 registry_uri = None
         else:
             registry_uri = None
-
-        # load default registry
         mplane.model.initialize_registry(registry_uri)
 
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
 
-        self._ipaddresses = None
+        self._ipaddresses = None  # list of IPs to listen on, if the component is Listener
         for service in self._services():
             if config is not None and "Listener" in config["Component"]:
                 if "interfaces" in config["Component"]["Listener"] and config["Component"]["Listener"]["interfaces"]:
                     self._ipaddresses = config["Component"]["Listener"]["interfaces"]
+
+                    # 'link' construction: if there are multiple IPs to listen on, we have no way to determine
+                    # which will be the correct URI for a client. In this case, let's delegate the construction to the
+                    # request handlers (see DiscoveryHandler._respond_capability())
                     if len(self._ipaddresses) != 1:
                         service.set_capability_link("")
                     else:
@@ -98,11 +100,13 @@ class BaseComponent(object):
                         service.set_capability_link(link)
                 else:
                     service.set_capability_link("")
+
             self.scheduler.add_service(service)
 
     def _services(self):
         services = []
         if self.config is not None:
+            # load all the modules that are present in the 'Modules' section
             if "Modules" in self.config["Component"]:
                 for mod_name in self.config["Component"]["Modules"]:
                     module = importlib.import_module(mod_name)
@@ -142,17 +146,17 @@ class ListenerHttpComponent(BaseComponent):
                                                                      'config': config}),
         ])
         http_server = tornado.httpserver.HTTPServer(
-                        application,
-                        ssl_options=self.tls.get_ssl_options())
+            application,
+            ssl_options=self.tls.get_ssl_options())
+
         # run the server
-        # FIXME: not really a fixme, but the listen function has not been tested for multiple IPs
         if self._ipaddresses is not None:
             for ip in self._ipaddresses:
                 http_server.listen(self._port, ip)
         else:
             http_server.listen(self._port)
 
-        print("ListenerHttpComponent running on port "+str(self._port))
+        print("ListenerHttpComponent running on port " + str(self._port))
         comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
         comp_t.start()
@@ -191,7 +195,7 @@ class DiscoveryHandler(MPlaneHandler):
         # capabilities
         path = self.request.path.split("/")[1:]
         if path[0] == CAPABILITY_PATH_ELEM:
-            if (len(path) == 1 or path[1] is None):
+            if len(path) == 1 or path[1] is None:
                 self._respond_capability_links()
             else:
                 self._respond_capability(path[1])
@@ -219,6 +223,8 @@ class DiscoveryHandler(MPlaneHandler):
 
     def _respond_capability(self, key):
         cap = self.scheduler.capability_for_key(key)
+
+        # if the 'link' field is empty, compose it using the host requested by the client/supervisor
         if not cap.get_link():
             if self.config is not None and "TLS" in self.config:
                 link = "https://"
@@ -259,12 +265,13 @@ class MessagePostHandler(MPlaneHandler):
 
     def post(self):
         # unwrap json message from body
-        if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
+        if self.request.headers["Content-Type"] == "application/x-mplane+json":
             msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
         else:
             # FIXME how do we tell tornado we don't want to handle this?
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
+        # check if requested capability is withdrawn
         is_withdrawn = False
         if isinstance(msg, mplane.model.Specification):
             for key in self.scheduler.capability_keys():
@@ -298,13 +305,17 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
+        # configuration of URLs that will be used for requests
         if self.config is not None and "Component" in self.config and "Initiator" in self.config["Component"]:
             if ("capability-url" in self.config["Component"]["Initiator"]
                 and "specification-url" in self.config["Component"]["Initiator"]
                 and "result-url" in self.config["Component"]["Initiator"]):
-                self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["capability-url"])
-                self.specification_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["specification-url"])
-                self.result_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["result-url"])
+                self.registration_url = urllib3.util.parse_url(
+                    self.config["Component"]["Initiator"]["capability-url"])
+                self.specification_url = urllib3.util.parse_url(
+                    self.config["Component"]["Initiator"]["specification-url"])
+                self.result_url = urllib3.util.parse_url(
+                    self.config["Component"]["Initiator"]["result-url"])
             elif "url" in self.config["Component"]["Initiator"]:
                 self.registration_url = urllib3.util.parse_url(self.config["Component"]["Initiator"]["url"])
                 self.specification_url = self.registration_url
@@ -335,6 +346,7 @@ class InitiatorHttpComponent(BaseComponent):
         """
         env = mplane.model.Envelope()
 
+        # try to register capabilities, if URL is unreachable keep trying every 5 seconds
         connected = False
         while not connected:
             try:
@@ -344,7 +356,7 @@ class InitiatorHttpComponent(BaseComponent):
                 print("Client/Supervisor unreachable. Retrying connection in 5 seconds")
                 sleep(5)
 
-        # If caps is not None, register that
+        # If caps is not None, register them
         if caps is not None:
             for cap in caps:
                 if self.scheduler.azn.check(cap, self._client_identity):
@@ -397,11 +409,12 @@ class InitiatorHttpComponent(BaseComponent):
             # FIXME configurable default idle time.
             self.idle_time = 5
 
-            # send a request for specifications
+            # try to send a request for specifications. If URL is unreachable means that the Supervisor (or Client) has
+            # most probably died, so we need to re-register capabilities
             try:
                 res = self.send_message(self.specification_url, "GET")
             except:
-                print("Supervisor down. Trying to re-register...")
+                print("Client/Supervisor down. Trying to re-register...")
                 self.register_to_client()
 
             if res.status == 200:
@@ -415,6 +428,8 @@ class InitiatorHttpComponent(BaseComponent):
 
                     # hand spec to scheduler
                     reply = self.scheduler.process_message(self._client_identity, spec, callback=self.return_results)
+
+                    # store the URL that will be used to return results
                     if not isinstance(spec, mplane.model.Interrupt):
                         self._result_url[spec.get_token()] = spec.get_link()
 
@@ -466,6 +481,7 @@ class InitiatorHttpComponent(BaseComponent):
         pass
 
     def send_message(self, url_or_str, method, msg=None):
+        # if the URL is empty (meaning that the 'link' section was empty), use the default url for results
         if not url_or_str:
             url_or_str = self.result_url
 
@@ -474,6 +490,7 @@ class InitiatorHttpComponent(BaseComponent):
         else:
             url = url_or_str
 
+        # if the URL has a different host from the one used for capabilities registration, we need a new connectionPool
         if self.pool.is_same_host(mplane.utils.unparse_url(url)):
             pool = self.pool
         else:
