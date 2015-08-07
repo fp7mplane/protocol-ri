@@ -39,18 +39,6 @@ import ssl
 import os
 
 
-''' HELPERS '''
-
-# FIXME: the following helper should be moved in mplane.mplane.utils module.
-def get_config(config_file):
-    """
-    Open a config file, parse it and return a config object.
-    """
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(config_file))
-    return config
-
 # FIXME: this entire module abuses package-level variables.
 #        fixing this would be nice but is relatively low priority.
 
@@ -68,16 +56,16 @@ id_false_role = "Dummy"
 def test_Authorization():
     res_none = mplane.azn.Authorization(None)
     assert_true(isinstance(res_none, mplane.azn.AuthorizationOff))
-    res_auth = mplane.azn.Authorization(get_config(config_path))
+    res_auth = mplane.azn.Authorization(mplane.utils.get_config(config_path))
     assert_true(isinstance(res_auth, mplane.azn.AuthorizationOn))
-    res_no_tls = mplane.azn.Authorization(get_config(config_path_no_tls))
+    res_no_tls = mplane.azn.Authorization(mplane.utils.get_config(config_path_no_tls))
     assert_true(isinstance(res_no_tls, mplane.azn.AuthorizationOff))
 
 
 def test_AuthorizationOn():
     mplane.model.initialize_registry()
     cap = mplane.model.Capability(label="test-log_tcp_complete-core")
-    res = mplane.azn.AuthorizationOn(get_config(config_path))
+    res = mplane.azn.AuthorizationOn(mplane.utils.get_config(config_path))
     assert_true(isinstance(res, mplane.azn.AuthorizationOn))
     assert_true(res.check(cap, id_true_role))
     assert_false(res.check(cap, id_false_role))
@@ -105,9 +93,9 @@ host = "127.0.0.1"
 port = 8080
 
 # No forged_identity
-tls_with_file = mplane.tls.TlsState(config=get_config(config_path))
+tls_with_file = mplane.tls.TlsState(config=mplane.utils.get_config(config_path))
 # No TLS sections but with forged_identity
-tls_with_file_no_tls = mplane.tls.TlsState(config=get_config(config_path_no_tls),
+tls_with_file_no_tls = mplane.tls.TlsState(config=mplane.utils.get_config(config_path_no_tls),
                                            forged_identity=forged_identity)
 
 def test_TLSState_init():

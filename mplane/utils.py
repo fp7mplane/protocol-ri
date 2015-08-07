@@ -23,6 +23,8 @@ import re
 import mplane.model
 import json
 import urllib3
+import configparser
+
 
 def read_setting(filepath, param):
     """
@@ -85,7 +87,7 @@ def print_then_prompt(line):
 
     """
     print(line)
-    print('|mplane| ', end="", flush = True)
+    print('|mplane| ', end="", flush=True)
     pass
 
 def add_value_to(container, key, value):
@@ -118,3 +120,14 @@ def parse_url(url):
     else:
         link = link + "/" + url.path
     return link
+
+def get_config(config_file):
+    """
+    Open a config file, parse it and return a config object.
+    """
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(mplane.utils.search_path(config_file))
+    return config
+
+
