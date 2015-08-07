@@ -28,13 +28,13 @@ informative:
   RFC7159:
   RFC7230:
   RFC7373:
-  STUNT:
-    target: http://deusty.blogspot.com/2007/09/stunt-out-of-band-channels.html
-    title: STUNT & out-of-band channels
+  D14:
+    target: https://www.ict-mplane.eu/sites/default/files//public/public-page/public-deliverables//1095mplane-d14.pdf
+    title: mPlane Architecture SpecificaƟon
     author:
-    name: Robbie Hanson
-    ins: R. Hanson
-    date: 2007-09-17
+      name: Brian Trammell
+      ins: B. Trammell
+    date: 2015-04-15
 
 
 --- abstract
@@ -403,7 +403,7 @@ An __indirection__ is returned instead of a result by a component to indicate th
 
 ### Exception
 
-An __exception__ is sent from a client to a component or from a component to a client to signal an exceptional condition within the infrastructure itself. They are not meant to signal exceptional conditions within a measurement performed by a component; see {{#error-handling-in-mplane-workflows}} for more. An exception contains only two sections: an optional __token__ referring back to the message to which the exception is related (if any), and a __message__ section containing free-form, preferably human readable information about the exception.
+An __exception__ is sent from a client to a component or from a component to a client to signal an exceptional condition within the infrastructure itself. They are not meant to signal exceptional conditions within a measurement performed by a component; see {{error-handling-in-mplane-workflows}} for more. An exception contains only two sections: an optional __token__ referring back to the message to which the exception is related (if any), and a __message__ section containing free-form, preferably human readable information about the exception.
 
 ### Envelope
 
@@ -755,7 +755,7 @@ Strings and URLs are represented as JSON strings subject to JSON escaping rules.
 
 Addresses are represented as dotted quads for IPv4 addresses as they would be in URLs, and canonical IPv6 textual addresses as in section 2.2 of {{RFC4291}} as updated by section 4 of {{RFC5952}}. When representing networks, addresses may be suffixed as in CIDR notation, with a '`/`' character followed by the mask length in bits n, provided that the least significant 32 − n or 128 − n bits of the address are zero, for IPv4 and IPv6 respectively.
 
-Timestamps are represented in {{RFC 3339}} and ISO 8601, with two important differences. First, all mPlane timestamps are are expressed in terms of UTC, so time zone offsets are neither required nor supported, and are always taken to be 0. Second, fractional seconds are represented with a variable number of digits after an optional decimal point after the fraction.
+Timestamps are represented in {{RFC3339}} and ISO 8601, with two important differences. First, all mPlane timestamps are are expressed in terms of UTC, so time zone offsets are neither required nor supported, and are always taken to be 0. Second, fractional seconds are represented with a variable number of digits after an optional decimal point after the fraction.
 
 ### Example mPlane Capabilities and Specifications
 

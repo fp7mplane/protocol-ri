@@ -544,7 +544,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    An element registry makes up the vocabulary by which mPlane
    components and clients can express the meaning of parameters,
    metadata, and result columns for mPlane statements.  A registry is
-   represented as a JSON [[RFC7159]}] object with the following keys:
+   represented as a JSON [RFC7159] object with the following keys:
 
    o  *registry-format*: currently "mplane-0", determines the supported
       features of the registry format.
@@ -572,9 +572,8 @@ Internet-Draft                 mPlane Spec                   August 2015
 
       *  *name*: The name of the element.
 
-      *  *prim*: The name of the primitive type of the element, from the
-         list of primitives in section [Primitive Types]{#primitive-
-         types}.
+   o  *prim*: The name of the primitive type of the element, from the
+      list of primitives in section Section 2.1.2.
 
       *  *desc*: An English-language description of the meaning of the
          element.
@@ -607,6 +606,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    type registry are considered globally equal based on their fully
    qualified names.  However, within a given mPlane message, elements
    are considered equal based on unqualified names.
+
 
 
 
@@ -847,11 +847,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    An *exception* is sent from a client to a component or from a
    component to a client to signal an exceptional condition within the
    infrastructure itself.  They are not meant to signal exceptional
-   conditions within a measurement performed by a component; see [Error
-   Handling in mPlane Workflows]{#error-handling-in-mplane-workflows}
-   for more.  An exception contains only two sections: an optional
-   *token* referring back to the message to which the exception is
-   related (if any), and a *message* section containing free-form,
+   conditions within a measurement performed by a component; see
+   Section 4.4 for more.  An exception contains only two sections: an
+   optional *token* referring back to the message to which the exception
+   is related (if any), and a *message* section containing free-form,
    preferably human readable information about the exception.
 
 2.2.7.  Envelope
@@ -882,6 +881,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    sections in each of the message types supported by mPlane: "req."
    means the section is required, "opt." means it is optional; see the
    subsection on each message section for details.
+
 
 
 
@@ -997,8 +997,8 @@ Internet-Draft                 mPlane Spec                   August 2015
    mPlane clients and components should *never* use the label as a
    unique identifier for a message, or assume any semantic meaning in
    the label - the test of message equality and relatedness is always
-   based upon the schema and values as in section [Message uniqueness
-   and idempotence]{message-uniqueness-and-idempotence}.
+   based upon the schema and values as in Section 2.4.
+
 
 
 
@@ -1627,11 +1627,11 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
    o  "when" : a string containing a temporal scope, as described in
-      section [Temporal Scope]{temporal-scope}.
+      Section 2.3.5.
 
    o  "parameters" : a JSON object mapping (non-qualified) element
       names, either to constraints or to parameter values, as
-      appropriate, and as described in section [Parameters]{parameters}.
+      appropriate, and as described in Section 2.3.6.
 
    o  "metadata" : a JSON object mapping (non-qualified) element names
       to metadata values.
@@ -1672,7 +1672,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    provided that the least significant 32 - n or 128 - n bits of the
    address are zero, for IPv4 and IPv6 respectively.
 
-   Timestamps are represented in [RFC 3339] and ISO 8601, with two
+   Timestamps are represented in [RFC3339] and ISO 8601, with two
    important differences.  First, all mPlane timestamps are are
 
 
@@ -1987,9 +1987,8 @@ Internet-Draft                 mPlane Spec                   August 2015
    bidirectional protocol.  This makes it necessary to specify mappings
    between this bidirectional message channel and the sequence of HTTPS
    requests and responses for each deployment scenario.  These mappings
-   are given in section [Workflows in HTTPS]{workflows-in-https}. Note
-   that in a given mPlane domain, any or all of these mappings may be
-   used simultaneously.
+   are given in Section 4.  Note that in a given mPlane domain, any or
+   all of these mappings may be used simultaneously.
 
    When sending mPlane messages over HTTPS, the Content-Type of the
    message indicates the message representation.  The MIME Content-Type
@@ -2010,6 +2009,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    domain can then communicate with components and clients within that
    domain.  In a domain containing a supervisor, all clients and
    components within the domain can connect to the supervisor.  This is
+   necessary to scale mPlane domains to large numbers of clients and
 
 
 
@@ -2018,7 +2018,6 @@ Trammell                Expires February 7, 2016               [Page 36]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-   necessary to scale mPlane domains to large numbers of clients and
    components without needing to specifically configure each client and
    component identity at the supervisor.
 
@@ -2035,10 +2034,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    probes), the ability to establish a connection implies verification
    of a client certificate valid within the domain, and further implies
    authorization to continue with any capability offered by the
-   component.  Conversely, in component-initiated workflows (see section
-   [Component-Initiated]Section 4.2), the ability of a component to
-   connect to the supervisor implies that the supervisor will trust
-   capabilities from that component.
+   component.  Conversely, in component-initiated workflows (see
+   Section 4.2), the ability of a component to connect to the supervisor
+   implies that the supervisor will trust capabilities from that
+   component.
 
    For components with more complex policies (e.g., many repositories),
    an identity based on the DN of the peer's certificate is mapped to an
@@ -2066,6 +2065,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    client or supervisor will have been configured with a URL from which
    to retrieve capabilities.  Conversely, when connecting to a client or
    supervisor for the first time, a component will have discovered or
+   been configured with a URL to which to post capabilities.  From
 
 
 
@@ -2074,7 +2074,6 @@ Trammell                Expires February 7, 2016               [Page 37]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-   been configured with a URL to which to post capabilities.  From
    there, every capability retrieved by a client should have a link
    section to which to POST specifications, and every specification
    retrieved by a component should have a link section to which to POST
@@ -2121,7 +2120,8 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    Access control in WebSockets is performed as in the HTTPS case: both
    clients and components are identified by certificates, identities
-
+   derived from certificate DN, and domain membership is defined by
+   certificate issuer.
 
 
 
@@ -2129,9 +2129,6 @@ Trammell                Expires February 7, 2016               [Page 38]
 
 Internet-Draft                 mPlane Spec                   August 2015
 
-
-   derived from certificate DN, and domain membership is defined by
-   certificate issuer.
 
    Implementation and further specification of WebSockets as a session
    layer is a matter for future work.  Though WebSockets is a better fit
@@ -2178,6 +2175,9 @@ Internet-Draft                 mPlane Spec                   August 2015
    among clients and components in an mPlane infrastructure.  In the
    subsections below, we illustrate these workflows as they operate over
    HTTPS.  Operation over WebSockets or SSH is much simpler: since the
+   session protocol in these cases provides a bidirectional channel for
+   message exchange, so the message sender and message exchange
+
 
 
 
@@ -2186,8 +2186,6 @@ Trammell                Expires February 7, 2016               [Page 39]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-   session protocol in these cases provides a bidirectional channel for
-   message exchange, so the message sender and message exchange
    initiator are independent from the connection initiator, and callback
    control and capability discovery as described here are unnecessary.
 
@@ -2233,6 +2231,8 @@ Internet-Draft                 mPlane Spec                   August 2015
    In a client-initiated workflow with a delayed result, the client is
    responsible for polling the component with a redemption at the
    appropriate time.  For measurements (i.e. specifications with the
+   verb '"measure"'), this time is known as it is defined by the end of
+   the temporal scope for the specification.
 
 
 
@@ -2241,9 +2241,6 @@ Trammell                Expires February 7, 2016               [Page 40]
 
 Internet-Draft                 mPlane Spec                   August 2015
 
-
-   verb '"measure"'), this time is known as it is defined by the end of
-   the temporal scope for the specification.
 
    Note that in client-initiated workflows, clients may store
    capabilities from components for later use: there may be a
@@ -2290,6 +2287,9 @@ Internet-Draft                 mPlane Spec                   August 2015
    and attempting to GET a specification from a known URL.  The client
    will either respond 404 Not Found if the client has no current
    specification for the component, or with a specification to run
+   matching a previously POSTed capability.  After completing the
+   measurement specified, the component then calls back and POSTs the
+   results to the supervisor at a known URL.
 
 
 
@@ -2297,10 +2297,6 @@ Trammell                Expires February 7, 2016               [Page 41]
 
 Internet-Draft                 mPlane Spec                   August 2015
 
-
-   matching a previously POSTed capability.  After completing the
-   measurement specified, the component then calls back and POSTs the
-   results to the supervisor at a known URL.
 
    In this case, the component must be configured with the client's
    URL(s).
@@ -2345,6 +2341,10 @@ Internet-Draft                 mPlane Spec                   August 2015
     'results':       []
    }
 
+   Note that if the supervisor has no work for the component, it returns
+   a single callback specification as opposed to returning 404.  Note
+   that subsequent callback control specification to a component can
+   have different time intervals, allowing a supervisor fine-grained
 
 
 
@@ -2354,10 +2354,6 @@ Trammell                Expires February 7, 2016               [Page 42]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-   Note that if the supervisor has no work for the component, it returns
-   a single callback specification as opposed to returning 404.  Note
-   that subsequent callback control specification to a component can
-   have different time intervals, allowing a supervisor fine-grained
    control on a per-component basis of the tradeoff between polling load
    and response time.
 
@@ -2402,6 +2398,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    This data, or data derived from the analysis thereof, can then be
    subsequently retrieved by a client using a client-initiated workflow
    to the collector.
+
+
+
+
 
 
 
@@ -2607,9 +2607,10 @@ Internet-Draft                 mPlane Spec                   August 2015
               Information Export (IPFIX) Abstract Data Types", RFC 7373,
               September 2014.
 
-   [STUNT]    "STUNT & out-of-band channels", September 2007,
-              <http://deusty.blogspot.com/2007/09/
-              stunt-out-of-band-channels.html>.
+   [D14]      Trammell, B., "mPlane Architecture Specifica&#415;on",
+              April 2015, <https://www.ict-
+              mplane.eu/sites/default/files//public/public-page/public-
+              deliverables//1095mplane-d14.pdf>.
 
 Author's Address
 
@@ -2620,7 +2621,6 @@ Author's Address
    Switzerland
 
    Email: ietf@trammell.ch
-
 
 
 
