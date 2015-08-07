@@ -12,12 +12,12 @@ def service(**kwargs):
             MySecondService(kwargs['local-ip-address'])]
 ```
 
-- Create a module section in the component configuration file; for example if your module is called mplane.components.mycomponent:
+- Create a key in the "Modules" section in the component configuration file; for example if your module is called mplane.components.mycomponent:
 
 ```
-[service_mycomponent]
-module: mplane.components.mycomponent
-local-ip-address: 10.2.3.4
+"Modules": {
+      "mplane.components.mycomponent": {"arg1": "value1", "arg2": "value2"}
+}
 ```
 
 - Run `mpcom` to start your component. The `--config` argument points to the configuration file to use.

@@ -24,7 +24,7 @@
 #
 
 import mplane.supervisor
-import configparser
+import json
 import argparse
 
 if __name__ == "__main__":
@@ -36,14 +36,13 @@ if __name__ == "__main__":
 
     # check if conf file parameter has been inserted in the command line
     if not args.config:
-        print('\nERROR: missing --config\n')
+        print('\nWARNING: missing --config, using default settings. Supervisor may be unstable\n')
         parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.config))
+        config = None
+    else:
+        # Read the configuration file
+        conf_file = open(mplane.utils.search_path(args.config), 'r')
+        config = json.load(conf_file)
 
     # Start the supervisor
     supervisor = mplane.supervisor.BaseSupervisor(config)
