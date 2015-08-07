@@ -27,6 +27,15 @@ from datetime import datetime
 
 import html.parser
 import urllib3
+
+# FIXME HACK
+# some urllib3 versions let you disable warnings about untrusted CAs,
+# which we use a lot in the project demo. Try to disable warnings if we can.
+try:
+    urllib3.disable_warnings()
+except:
+    pass
+
 from threading import Thread
 import queue
 
@@ -48,7 +57,7 @@ DEFAULT_RESULT_PATH = "register/result"
 class BaseClient(object):
     """
     Core implementation of a generic programmatic client.
-    Used for common client state management between 
+    Used for common client state management between
     Client and ClientListener; use one of these instead.
 
     """
@@ -63,13 +72,18 @@ class BaseClient(object):
         self._receipt_labels = {}
         self._results = {}
         self._result_labels = {}
+
+        # structures for capability expiration after timeout
+        self._capability_timeouts = {}
+        self._capabilities_by_identity = {}
+
         self._supervisor = supervisor
         if self._supervisor:
             self._exporter = exporter
 
     def _add_capability(self, msg, identity):
         """
-        Add a capability to internal state. The capability will be recallable 
+        Add a capability to internal state. The capability will be recallable
         by token, and, if present, by label.
 
         Internal use only; use handle_message instead.
@@ -80,24 +94,28 @@ class BaseClient(object):
         token = msg.get_token()
 
         self._capabilities[token] = msg
+        self._capability_timeouts[token] = datetime.utcnow()
 
         if msg.get_label():
             self._capability_labels[msg.get_label()] = msg
 
         if identity:
             self._capability_identities[token] = identity
+            mplane.utils.add_value_to(self._capabilities_by_identity, identity, token)
 
-    def _remove_capability(self, msg):
-        token = msg.get_token()
+    def _remove_capability(self, token):
         if token in self._capabilities:
             label = self._capabilities[token].get_label()
             del self._capabilities[token]
+            del self._capability_timeouts[token]
+            identity = self.identity_for(token)
+            self._capabilities_by_identity[identity].remove(token)
             if label and label in self._capability_labels:
                 del self._capability_labels[label]
 
     def _withdraw_capability(self, msg, identity):
         """
-        Process a withdrawal. Match the withdrawal to the capability, 
+        Process a withdrawal. Match the withdrawal to the capability,
         first by token, then by schema. Withdrawals that do not match
         any known capabilities are dropped silently.
 
@@ -108,8 +126,9 @@ class BaseClient(object):
 
         # FIXME check identity, exception on mismatch
 
+        print("Capability " + self._capabilities[token].get_label() + " from " + identity + " expired or withdrawn")
         if token in self._capabilities:
-            self._remove_capability(self._capabilities[token])
+            self._remove_capability(token)
         else:
             # Search all capabilities by schema
             for cap in self.capabilities_matching_schema(msg):
@@ -147,8 +166,8 @@ class BaseClient(object):
 
     def capabilities_matching_schema(self, schema_capability):
         """
-        Given a capability, return *all* known capabilities matching the 
-        given schema capability. A capability matches a schema capability 
+        Given a capability, return *all* known capabilities matching the
+        given schema capability. A capability matches a schema capability
         if and only if: (1) the capability schemas match and (2) all
         constraints in the capability are contained by all constraints
         in the schema capability.
@@ -162,7 +181,7 @@ class BaseClient(object):
 
     def _spec_for(self, cap_tol, when, params, relabel=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         ready for invocation, and return the capability and specification.
 
@@ -201,7 +220,7 @@ class BaseClient(object):
 
     def _add_receipt(self, msg, identity):
         """
-        Add a receipt to internal state. The receipt will be recallable 
+        Add a receipt to internal state. The receipt will be recallable
         by token, and, if present, by label.
 
         Internal use only; use handle_message instead.
@@ -222,14 +241,14 @@ class BaseClient(object):
                 del self._receipt_labels[label]
 
     def _handle_result(self, msg, identity):
-        # FIXME check the result identity 
+        # FIXME check the result identity
         # against where we sent the specification to
         self._add_result(msg, identity)
 
     def _add_result(self, msg, identity=None):
         """
         Add a result to internal state. The result will supercede any receipt
-        stored for the same token, and will be recallable by token, and, 
+        stored for the same token, and will be recallable by token, and,
         if present, by label.
 
         Internal use only; use handle_message instead.
@@ -291,8 +310,8 @@ class BaseClient(object):
 
     def handle_message(self, msg, identity=None):
         """
-        Handle a message. Used internally to process 
-        mPlane messages received from a component. Can also be used 
+        Handle a message. Used internally to process
+        mPlane messages received from a component. Can also be used
         to inject messages into a client's state.
 
         """
@@ -401,15 +420,15 @@ class CrawlParser(html.parser.HTMLParser):
 class HttpInitiatorClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports client-initiated workflows. Intended for building 
+    Supports client-initiated workflows. Intended for building
     client UIs and bots.
 
     """
 
-    def __init__(self, tls_state, default_url=None,
+    def __init__(self, config, tls_state, default_url=None,
                  supervisor=False, exporter=None):
         """
-        initialize a client with a given 
+        initialize a client with a given
         default URL an a given TLS state
         """
         super().__init__(tls_state, supervisor=supervisor,
@@ -449,11 +468,10 @@ class HttpInitiatorClient(BaseClient):
             path = dst_url.path
         else:
             path = "/"
-
         res = pool.urlopen('POST', path,
                            body=mplane.model.unparse_json(msg).encode("utf-8"),
                            headers=headers)
-        if (res.status == 200 and 
+        if (res.status == 200 and
             res.getheader("Content-Type") == "application/x-mplane+json"):
             component_identity = self._tls_state.extract_peer_identity(dst_url)
             self.handle_message(mplane.model.parse_json(res.data.decode("utf-8")), component_identity)
@@ -500,17 +518,14 @@ class HttpInitiatorClient(BaseClient):
 
     def invoke_capability(self, cap_tol, when, params, relabel=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         and send it to the appropriate destination.
 
         """
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         spec.validate()
-        dst_url = urllib3.util.Url(scheme=self._default_url.scheme,
-                                   host=self._default_url.host,
-                                   port=self._default_url.port,
-                                   path=cap.get_link())
+        dst_url = cap.get_link()
         self.send_message(spec, dst_url)
         return spec
 
@@ -526,7 +541,7 @@ class HttpInitiatorClient(BaseClient):
 
     def retrieve_capabilities(self, url, urlchain=[], pool=None, identity=None):
         """
-        connect to the given URL, retrieve and process the 
+        connect to the given URL, retrieve and process the
         capabilities/withdrawals found there
         """
 
@@ -568,14 +583,14 @@ class HttpInitiatorClient(BaseClient):
                 parser.feed(res.data.decode("utf-8"))
                 parser.close()
                 for capurl in parser.urls:
-                    self.retrieve_capabilities(url=capurl, 
+                    self.retrieve_capabilities(url=capurl,
                                                urlchain=urlchain + [url],
                                                pool=pool, identity=identity)
 
 class HttpListenerClient(BaseClient):
     """
     Core implementation of an mPlane JSON-over-HTTP(S) client.
-    Supports component-initiated workflows. Intended for building 
+    Supports component-initiated workflows. Intended for building
     supervisors.
 
     """
@@ -584,13 +599,9 @@ class HttpListenerClient(BaseClient):
         super().__init__(tls_state, supervisor=supervisor,
                         exporter=exporter)
 
-        listen_host = DEFAULT_HOST
-        if "listen-host" in config["client"]:
-            listen_host = config["client"]["listen-host"]
-
         listen_port = DEFAULT_PORT
         if "listen-port" in config["client"]:
-            listen_port = config.getint("client", "listen-port")
+            listen_port = int(config["client"]["listen-port"])
 
         registration_path = DEFAULT_REGISTRATION_PATH
         if "registration-path" in config["client"]:
@@ -604,6 +615,9 @@ class HttpListenerClient(BaseClient):
         if "result-path" in config["client"]:
             result_path = config["client"]["result-path"]
 
+        # link to which results must be sent
+        self._link = config["client"]["listen-spec-link"]
+
         # Outgoing messages per component identifier
         self._outgoing = {}
 
@@ -611,7 +625,7 @@ class HttpListenerClient(BaseClient):
         # used to create labels programmatically
         self._ssn = 0
 
-        # Capability 
+        # Capability
         self._callback_capability = {}
 
         # Create a request handler pointing at this client
@@ -626,21 +640,35 @@ class HttpListenerClient(BaseClient):
         http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
 
         # run the server
-        http_server.listen(listen_port, listen_host)
+        http_server.listen(listen_port)
         if io_loop is not None:
             cli_t = Thread(target=self.listen_in_background(io_loop))
+            timeout_callback = tornado.ioloop.PeriodicCallback(self._check_timeouts, 5000, io_loop)
         else:
             cli_t = Thread(target=self.listen_in_background)
+            timeout_callback = tornado.ioloop.PeriodicCallback(self._check_timeouts, 5000)
+        timeout_callback.start()
         cli_t.daemon = True
         cli_t.start()
 
     def listen_in_background(self, io_loop=None):
-        """
-        The server listens for requests in background, while
-        the supervisor console remains accessible
-        """
+        """ The server listens for requests in background """
+
         if io_loop is None:
             tornado.ioloop.IOLoop.instance().start()
+
+    def _check_timeouts(self):
+        """ Checks if capabilities are expired, and if so, delete them """
+
+        expired_tokens = []
+        for token in self._capability_timeouts:
+            interval = datetime.utcnow() - self._capability_timeouts[token]
+            if interval.total_seconds() >= 10:
+                expired_tokens.append(token)
+
+        for token in expired_tokens:
+            cap_withdraw = mplane.model.Withdrawal(capability = self._capabilities[token])
+            self.handle_message(cap_withdraw, self.identity_for(token))
 
     def _push_outgoing(self, identity, msg):
         if identity not in self._outgoing:
@@ -649,7 +677,7 @@ class HttpListenerClient(BaseClient):
 
     def invoke_capability(self, cap_tol, when, params, relabel=None, callback_when=None):
         """
-        Given a capability token or label, a temporal scope, a dictionary 
+        Given a capability token or label, a temporal scope, a dictionary
         of parameters, and an optional new label, derive a specification
         and queue it for retrieval by the appropriate identity (i.e., the
         one associated with the capability).
@@ -661,6 +689,7 @@ class HttpListenerClient(BaseClient):
         # grab cap, spec, and identity
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         identity = self.identity_for(cap.get_token())
+        spec.set_link(self._link)
 
         callback_cap = None
         if identity in self._callback_capability:
@@ -759,11 +788,13 @@ class RegistrationHandler(MPlaneHandler):
 
         # reply to the component
         response = ""
-        for new_cap in env.messages():
-            if isinstance(new_cap, mplane.model.Capability):
-                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"ok\"},"
+        for msg in env.messages():
+            if isinstance(msg, mplane.model.Capability):
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"ok\"},"
+            elif isinstance(msg, mplane.model.Withdrawal):
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Withdrawn\"},"
             else:
-                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
         response = "{" + response[:-1].replace("\n", "") + "}"
         self._respond_json_text(200, response)
         return
@@ -780,15 +811,24 @@ class SpecificationHandler(MPlaneHandler):
 
     def get(self):
         identity = self._tls.extract_peer_identity(self.request)
-        specs = self._listenerclient._outgoing.pop(identity, [])
-        env = mplane.model.Envelope()
-        for spec in specs:
-            env.append_message(spec)
-            if isinstance(spec, mplane.model.Specification):
-                print("Specification " + spec.get_label() + " successfully pulled by " + identity)
-            else:
-                print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
-        self._respond_json_text(200, mplane.model.unparse_json(env))
+
+        if identity in self._listenerclient._capabilities_by_identity:
+            # reset timeouts for capabilities from the component
+            for token in self._listenerclient._capabilities_by_identity[identity]:
+                self._listenerclient._capability_timeouts[token] = datetime.utcnow()
+
+            specs = self._listenerclient._outgoing.pop(identity, [])
+            env = mplane.model.Envelope()
+            for spec in specs:
+                env.append_message(spec)
+                if isinstance(spec, mplane.model.Specification):
+                    print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+                else:
+                    print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
+            self._respond_json_text(200, mplane.model.unparse_json(env))
+        else:
+            self._respond_plain_text(428, "not registered")
+
 
 class ResultHandler(MPlaneHandler):
     """

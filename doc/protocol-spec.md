@@ -15,15 +15,6 @@ defined in this document.
 
 This document is the work of the mPlane consortium, specifically B. Trammell, M. Kühlewind, M. Mellia, A. Finamore, S. Pentassuglia, G. De Rosa, F. Invernizzi, M. Milanesio, D. Rossi, S. Niccolini, I. Leontiadis, T. Szemethy, B. Szabó, R. Winter, M. Faath, B. Donnet, and D. Papadimitriou. It reflects Version 1 of the mPlane protocol.
 
-## Changes from D1.4
-
-This document differs from the revision of the protocol documented in the mPlane consortium's Deliverable 1.4 in the following points; all of these changes are interoperable with the protocol as defined there:
-
-- Addition of augmented registry information.
-- Addition of tokens to envelopes.
-- Clarification that interrupts are intended to return pending results.
-- Reorganization of architecture section for clarity.
-
 # mPlane Architecture
 
 mPlane is built around an architecture in which **components** provide network measurement services and access to stored measurement data which they advertise via **capabilities** completely describing these services and data. A **client** makes use of these capabilities by sending **specifications** that respond to them back to the components. Components may then either return **results** directly to the clients or sent to some third party via **indirect export** using an external protocol. The capabilities, specifications, and results are carried over the mPlane **protocol**, defined in detail in this document. An mPlane measurement infrastructure is built up from these basic blocks.
@@ -34,7 +25,7 @@ A client which provides automation support for measurement iteration in troubles
 
 This arrangement is shown in schematic form in the diagram below.
 
-![General arrangement of entities in the mPlane architecture](./arch-overview.png)
+![General arrangement of entities in the mPlane architecture](./img/arch-overview.png)
 
 The mPlane protocol is, in essence, a self-describing, error- and delay-tolerant remote procedure call (RPC) protocol: each capability exposes an entry point in the API provided by the component; each specification embodies an API call; and each result returns the results of an API call.
 
@@ -46,7 +37,7 @@ mPlane differs from a simple RPC facility in several important ways, detailed in
 
 First, given the heterogeneity of the measurement tools and techniques applied, it is necessary for the protocol to be as *flexible* and *extensible* as possible. Therefore, the architecture in its simplest form consists of only two entities and one relationship, as shown in the diagram below: *n* clients connect to *m* components via the mPlane protocol. Anything which can speak the mPlane protocol and exposes capabilities thereby is a component; anything which can understand these capabilities and send specifications to invoke them is a client. Everything a component can do, from the point of view of mPlane, is entirely described by its capabilities. Capabilities are even used to expose optional internal features of the protocol itself, and provide a method for built-in protocol extensibility.
 
-![The simplest form of the mPlane architecture](./extremely-simple-architecture.png)
+![The simplest form of the mPlane architecture](./img/extremely-simple-architecture.png)
 
 ### Schema-centric Measurement Definition
 
@@ -56,7 +47,7 @@ Second, given the flexibility required above, the key to measurement interoperab
 
 Third, the exchange of messages in the protocol was chosen to support *iterative* measurement in which the aggregated, high-level results of a measurement are used as input to a decision process to select the next measurement. Specifically, the protocol blends control messages (capabilities and specifications) and data messages (results) into a single workflow; this is shown in the diagram below.
 
-![Iterative measurement in mPlane](./iterative-measurement.png)
+![Iterative measurement in mPlane](./img/iterative-measurement.png)
 
 ### Weak Imperativeness
 
@@ -81,7 +72,7 @@ Conversely, a __client__ is any entity which implements the mPlane protocol, rec
 
 Every interaction in the mPlane protocol takes place between a component and a client. Indeed, the simplest instantiation of the mPlane architecture consists of one or more clients taking capabilities from one or more components, and sending specifications to invoke those capabilities, as shown in the diagram below. An mPlane domain may consist of as little as a single client and a single component. In this arrangement, mPlane provides a measurement-oriented RPC mechanism.
 
-![The simplest form of the mPlane architecture](./extremely-simple-architecture.png)
+![The simplest form of the mPlane architecture](./img/extremely-simple-architecture.png)
 
 ### Probes and Repositories
 
@@ -93,12 +84,12 @@ Note that this categorization is very rough: what a component can do is complete
 
 An entity which implements both the client and component interfaces can be used to build and federate domains of mPlane components. This __supervisor__ is responsible for collecting capabilities from a set of components, and providing capabilities based on these to its clients. Application-specific algorithms at the supervisor aggregate the lower-level capabilities provided by these components into higher-level capabilities exposed to its clients. This arrangement is shown in the figure below.
 
-![Simple mPlane architecture with a supervisor](./simple-architecture.png)
+![Simple mPlane architecture with a supervisor](./img/simple-architecture.png)
 
 The set of components which respond to specifications from a single supervisor
 is referred to as an mPlane __domain__. Domain membership is also determined by the issuer of the certificates identifying the clients, components, and supervisor, as detailed in [Access Control in HTTPS]{#access-control-in-https}. Within a given domain, each client and component connects to only one supervisor. Underlying measurement components and clients may indeed participate in multiple domains, but these are separate entities from the point of view of the architecture. Interdomain measurement is supported by federation among supervisors: a local supervisor delegates measurements in a remote domain to that domain's supervisor, as shown in the figure below.
 
-![Federation between supervisors](./federation-architecture.png)
+![Federation between supervisors](./img/federation-architecture.png)
 
 In addition to capability composition and specification decomposition, supervisors are responsible for client and component registration and authentication, as well as access control based on  identity information provided by the session protocol (HTTPS, WebSockets, or SSH) in the general case.
 
@@ -120,7 +111,7 @@ For exploratory analysis of large amounts of data at a repository, it is presume
 
 The basic messages in the mPlane protocol are capabilities, specifications, and results, as described above. The full protocol contains other message types as well. **Withdrawals** cancel capabilities (i.e., indicate that the component is no longer capable or willing to perform a given measurement) and **interrupts** cancel specifications (i.e., indicate that the component should stop performing the measurement). **Receipts** can be given in lieu of results for not-yet completed measurements or queries, and **redemptions** can be used to retrieve results referred to by a receipt. **Indirections** can be used by a component to delegate a specification to a different component. **Exceptions** can be sent by clients or components at any time to signal protocol-level errors to their peers.
 
-![Potential sequences of messages in the mPlane protocol](./message-paths.png)
+![Potential sequences of messages in the mPlane protocol](./img/message-paths.png)
 
 In the nominal sequence, a capability leads to a specification leads to a result, where results may be transmitted by some other protocol. All the paths through the sequence of messages are shown in the diagram below; message types are described in detail in section [Message Types]{#message-types}. In the diagram, solid lines mean a message is sent in reply to the previous message in sequence (i.e. a component sends a capability, and a client replies or follows with a specification), and dashed lines mean a message is sent as a followup (i.e., a component sends a capability, then sends a withdrawal to cancel that capability). Messages at the top of the diagram are sent by components, at the bottom by clients.
 
@@ -139,21 +130,21 @@ selected target, and send their results to the repository and storage for analys
 
 To bootstrap the system, the probes and repository first publish their capabilities to the supervisor as shown below; here, each component knows the supervisor's address and establish a connection to initiate capability advertisement.
 
-![Capability advertisement and registration with a supervisor](./example-capability-advertisement.png)
+![Capability advertisement and registration with a supervisor](./img/example-capability-advertisement.png)
 
 Each probe sends a capability ('Ce') advertising the ability to measure bandwidth and latency to a target given that target, and to export than information to a repository via an external protocol. The repository sends a capability ('Cc') that it can collect data matching what the probes can export, as well as a capability ('C') advertising comparison to baseline. The supervisor registers these, then composes higher-level capabilities based upon them.
 
 When a client or reasoner initiates a connection to the supervisor, these composed capabilities are advertised to it, as shown below. Here, the two higher-level capabilities offered by the supervisor are "determine if a given target is nominal compared to baseline" and "show the recent measurements that deviate the most from the baseline".
 
-![Capability composition at a supervisor](./example-capability-composition.png)
+![Capability composition at a supervisor](./img/example-capability-composition.png)
 
 Suppose a user at the client decides to determine whether latency and bandwidth from the probes to a given target are within expected values. It sends a specification corresponding to the first capability made available by the supervisor to the supervisor, which then decomposes it into specifications to the probes and repository. First, it instructs the probes to take measurements and send them to the repository via indirect export, as shown below. Data export is shown as `Ex' in this diagram, noting that it uses some external protocol other than the mPlane protocol.
 
-![Specification delegation to probes by a supervisor](./example-specification-delegation.png)
+![Specification delegation to probes by a supervisor](./img/example-specification-delegation.png)
 
 After enough measurements are completed, the supervisor then queries the repository to check that the measurements performed are within expected ranges given the history of measurements for that target, as shown below. Of course, the data from the probes becomes part of the repository's history for future queries about the target.
 
-![Querying for analysis of data stored at a repository](./example-repository-query.png)
+![Querying for analysis of data stored at a repository](./img/example-repository-query.png)
 
 Note that not all interaction among components in an mPlane infrastructure must be mediated by the supervisor. This is particularly true of large-scale repositories, where (e.g.) visualization of large amounts of data may be done by accessing the repository's data directly using an external protocol, or by having the repository produce visualizations directly and providing these via HTTP.
 
@@ -367,7 +358,7 @@ The `version` section contains the version of the mPlane protocol to which the m
 
 ### Registry
 
-The `registry` section contains the URL identifying the element registry used by this message, and from which the registry can be retrieved. This section is required in all messages containing element names (statements, and receipts/redemptions/interrupts not using tokens for identification; see the `token` section). The default core registry for mPlane is identified by: 
+The `registry` section contains the URL identifying the element registry used by this message, and from which the registry can be retrieved. This section is required in all messages containing element names (statements, and receipts/redemptions/interrupts not using tokens for identification; see the `token` section). The default core registry for mPlane is identified by:
 
 `http://ict-mplane.eu/registry/core`.
 
@@ -610,7 +601,7 @@ One convenience feature complicates this somewhat: when the temporal scope is no
 
 ## Designing Measurement and Repository Schemas
 
-As noted, the key to integrating a measurement tool into an mPlane infrastructure is properly defining the schemas for the measurements and queries it performs, then defining those schemas in terms of mPlane capabilities. Specifications and results follow naturally from capabilities, and the mPlane SDK allows Python methods to be bound to capabilities in order to execute them. A schema should be defined such that the set of parameters, the set of result columns, and the verb together naturally and uniquely define the measurement or the query being performed. For simple metrics, this is achieved by encoding the entire meaning of the  metric in its name. For example, `delay.twoway.icmp.us` as a result column together with `source.ip4` and `destination.ip4` as parameters uniquely defines a single ping measurement, measured via ICMP, expressed in microseconds. 
+As noted, the key to integrating a measurement tool into an mPlane infrastructure is properly defining the schemas for the measurements and queries it performs, then defining those schemas in terms of mPlane capabilities. Specifications and results follow naturally from capabilities, and the mPlane SDK allows Python methods to be bound to capabilities in order to execute them. A schema should be defined such that the set of parameters, the set of result columns, and the verb together naturally and uniquely define the measurement or the query being performed. For simple metrics, this is achieved by encoding the entire meaning of the  metric in its name. For example, `delay.twoway.icmp.us` as a result column together with `source.ip4` and `destination.ip4` as parameters uniquely defines a single ping measurement, measured via ICMP, expressed in microseconds.
 
 Aggregate measurements are defined by returning metrics with aggregations: `delay.twoway.icmp.min.us`, `delay.twoway.icmp.max.us`, `delay.twoway.icmp.mean.us`, and `delay.twoway.icmp.count.us` as result columns represent aggregate ping measurements with multiple samples.
 
@@ -896,9 +887,9 @@ In general, when connecting to a component for the first time, a client or super
 
 However, in cases in which only an address (and not a full URL) is discoverable, given the ease of differentiating message handing in many web application frameworks by URL, mPlane HTTP clients and components can use the following convention: If a client can only discover a component's address, it should `GET /capabilities` to get that component's capabilities. If a client posts a specification for a capability that does not contain a link to a component, and only has that component's address, it should `POST` the specification to `/specification`. If a component wants to return results to a client and only has the client's address, and the corresponding specification does not have a link, it should `POST` the result to `/result`.
 
-Additional path information can also be used in link and export section URLs to convey an implicit authorization from one component to another via a supervisor. Consider a repository which only wants to accept data from probes which a trusted supervisor has told to export to it. While the probes and repository share a domain by certificate issuer, the repository can further restrict access by placing a cryptographically random token in the export URL in the capability it gives to the supervisor e.g. 
+Additional path information can also be used in link and export section URLs to convey an implicit authorization from one component to another via a supervisor. Consider a repository which only wants to accept data from probes which a trusted supervisor has told to export to it. While the probes and repository share a domain by certificate issuer, the repository can further restrict access by placing a cryptographically random token in the export URL in the capability it gives to the supervisor e.g.
 
-`mplane-https://repository.example.com:4343/4e749ecb647c44d8dd6be3fe0986de03bebe/result`. 
+`mplane-https://repository.example.com:4343/4e749ecb647c44d8dd6be3fe0986de03bebe/result`.
 
 In this case, only components explicitly delegated by the supervisor can export to the repository. The same pattern can be used to delegate posting of specifications and results securely.
 
@@ -945,11 +936,11 @@ Colors are as elsewhere in the document: blue for capabilities and capability-re
 
 Client-initiated workflows are appropriate for stationary components, i.e., those with stable, routable addresses, which can therefore act as HTTPS servers. This is generally the case for supervisors, large repositories, repositories acting as gateways to external data sources, and certain large-scale or public probes. The client-initiated pattern is illustrated below:
 
-![Client-initiated workflow](./client-initiated.png)
+![Client-initiated workflow](./img/client-initiated.png)
 
 Here, the client opens an HTTPS connection the the component, and GETs a capability message, or an envelope containing capability messages, at a known URL. It then subsequently uses these capabilities by POSTing a specification, either to a known URL or to the URL given in the `link` section of the capability. The HTTP response to the POSTed specification contains either a result directly, or contains a receipt which can be redeemed later by POSTing a redemption to the component. This latter case is illustrated below:
 
-![Client-initiated workflow with delayed result](./client-initiated-delayed.png)
+![Client-initiated workflow with delayed result](./img/client-initiated-delayed.png)
 
 In a client-initiated workflow with a delayed result, the client is responsible for polling the component with a redemption at the appropriate time. For measurements (i.e. specifications with the verb '`measure`'), this time is known as it is defined by the end of the temporal scope for the specification.
 
@@ -961,7 +952,7 @@ For direct client-initiated workflows, the URL(s) from which to GET capabilities
 
 In this way, a client needs only be configured with a single URL for capability discovery, instead of URLs for each component with which it wants to communicate. This arrangement is shown in the figure below.
 
-![Capability discovery in client-initiated workflows](./client-initiated-discovery.png)
+![Capability discovery in client-initiated workflows](./img/client-initiated-discovery.png)
 
 ## Component-Initiated
 
@@ -969,7 +960,7 @@ Component-initiated workflows are appropriate for components which do not have s
 
 In this case, the usual client-server relationship is reversed, as shown in the figure below.
 
-![Component-initiated workflow](./component-initiated.png)
+![Component-initiated workflow](./img/component-initiated.png)
 
 Here, when the component becomes available, it opens an HTTPS connection to the client and POSTs its capabilities to a known, configured URL at the supervisor. The supervisor remembers which capabilities it wishes to use on which components, and prepares specifications for later retrieval by the client.
 
@@ -1009,7 +1000,7 @@ Then, when the component polls the client the first time, it responds with an en
 
 Callback control is illustrated below:
 
-![Callback control in component-initiated workflow](./callback-control.png)
+![Callback control in component-initiated workflow](./img/callback-control.png)
 
 Note that if the supervisor has no work for the component, it returns a single callback specification as opposed to returning 404. Note that subsequent callback control specification to a component can have different time intervals, allowing a supervisor fine-grained control on a per-component basis of the tradeoff between polling load and response time.
 
@@ -1021,7 +1012,7 @@ Many common measurement infrastructures involve a large number of probes exporti
 
 An example arrangement is shown in the figure below:
 
-![Indirect export workflow](./indirect-export.png)
+![Indirect export workflow](./img/indirect-export.png)
 
 Here, we consider a client speaking to an exporter and a collector. The client first receives an export capability from the exporter (with verb `measure` and with a protocol identified in the `export` section) and a collection capability from the collector (with the verb `collect` and with a URL in the `export` section describing where the exporter should export), either via a client-initiated workflow or a capability discovery server. The client then sends a specification to the exporter, which matches the schema and parameter constraints of both the export and collection capabilities, with the collector's URL in the `export` section.
 
@@ -1069,7 +1060,7 @@ The workflows on each side of the supervisor are independent; indeed, the superv
 
 An example combination of workflows at a supervisor is shown below:
 
-![Example workflows at a supervisor](./supervisor-example.png)
+![Example workflows at a supervisor](./img/supervisor-example.png)
 
 Here we see a a very simple arrangement with a single client using a single supervisor to perform measurements using a single component. The component uses a component-initiated workflow to associate with a supervisor, and the client uses a client-initiated workflow.
 

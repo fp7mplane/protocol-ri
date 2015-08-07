@@ -1,8 +1,8 @@
-#
+#!/usr/bin/env python3
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 ##
-# mPlane Protocol Reference Implementation
-# Authorization context for mPlane components
+# mPlane Software Development Kit
+# Component framework
 #
 # (c) 2015 mPlane Consortium (http://www.ict-mplane.eu)
 #     Author: Stefano Pentassuglia <stefano.pentassuglia@ssbprogetti.it>
@@ -28,17 +28,26 @@ import mplane.model
 import mplane.azn
 import mplane.tls
 import importlib
-import configparser
 import tornado.web
 import tornado.httpserver
 from datetime import datetime
 import time
-import argparse
 from time import sleep
 import urllib3
+import socket
+
+# FIXME HACK
+# some urllib3 versions let you disable warnings about untrusted CAs,
+# which we use a lot in the project demo. Try to disable warnings if we can.
+try:
+    urllib3.disable_warnings()
+except:
+    pass
+
 from threading import Thread
 import json
 
+DEFAULT_MPLANE_PORT = 1228
 SLEEP_QUANTUM = 0.250
 CAPABILITY_PATH_ELEM = "capability"
 SPECIFICATION_PATH_ELEM = "/"
@@ -47,12 +56,28 @@ class BaseComponent(object):
 
     def __init__(self, config):
         self.config = config
-        # FIXME use registry preload
-        mplane.model.initialize_registry(self.config["component"]["registry_uri"])
+
+        # preload any registries necessary
+        if "registry_preload" in config["component"]:
+            mplane.model.preload_registry(
+                config["component"]["registry_preload"])
+
+        # initialize core registry
+        if "registry_uri" in config["component"]:
+            registry_uri = config["component"]["registry_uri"]
+        else:
+            registry_uri = None
+        mplane.model.initialize_registry(registry_uri)
+
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
+
         for service in self._services():
-            service.set_capability_link(SPECIFICATION_PATH_ELEM)
+            if config["component"]["workflow"] == "client-initiated" and \
+                      "listen-cap-link" in config["component"]:
+                service.set_capability_link(config["component"]["listen-cap-link"])
+            else:
+                service.set_capability_link("")
             self.scheduler.add_service(service)
 
     def _services(self):
@@ -68,10 +93,22 @@ class BaseComponent(object):
                     services.append(service)
         return services
 
+    def remove_capability(self, capability):
+        for service in self.scheduler.services:
+            if service.capability().get_label() == capability.get_label():
+                self.scheduler.remove_service(service)
+                return
+        print("No such service with label " + capability.get_label())
+
 class ListenerHttpComponent(BaseComponent):
 
     def __init__(self, config, io_loop=None):
-        port = config.getint("component", "listen-port")
+        if "listen-port" in config["component"]:
+            self._port = int(config["component"]["listen-port"])
+        else:
+            self._port = DEFAULT_MPLANE_PORT
+        self._path = SPECIFICATION_PATH_ELEM
+
         super(ListenerHttpComponent, self).__init__(config)
 
         application = tornado.web.Application([
@@ -79,9 +116,12 @@ class ListenerHttpComponent(BaseComponent):
             (r"/"+CAPABILITY_PATH_ELEM, DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls}),
             (r"/"+CAPABILITY_PATH_ELEM+"/.*", DiscoveryHandler, {'scheduler': self.scheduler, 'tlsState': self.tls})
         ])
-        http_server = tornado.httpserver.HTTPServer(application, ssl_options=self.tls.get_ssl_options())
-        http_server.listen(port)
-        comp_t = Thread(target=self.listen_in_background(io_loop))
+        http_server = tornado.httpserver.HTTPServer(
+                        application,
+                        ssl_options=self.tls.get_ssl_options())
+        http_server.listen(self._port)
+        print("ListenerHttpComponent running on port "+str(self._port))
+        comp_t = Thread(target=self.listen_in_background, args=(io_loop,))
         comp_t.setDaemon(True)
         comp_t.start()
 
@@ -130,10 +170,18 @@ class DiscoveryHandler(MPlaneHandler):
         self.set_status(200)
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
+        no_caps_exposed = True
         for key in self.scheduler.capability_keys():
-            if self.scheduler.azn.check(self.scheduler.capability_for_key(key), self.tls.extract_peer_identity(self.request)):
-            	self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
+            if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
+                    self.scheduler.azn.check(self.scheduler.capability_for_key(key),
+                                             self.tls.extract_peer_identity(self.request))):
+                no_caps_exposed = False
+                self.write("<a href='/capability/" + key + "'>" + key + "</a><br/>")
         self.write("</body></html>")
+
+        if no_caps_exposed is True:
+                print("\nNo Capabilities are being exposed to " + self.tls.extract_peer_identity(self.request) +
+                      ", check permissions in config file")
         self.finish()
 
     def _respond_capability(self, key):
@@ -160,7 +208,9 @@ class MessagePostHandler(MPlaneHandler):
         self.write("This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.<br/>")
         self.write("<a href='/"+CAPABILITY_PATH_ELEM+"'>Capabilities</a> provided by this server:<br/>")
         for key in self.scheduler.capability_keys():
-            if self.scheduler.azn.check(self.scheduler.capability_for_key(key), self.tls.extract_peer_identity(self.request)):
+            if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
+                    self.scheduler.azn.check(self.scheduler.capability_for_key(key),
+                                             self.tls.extract_peer_identity(self.request))):
                 self.write("<br/><pre>")
                 self.write(mplane.model.unparse_json(self.scheduler.capability_for_key(key)))
         self.write("</body></html>")
@@ -174,23 +224,32 @@ class MessagePostHandler(MPlaneHandler):
             # FIXME how do we tell tornado we don't want to handle this?
             raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
 
-        # hand message to scheduler
-        reply = self.scheduler.process_message(self.tls.extract_peer_identity(self.request), msg)
+        is_withdrawn = False
+        if isinstance(msg, mplane.model.Specification):
+            for key in self.scheduler.capability_keys():
+                cap = self.scheduler.capability_for_key(key)
+                if msg.fulfills(cap) and isinstance(cap, mplane.model.Withdrawal):
+                    is_withdrawn = True
+                    self._respond_message(cap)
 
-        # wait for immediate delay
-        if self.immediate_ms > 0 and \
-           isinstance(msg, mplane.model.Specification) and \
-           isinstance(reply, mplane.model.Receipt):
-            job = self.scheduler.job_for_message(reply)
-            wait_start = datetime.utcnow()
-            while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
-                time.sleep(SLEEP_QUANTUM)
-                if job.failed() or job.finished():
-                    reply = job.get_reply()
-                    break
+        if not is_withdrawn:
+            # hand message to scheduler
+            reply = self.scheduler.process_message(self.tls.extract_peer_identity(self.request), msg)
 
-        # return reply
-        self._respond_message(reply)
+            # wait for immediate delay
+            if self.immediate_ms > 0 and \
+               isinstance(msg, mplane.model.Specification) and \
+               isinstance(reply, mplane.model.Receipt):
+                job = self.scheduler.job_for_message(reply)
+                wait_start = datetime.utcnow()
+                while (datetime.utcnow() - wait_start).total_seconds() * 1000 < self.immediate_ms:
+                    time.sleep(SLEEP_QUANTUM)
+                    if job.failed() or job.finished():
+                        reply = job.get_reply()
+                        break
+
+            # return reply
+            self._respond_message(reply)
 
 class InitiatorHttpComponent(BaseComponent):
 
@@ -198,12 +257,20 @@ class InitiatorHttpComponent(BaseComponent):
         self._supervisor = supervisor
         super(InitiatorHttpComponent, self).__init__(config)
 
+        # FIXME: Configuration should take a URL, not build one from components.
+
         if "TLS" not in self.config.sections():
             scheme = "http"
         else:
             scheme = "https"
+
         host = self.config["component"]["client_host"]
-        port = self.config.getint("component", "client_port")
+
+        if "client_port" in config["component"]:
+            port = int(config["component"]["client_port"])
+        else:
+            port = DEFAULT_MPLANE_PORT
+
         self.url = urllib3.util.url.Url(scheme=scheme, host=host, port=port)
         self.registration_path = self.config["component"]["registration_path"]
         if not self.registration_path.startswith("/"):
@@ -216,6 +283,7 @@ class InitiatorHttpComponent(BaseComponent):
             self.result_path = "/" + self.result_path
 
         self.pool = self.tls.pool_for(self.url.scheme, self.url.host, self.url.port)
+        self._result_url = dict()
         self.register_to_client()
 
         # periodically poll the Client/Supervisor for Specifications
@@ -253,9 +321,11 @@ class InitiatorHttpComponent(BaseComponent):
                     env.append_message(cap)
                     no_caps_exposed = False
 
-            if no_caps_exposed is True and self._supervisor == False:
-                print("\nNo Capabilities are being exposed to " + self._client_identity + ", check permissions in config file. Exiting")
-                exit(0)
+            if no_caps_exposed is True:
+                print("\nNo Capabilities are being exposed to " + self._client_identity +
+                      ", check permissions in config file. Exiting")
+                if self._supervisor is False:
+                    exit(0)
 
             # add callback capability to the list
             callback_cap = mplane.model.Capability(label="callback", when = "now ... future")
@@ -288,8 +358,14 @@ class InitiatorHttpComponent(BaseComponent):
         while(True):
             # FIXME configurable default idle time.
             self.idle_time = 5
+
             # send a request for specifications
-            res = self.pool.request('GET', self.specification_path)
+            try:
+                res = self.pool.request('GET', self.specification_path)
+            except:
+                print("Supervisor down. Trying to re-register...")
+                self.register_to_client()
+
             if res.status == 200:
 
                 # specs retrieved: split them if there is more than one
@@ -302,6 +378,8 @@ class InitiatorHttpComponent(BaseComponent):
 
                     # hand spec to scheduler
                     reply = self.scheduler.process_message(self._client_identity, spec, callback=self.return_results)
+                    if not isinstance(spec, mplane.model.Interrupt):
+                        self._result_url[spec.get_token()] = spec.get_link()
 
                     # send receipt to the Client/Supervisor
                     res = self.pool.urlopen('POST', self.result_path,
@@ -311,7 +389,7 @@ class InitiatorHttpComponent(BaseComponent):
             # not registered on supervisor, need to re-register
             elif res.status == 428:
                 print("\nRe-registering capabilities on Client/Supervisor")
-                self.register_to_supervisor()
+                self.register_to_client()
 
             sleep(self.idle_time)
 
@@ -328,10 +406,35 @@ class InitiatorHttpComponent(BaseComponent):
             job.failed() is not True):
             return
 
+        result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
         # send result to the Client/Supervisor
-        res = self.pool.urlopen('POST', self.result_path,
-                body=mplane.model.unparse_json(reply).encode("utf-8"),
-                headers={"content-type": "application/x-mplane+json"})
+        if result_url != "" and self.pool.is_same_host(mplane.utils.parse_url(result_url)):
+            res = self.pool.urlopen('POST', self.result_path,
+                    body=mplane.model.unparse_json(reply).encode("utf-8"),
+                    headers={"content-type": "application/x-mplane+json"})
+        else:
+            pool = self.tls.pool_for(result_url.scheme, result_url.host, result_url.port)
+            res = pool.urlopen('POST', result_url.path,
+                    body=mplane.model.unparse_json(reply).encode("utf-8"),
+                    headers={"content-type": "application/x-mplane+json"})
+
+
+        if "repository_uri" in self.config["component"]:
+            (proto, hostAndPort) = self.config["component"]["repository_uri"].split("://") # udp://127.0.0.1:9900
+            (host, port) = ("", "")
+            try:
+                (host, port) = hostAndPort.split(":")
+                port = int(port)
+            except:
+                raise ValueError("repository_uri given, but in a wrong format")
+            if host and port:
+                if proto == "udp":
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, port))
+                else:
+                    raise ValueError("repository_uri given, but protocol is wrong")
+            else:
+                raise ValueError("repository_uri given, but in a wrong format")
 
         # handle response
         if isinstance(reply, mplane.model.Envelope):
@@ -351,28 +454,7 @@ class InitiatorHttpComponent(BaseComponent):
             print("Client/Supervisor said: " + str(res.status) + " - " + res.data.decode("utf-8"))
         pass
 
-if __name__ == "__main__":
-
-    global args
-    parser = argparse.ArgumentParser(description='run a Tstat mPlane proxy')
-    parser.add_argument('--config', metavar='conf-file', dest='CONF',
-                        help='Configuration file for the component')
-    args = parser.parse_args()
-
-    # check if conf file parameter has been inserted in the command line
-    if not args.CONF:
-        print('\nERROR: missing --config\n')
-        parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.CONF))
-
-    if config["component"]["workflow"] == "component-initiated":
-        component = InitiatorHttpComponent(config)
-    elif config["component"]["workflow"] == "client-initiated":
-        component = ListenerHttpComponent(config)
-    else:
-        raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
+    def remove_capability(self, capability):
+        super(InitiatorHttpComponent, self).remove_capability(capability)
+        withdrawn_cap = mplane.model.Withdrawal(capability=capability)
+        self.register_to_client([withdrawn_cap])

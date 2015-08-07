@@ -22,11 +22,12 @@ import os.path
 import re
 import mplane.model
 import json
+import urllib3
 
 def read_setting(filepath, param):
     """
     Reads a setting from the indicated conf file
-    
+
     """
     with open(filepath,'r') as f:
         for line in f.readlines():
@@ -44,34 +45,34 @@ def read_setting(filepath, param):
 def search_path(path):
     """
     Converts every path into absolute paths,
-    and checks if file exists. 
+    and checks if file exists.
     Should replace check_file() and normalize_path()
-    
+
     """
     if path[0] != '/':
         norm_path = os.path.abspath(path)
     else:
         norm_path = path
-        
+
     if not os.path.exists(norm_path):
         raise ValueError("Error: File " + norm_path + " does not appear to exist.")
         exit(1)
-        
+
     return norm_path
- 
-def check_file(filename): 
+
+def check_file(filename):
     """
     Checks if the file exists at the given path
-    
-    """      
+
+    """
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
         exit(1)
-        
+
 def normalize_path(path):
     """
     Converts every path into absolute paths
-    
+
     """
     if path[0] != '/':
         return os.path.abspath(path)
@@ -81,7 +82,7 @@ def normalize_path(path):
 def print_then_prompt(line):
     """
     Prints a message on screen, then prints the mplane prompt
-    
+
     """
     print(line)
     print('|mplane| ', end="", flush = True)
@@ -90,21 +91,30 @@ def print_then_prompt(line):
 def add_value_to(container, key, value):
     """
     Adds a value to a dict() of lists
-    
+
     """
     if key not in container:
         container[key] = [value]
     else:
         container[key].append(value)
-        
+
 def split_stmt_list(msg):
     """
-    Splits a JSON array of statements (capabilities or specifications) in 
+    Splits a JSON array of statements (capabilities or specifications) in
     JSON format into a list of single statements
-    
+
     """
     json_stmts = json.loads(msg)
     stmts = []
     for json_stmt in json_stmts:
         stmts.append(mplane.model.parse_json(json.dumps(json_stmt)))
     return stmts
+
+def parse_url(url):
+    """ Returns a link in string format from an Url object """
+    link = url.scheme + "://" + url.host + ":" + str(url.port)
+    if url.path.startswith("/"):
+        link = link + url.path
+    else:
+        link = link + "/" + url.path
+    return link
