@@ -383,7 +383,7 @@ def test_read_setting():
     assert_equal(res, None)
 
 
-@raises(ValueError, SystemExit)
+@raises(ValueError)
 def test_search_path():
     root_path = '/var'
     assert_equal(mplane.utils.search_path(root_path), root_path)
@@ -394,7 +394,7 @@ def test_search_path():
     assert_equal(mplane.utils.search_path(unexisting_input_path), '')
 
 
-@raises(ValueError, SystemExit)
+@raises(ValueError)
 def test_check_file():
     mplane.utils.check_file('missing')
 
