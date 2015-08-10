@@ -58,7 +58,6 @@ def search_path(path):
 
     if not os.path.exists(norm_path):
         raise ValueError("Error: File " + norm_path + " does not appear to exist.")
-        sys.exit(1)
 
     return norm_path
 
@@ -69,7 +68,6 @@ def check_file(filename):
     """
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
-        sys.exit(1)
 
 def normalize_path(path):
     """
