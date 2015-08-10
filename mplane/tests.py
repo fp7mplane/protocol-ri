@@ -36,8 +36,9 @@ import threading
 import urllib3
 import time
 import ssl
+import sys
 import os
-
+import io
 
 # FIXME: this entire module abuses package-level variables.
 #        fixing this would be nice but is relatively low priority.
@@ -382,7 +383,7 @@ def test_read_setting():
     assert_equal(res, None)
 
 
-@raises(ValueError)
+@raises(ValueError, SystemExit)
 def test_search_path():
     root_path = '/var'
     assert_equal(mplane.utils.search_path(root_path), root_path)
@@ -393,10 +394,21 @@ def test_search_path():
     assert_equal(mplane.utils.search_path(unexisting_input_path), '')
 
 
-@raises(ValueError)
+@raises(ValueError, SystemExit)
 def test_check_file():
     mplane.utils.check_file('missing')
 
+
+def test_print_then_prompt():
+    line = "this is a test"
+    old_stdout = sys.stdout
+    result = io.StringIO()
+    sys.stdout = result
+    mplane.utils.print_then_prompt(line)
+    sys.stdout = old_stdout
+    result_string = result.getvalue()
+    assert_equal(result_string,
+                 line+"\n|mplane| ")
 
 def test_normalize_path():
     another_root_path = '/conf'
@@ -431,3 +443,22 @@ def test_split_stmt_list():
     caps.append(cap)
     # using repr as no __eq__ methos is implemented fot capability objects
     assert_equal(repr(res[0]), repr(caps[0]))
+
+
+def test_parse_url():
+    scheme="http"
+    host="www.mplane.org"
+    port="8080"
+    path="/test"
+    url_str = scheme + "://" + host + ":" + port + path
+    mplane_url = urllib3.util.Url(scheme=scheme,
+                                  host=host,
+                                  port=port,
+                                  path=path)
+    assert_equal(mplane.utils.parse_url(mplane_url), url_str)
+    path = "test"
+    mplane_url = urllib3.util.Url(scheme=scheme,
+                                  host=host,
+                                  port=port,
+                                  path=path)
+    assert_equal(mplane.utils.parse_url(mplane_url), url_str)
