@@ -30,9 +30,9 @@ In the first (svgui) terminal window you can access the clientshell functionalit
 
 #### GUI access
 
-The GUI can be accessed through the `gui-port` defined in `svgui.conf`, under the "[gui]" section, default is 8900. Due to the nature of the GUI access we use it without TLS, eg. simply
+The GUI can be accessed through the `gui-port` defined in `svgui.conf`, under the "[gui]" section, default is 8899. Due to the nature of the GUI access we use it without TLS, eg. simply
 
-```http://supervisor_host:8900```
+```http://supervisor_host:8899```
 
 which will bring to the login screen. The user accounts used with the old svgui are still valid, eg.  `user / user123` and can be found in the `guiconf.json` file.
 
