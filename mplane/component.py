@@ -133,13 +133,29 @@ class ListenerHttpComponent(BaseComponent):
 class MPlaneHandler(tornado.web.RequestHandler):
     """
     Abstract tornado RequestHandler that allows a
-    handler to respond with an mPlane Message.
+    handler to respond with an mPlane Message or an Exception.
 
     """
     def _respond_message(self, msg):
         self.set_status(200)
         self.set_header("Content-Type", "application/x-mplane+json")
         self.write(mplane.model.unparse_json(msg))
+        self.finish()
+
+    def _respond_error(self, errmsg=None, exception=None, token=None, status=400):
+        if exception:
+            if len(exception.args) == 1:
+                errmsg = str(exception.args[0])
+            else:
+                errmsg = repr(exception.args)
+
+        elif errmsg is None:
+            raise RuntimeError("_respond_error called without message or exception")
+
+        mex = mplane.model.Exception(token=token, errmsg=errmsg)
+        self.set_status(status)
+        self.set_header("Content-Type", "application/x-mplane+json")
+        self.write(mplane.model.unparse_json(mex))
         self.finish()
 
 class DiscoveryHandler(MPlaneHandler):
@@ -163,8 +179,7 @@ class DiscoveryHandler(MPlaneHandler):
             else:
                 self._respond_capability(path[1])
         else:
-            # FIXME how do we tell tornado we don't want to handle this?
-            raise ValueError("I only know how to handle /"+CAPABILITY_PATH_ELEM+" URLs via HTTP GET")
+            self._respond_error(errmsg="I only know how to handle /"+CAPABILITY_PATH_ELEM+" URLs via HTTP GET", status=405)
 
     def _respond_capability_links(self):
         self.set_status(200)
@@ -205,7 +220,7 @@ class MessagePostHandler(MPlaneHandler):
         self.set_status(200)
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>mplane.httpsrv</title></head><body>")
-        self.write("This is an mplane.httpsrv instance. POST mPlane messages to this URL to use.<br/>")
+        self.write("This is a client-initiated mPlane component. POST mPlane messages to this URL to use.<br/>")
         self.write("<a href='/"+CAPABILITY_PATH_ELEM+"'>Capabilities</a> provided by this server:<br/>")
         for key in self.scheduler.capability_keys():
             if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
@@ -219,10 +234,12 @@ class MessagePostHandler(MPlaneHandler):
     def post(self):
         # unwrap json message from body
         if (self.request.headers["Content-Type"] == "application/x-mplane+json"):
-            msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
+            try:
+                msg = mplane.model.parse_json(self.request.body.decode("utf-8"))
+            except Exception as e:
+                self._respond_error(exception=e)
         else:
-            # FIXME how do we tell tornado we don't want to handle this?
-            raise ValueError("I only know how to handle mPlane JSON messages via HTTP POST")
+            self._respond_error(errmsg="I only know how to handle mPlane JSON messages via HTTP POST", status="406")
 
         is_withdrawn = False
         if isinstance(msg, mplane.model.Specification):
