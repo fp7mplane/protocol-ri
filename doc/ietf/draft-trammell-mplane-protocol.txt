@@ -119,25 +119,25 @@ Internet-Draft                 mPlane Spec                   August 2015
      3.1.  JSON representation . . . . . . . . . . . . . . . . . . .  31
        3.1.1.  Textual representations of element values . . . . . .  32
        3.1.2.  Example mPlane Capabilities and Specifications  . . .  33
-     3.2.  mPlane over HTTPS . . . . . . . . . . . . . . . . . . . .  37
-       3.2.1.  mPlane PKI for HTTPS  . . . . . . . . . . . . . . . .  38
+     3.2.  mPlane over HTTPS . . . . . . . . . . . . . . . . . . . .  38
+       3.2.1.  mPlane PKI for HTTPS  . . . . . . . . . . . . . . . .  39
        3.2.2.  Access Control in HTTPS . . . . . . . . . . . . . . .  39
-       3.2.3.  Paths in mPlane Link and Export URLs  . . . . . . . .  39
-     3.3.  mPlane over WebSockets over TLS . . . . . . . . . . . . .  40
+       3.2.3.  Paths in mPlane Link and Export URLs  . . . . . . . .  40
+     3.3.  mPlane over WebSockets over TLS . . . . . . . . . . . . .  41
      3.4.  mPlane over SSH . . . . . . . . . . . . . . . . . . . . .  41
-   4.  Workflows in HTTPS  . . . . . . . . . . . . . . . . . . . . .  41
+   4.  Workflows in HTTPS  . . . . . . . . . . . . . . . . . . . . .  42
      4.1.  Client-Initiated  . . . . . . . . . . . . . . . . . . . .  42
        4.1.1.  Capability Discovery  . . . . . . . . . . . . . . . .  43
      4.2.  Component-Initiated . . . . . . . . . . . . . . . . . . .  43
        4.2.1.  Callback Control  . . . . . . . . . . . . . . . . . .  44
      4.3.  Indirect Export . . . . . . . . . . . . . . . . . . . . .  45
      4.4.  Error Handling in mPlane Workflows  . . . . . . . . . . .  46
-   5.  The Role of the Supervisor  . . . . . . . . . . . . . . . . .  46
-   6.  Component Registration  . . . . . . . . . . . . . . . . . . .  47
-   7.  Client Authentication . . . . . . . . . . . . . . . . . . . .  47
+   5.  The Role of the Supervisor  . . . . . . . . . . . . . . . . .  47
+   6.  Component Registration  . . . . . . . . . . . . . . . . . . .  48
+   7.  Client Authentication . . . . . . . . . . . . . . . . . . . .  48
    8.  Capability Composition and Specification Decomposition  . . .  48
-   9.  Security Considerations . . . . . . . . . . . . . . . . . . .  48
-   10. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  48
+   9.  Security Considerations . . . . . . . . . . . . . . . . . . .  49
+   10. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  49
    11. Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  49
    12. Informative References  . . . . . . . . . . . . . . . . . . .  49
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  50
@@ -677,7 +677,7 @@ Internet-Draft                 mPlane Spec                   August 2015
       *  name: The name of the element.
 
    o  prim: The name of the primitive type of the element, from the list
-      of primitives in section Section 2.1.2.
+      of primitives in Section 2.1.2.
 
       *  desc: An English-language description of the meaning of the
          element.
@@ -983,22 +983,22 @@ Internet-Draft                 mPlane Spec                   August 2015
    means the section is required, "opt." means it is optional; see the
    subsection on each message section for details.
 
-| Section        | Capability | Spec. | Result | Receipt     | Envelope |
-| -------------- | ---------- | ----- | ------ | ----------- |----------|
-| Verb           | req.       | req   | req.   | req.        |          |
-| Content Type   |            |       |        |             | req.     |
-| `version`      | req.       | req.  | req.   | req.        | req.     |
-| `registry`     | req.       | req.  | req.   | opt.        |          |
-| `label`        | opt.       | opt.  | opt.   | opt.        | opt.     |
-| `when`         | req.       | req.  | req.   | req.        |          |
-| `parameters`   | req./token | req.  | req.   | opt./token  |          |
-| `metadata`     | opt./token | opt.  | opt.   | opt./token  |          |
-| `results`      | req./token | req.  | req.   | opt./token  |          |
-| `resultvalues` |            |       | req.   |             |          |
-| `export`       | opt.       | opt.  | opt.   | opt.        |          |
-| `link`         | opt.       | opt.  |        |             |          |
-| `token`        | opt.       | opt.  | opt.   | opt.        | opt.     |
-| `contents`     |            |       |        |             | req.     |
+| Section        | Capability | Spec. | Result | Receipt    | Envelope |
+| -------------- | ---------- | ----- | ------ |------------|----------|
+| Verb           | req.       | req   | req.   | req.       |          |
+| Content Type   |            |       |        |            | req.     |
+| `version`      | req.       | req.  | req.   | req.       | req.     |
+| `registry`     | req.       | req.  | req.   | opt.       |          |
+| `label`        | opt.       | opt.  | opt.   | opt.       | opt.     |
+| `when`         | req.       | req.  | req.   | req.       |          |
+| `parameters`   | req./token | req.  | req.   | opt./token |          |
+| `metadata`     | opt./token | opt.  | opt.   | opt./token |          |
+| `results`      | req./token | req.  | req.   | opt./token |          |
+| `resultvalues` |            |       | req.   |            |          |
+| `export`       | opt.       | opt.  | opt.   | opt.       |          |
+| `link`         | opt.       | opt.  |        |            |          |
+| `token`        | opt.       | opt.  | opt.   | opt.       | opt.     |
+| `contents`     |            |       |        |            | req.     |
 
              Figure 4: Message Sections for Each Message Type
 
@@ -1122,29 +1122,29 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 20]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-simple-when = <singleton> |            # A single point in time
-              <range> |                # A range between two points in time
-              <range> ' / ' <duration> # A range with a period
+   simple-when = <singleton> |            # A single point in time
+                 <range> |                # A range in time
+                 <range> ' / ' <duration> # A range with a period
 
-singleton = <iso8601> | # absolute singleton
-            'now'       # relative singleton
+   singleton = <iso8601> | # absolute singleton
+               'now'       # relative singleton
 
-range = <iso8601> ' ... ' <iso8601> | # absolute range
-        <iso8601> ' + ' <duration> |  # relative range
-        'now' ' ... ' <iso8061> |     # definite future
-        'now' ' + ' <duration> |      # relative future
-        <iso8601> ' ... ' 'now' |     # definite past
-        'past ... now' |              # indefinite past
-        'now ... future' |            # indefinite future
-        <iso8601> ' ... ' 'future' |  # absolute indefinite future
-        'past ... future' |           # forever
+   range = <iso8601> ' ... ' <iso8601> | # absolute range
+           <iso8601> ' + ' <duration> |  # relative range
+           'now' ' ... ' <iso8061> |     # definite future
+           'now' ' + ' <duration> |      # relative future
+           <iso8601> ' ... ' 'now' |     # definite past
+           'past ... now' |              # indefinite past
+           'now ... future' |            # indefinite future
+           <iso8601> ' ... ' 'future' |  # absolute indefinite future
+           'past ... future' |           # forever
 
-duration = [ <n> 'd' ] # days
-           [ <n> 'h' ] # hours
-           [ <n> 'm' ] # minute
-           [ <n> 's' ] # seconds
+   duration = [ <n> 'd' ] # days
+              [ <n> 'h' ] # hours
+              [ <n> 'm' ] # minute
+              [ <n> 's' ] # seconds
 
-iso8601 = <n> '-' <n> '-' <n> [' ' <n> ':' <n> ':' <n> [ '.' <n> ]]
+   iso8601 = <n> '-' <n> '-' <n> [' ' <n> ':' <n> ':' <n> [ '.' <n> ]]
 
    All absolute times are always given in UTC and expressed in ISO8601
    format with variable precision.
@@ -1234,39 +1234,40 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 22]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-repeated-when = # implicit inner scope of now
-                'repeat' <outer-when> |
-                # simple range/period
-                'repeat' <outer-when> '{' <inner-when> '}' |
-                # with crontab
-                'repeat' <range> 'cron' <crontab> '{' <inner-when> '}'
+  repeated-when = # implicit inner scope of now
+                  'repeat' <outer-when> |
+                  # simple range/period
+                  'repeat' <outer-when> '{' <inner-when> '}' |
+                  # with crontab
+                  'repeat' <range> 'cron' <crontab> '{' <inner-when> '}'
 
-outer-when = <range> ' / ' <duration>
+  outer-when = <range> ' / ' <duration>
 
-inner-when = 'now' |
-             'now' ' + ' <duration> |
-             'now' ' + ' <duration> / <duration>
+  inner-when = 'now' |
+               'now' ' + ' <duration> |
+               'now' ' + ' <duration> / <duration>
 
-crontab = <seconds> <minutes> <hours> <days-of-month> <days-of-week> <months>
+  crontab = <seconds> <minutes> <hours>
+            <days-of-month> <days-of-week> <months>
 
-seconds = '*' | <seconds-or-minutes-list>
-minutes = '*' | <seconds-or-minutes-list>
-seconds-or-minutes-list = <n> [ ',' <seconds-or-minutes-list> ] # 0<=n<60
+  seconds = '*' | <seconds-or-minutes-list>
+  minutes = '*' | <seconds-or-minutes-list>
+  seconds-or-minutes-list = <n> [ ',' <seconds-or-minutes-list> ]
 
-hours = '*' | <hours-list>
-hours-list = <n> [ ',' <hour-list> ] # 0<=n<24
+  hours = '*' | <hours-list>
+  hours-list = <n> [ ',' <hour-list> ] # 0<=n<24
 
-days-of-month = '*' | <days-of-month-list>
-days-of-month-list = <n> [ ',' <days-of-month-list> ] # 0<n<=31
+  days-of-month = '*' | <days-of-month-list>
+  days-of-month-list = <n> [ ',' <days-of-month-list> ] # 0<n<=31
 
-days-of-week = '*' | <days-of-week-list>
-days-of-week-list = <n> [ ',' <days-of-week-list> ] # 0<=n<=7
-                    # 0 = Sunday, 1 = Monday, ..., 7 = Sunday
+  days-of-week = '*' | <days-of-week-list>
+  days-of-week-list = <n> [ ',' <days-of-week-list> ] # 0<=n<=7
+                      # 0 = Sunday, 1 = Monday, ..., 7 = Sunday
 
-months = '*' | <months-list>
-months-list = <n> [ ',' <months-list> ] # 0<n<=12
+  months = '*' | <months-list>
+  months-list = <n> [ ',' <months-list> ] # 0<n<=12
 
-when = <simple-when> | <repeated-when>
+  when = <simple-when> | <repeated-when>
 
    A repeated specification consists of an outer temporal specification
    that governs how often and for how long the specification will
@@ -1281,7 +1282,6 @@ when = <simple-when> | <repeated-when>
    the outer temporal specification only consists of a range scope to
    determine the time frame in which the cron-like schedule is valid.
    The crontab states the seconds, minutes, hours, days of the week,
-   days of the month, and months at which the specification will repeat.
 
 
 
@@ -1290,6 +1290,7 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 23]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
+   days of the month, and months at which the specification will repeat.
    An asterisk means to repeat at all legal values for that field.  The
    specification is only repeated if all fields match.
 
@@ -1335,7 +1336,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    month measuring every hour on that day for 5 minutes would be:
    \texttt{when: repeat now ... future cron 0 0 * 1,2,3,4,5,6,7 1 * {
    now + 5m } }
-
 
 
 
@@ -1870,12 +1870,12 @@ Internet-Draft                 mPlane Spec                   August 2015
    absolute temporal scope:
 
 {
-  "result":         "measure",
-  "version":        0,
-  "registry":       "http://ict-mplane.eu/registry/core",
-  "label":          "ping-aggregate-three-thirtythree",
-  "token":          "0f31c9033f8fce0c9be41d4942c276e4",
-  "when":           "2014-08-25 14:51:02.623 ... 2014-08-25 14:51:32.701 / 1s",
+  "result":   "measure",
+  "version":  0,
+  "registry": "http://ict-mplane.eu/registry/core",
+  "label":    "ping-aggregate-three-thirtythree",
+  "token":    "0f31c9033f8fce0c9be41d4942c276e4",
+  "when":     2014-08-25 14:51:02.623 ... 2014-08-25 14:51:32.701 / 1s",
   "parameters": {"source.ip4":      "192.0.2.19",
                  "destination.ip4": "192.0.3.33"},
   "results":    ["delay.twoway.icmp.us.min",
@@ -1962,29 +1962,35 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 35]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-{
-  "result": "measure",
-  "version":    0,
-  "registry":   "http://ict-mplane.eu/registry/core",
-  "label":      "traceroute-three-thirtythree",
-  "token":      "2f4123588b276470b3641297ae85376a,
-  "when":       "2014-08-25 14:53:11.019 ... 2014-08-25 14:53:12.765",
-  "parameters": {"source.ip4":      "192.0.2.19",
-                 "destination.ip4": "192.0.3.33",
-                 "hops.ip.max": 32},
-  "results":    ["time",
-                 "intermediate.ip4",
-                 "hops.ip",
-                 "delay.twoway.icmp.us"],
-  "resultvalues": [ [ "2014-08-25 14:53:11.019", "192.0.2.1",       1, 162 ],
-                    [ "2014-08-25 14:53:11.220", "217.147.223.101", 2, 15074 ],
-                    [ "2014-08-25 14:53:11.570", "77.109.135.193",  3, 30093 ],
-                    [ "2014-08-25 14:53:12.091", "77.109.135.34",   4, 34979 ],
-                    [ "2014-08-25 14:53:12.310", "192.0.3.1",       5, 36120 ],
-                    [ "2014-08-25 14:53:12.765", "192.0.3.33",      6, 36202 ]
-                  ]
+  {
+    "result": "measure",
+    "version":    0,
+    "registry":   "http://ict-mplane.eu/registry/core",
+    "label":      "traceroute-three-thirtythree",
+    "token":      "2f4123588b276470b3641297ae85376a,
+    "when":       "2014-08-25 14:53:11.019 ... 2014-08-25 14:53:12.765",
+    "parameters": {"source.ip4":      "192.0.2.19",
+                   "destination.ip4": "192.0.3.33",
+                   "hops.ip.max": 32},
+    "results":    ["time",
+                   "intermediate.ip4",
+                   "hops.ip",
+                   "delay.twoway.icmp.us"],
+    "resultvalues": [ [ "2014-08-25 14:53:11.019", "192.0.2.1",
+                        1, 162 ],
+                      [ "2014-08-25 14:53:11.220", "217.147.223.101",
+                        2, 15074 ],
+                      [ "2014-08-25 14:53:11.570", "77.109.135.193",
+                        3, 30093 ],
+                      [ "2014-08-25 14:53:12.091", "77.109.135.34",
+                        4, 34979 ],
+                      [ "2014-08-25 14:53:12.310", "192.0.3.1",
+                        5, 36120 ],
+                      [ "2014-08-25 14:53:12.765", "192.0.3.33",
+                        6, 36202 ]
+                    ]
 
-}
+  }
 
    Indirect export to a repository with subsequent query requires three
    capabilities: one in which the repository advertises its ability to
@@ -1994,6 +2000,23 @@ Internet-Draft                 mPlane Spec                   August 2015
    answer queries about the stored data.  Returning to the aggregate
    ping measurement, first let's consider a repository which can accept
    these measurements via direct POST of mPlane result messages:
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 36]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
    {
      "capability": "collect",
@@ -2010,13 +2033,6 @@ Internet-Draft                 mPlane Spec                   August 2015
                     "delay.twoway.icmp.us.max",
                     "delay.twoway.icmp.count"]
    }
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 36]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    This capability states that the repository at
    "https://repository.example.com:4343/result" will accept mPlane
@@ -2045,27 +2061,11 @@ Internet-Draft                 mPlane Spec                   August 2015
    Subsequent queries can be sent to the repository in response to the
    query capability:
 
-{
-  "capability": "query",
-  "version":    0,
-  "registry":   "http://ict-mplane.eu/registry/core",
-  "label":      "ping-aggregate-query",
-  "when":       "past ... future",
-  "link":       "mplane-https://repository.example.com:4343/specification",
-  "parameters": {"source.ip4":      "*",
-                 "destination.ip4": "*"},
-  "results":    ["delay.twoway.icmp.us.min",
-                 "delay.twoway.icmp.us.mean",
-                 "delay.twoway.icmp.us.50pct",
-                 "delay.twoway.icmp.us.max",
-                 "delay.twoway.icmp.count"]
-}
 
-3.2.  mPlane over HTTPS
 
-   The default session protocol for mPlane messages is HTTP over TLS
-   with mandatory mutual authentication.  This grants confidentiality
-   and integrity to the exchange of mPlane messages through a link
+
+
+
 
 
 
@@ -2074,6 +2074,27 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 37]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
+   {
+     "capability": "query",
+     "version":    0,
+     "registry":   "http://ict-mplane.eu/registry/core",
+     "label":      "ping-aggregate-query",
+     "when":       "past ... future",
+     "link":       "mplane-https://res.example.com:4343/specification",
+     "parameters": {"source.ip4":      "*",
+                    "destination.ip4": "*"},
+     "results":    ["delay.twoway.icmp.us.min",
+                    "delay.twoway.icmp.us.mean",
+                    "delay.twoway.icmp.us.50pct",
+                    "delay.twoway.icmp.us.max",
+                    "delay.twoway.icmp.count"]
+   }
+
+3.2.  mPlane over HTTPS
+
+   The default session protocol for mPlane messages is HTTP over TLS
+   with mandatory mutual authentication.  This grants confidentiality
+   and integrity to the exchange of mPlane messages through a link
    security approach, and is transparent to the client.  HTTP over TLS
    was chosen in part because of its ubiquitous implementation on many
    platforms.
@@ -2102,6 +2123,13 @@ Internet-Draft                 mPlane Spec                   August 2015
    are given in Section 4.  Note that in a given mPlane domain, any or
    all of these mappings may be used simultaneously.
 
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 38]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    When sending mPlane messages over HTTPS, the Content-Type of the
    message indicates the message representation.  The MIME Content-Type
    for mPlane messages using JSON representation over HTTPS is
@@ -2122,14 +2150,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    domain.  In a domain containing a supervisor, all clients and
    components within the domain can connect to the supervisor.  This is
    necessary to scale mPlane domains to large numbers of clients and
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 38]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    components without needing to specifically configure each client and
    component identity at the supervisor.
 
@@ -2159,6 +2179,13 @@ Internet-Draft                 mPlane Spec                   August 2015
    certificate, which uniquely and securely identifies the entity
    carrying it.
 
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 39]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    In an mPlane domain containing a supervisor, each component trusts
    its supervisor completely, and accepts every message that can be
    identified as coming from the supervisor.  Access control enforcement
@@ -2178,14 +2205,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    to retrieve capabilities.  Conversely, when connecting to a client or
    supervisor for the first time, a component will have discovered or
    been configured with a URL to which to post capabilities.  From
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 39]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    there, every capability retrieved by a client should have a link
    section to which to POST specifications, and every specification
    retrieved by a component should have a link section to which to POST
@@ -2216,6 +2235,13 @@ Internet-Draft                 mPlane Spec                   August 2015
    "mplane-https://repository.example.com:4343/4e749ecb647c44d8dd6be3fe0
    986de03bebe/result".
 
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 40]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    In this case, only components explicitly delegated by the supervisor
    can export to the repository.  The same pattern can be used to
    delegate posting of specifications and results securely.
@@ -2234,13 +2260,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    clients and components are identified by certificates, identities
    derived from certificate DN, and domain membership is defined by
    certificate issuer.
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 40]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    Implementation and further specification of WebSockets as a session
    layer is a matter for future work.  Though WebSockets is a better fit
@@ -2271,6 +2290,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    for every client and component, and the mappings to identities used
    in RBAC, will tend to limit the use of SSH to small domains.
 
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 41]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Implementation and further specification of SSH as a session layer is
    a matter for future work.  SSH was originally chosen as a possible
    session protocol for small domains, in order to save the overhead of
@@ -2289,15 +2316,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    HTTPS.  Operation over WebSockets or SSH is much simpler: since the
    session protocol in these cases provides a bidirectional channel for
    message exchange, so the message sender and message exchange
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 41]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    initiator are independent from the connection initiator, and callback
    control and capability discovery as described here are unnecessary.
 
@@ -2328,6 +2346,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    Client-initiated workflows are appropriate for stationary components,
    i.e., those with stable, routable addresses, which can therefore act
    as HTTPS servers.  This is generally the case for supervisors, large
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 42]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    repositories, repositories acting as gateways to external data
    sources, and certain large-scale or public probes.
 
@@ -2345,14 +2371,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    appropriate time.  For measurements (i.e. specifications with the
    verb '"measure"'), this time is known as it is defined by the end of
    the temporal scope for the specification.
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 42]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    Note that in client-initiated workflows, clients may store
    capabilities from components for later use: there may be a
@@ -2384,6 +2402,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    Component-initiated workflows are appropriate for components which do
    not have stable routable addresses (i.e., are behind NATs and/or are
    mobile), and which are used by clients that do.  Common examples of
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 43]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    such components are lightweight probes on mobile devices and customer
    equipment on access networks, interacting directly with a supervisor.
 
@@ -2402,13 +2428,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    matching a previously POSTed capability.  After completing the
    measurement specified, the component then calls back and POSTs the
    results to the supervisor at a known URL.
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 43]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    In this case, the component must be configured with the client's
    URL(s).
@@ -2438,6 +2457,15 @@ Internet-Draft                 mPlane Spec                   August 2015
     'results':    []
    }
 
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 44]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Then, when the component polls the client the first time, it responds
    with an envelope containing two specifications: the measurement it
    wants the client to perform, and a callback specification, containing
@@ -2457,15 +2485,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    a single callback specification as opposed to returning 404.  Note
    that subsequent callback control specification to a component can
    have different time intervals, allowing a supervisor fine-grained
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 44]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    control on a per-component basis of the tradeoff between polling load
    and response time.
 
@@ -2495,6 +2514,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    (with verb "measure" and with a protocol identified in the "export"
    section) and a collection capability from the collector (with the
    verb "collect" and with a URL in the "export" section describing
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 45]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    where the exporter should export), either via a client-initiated
    workflow or a capability discovery server.  The client then sends a
    specification to the exporter, which matches the schema and parameter
@@ -2510,17 +2537,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    This data, or data derived from the analysis thereof, can then be
    subsequently retrieved by a client using a client-initiated workflow
    to the collector.
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 45]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
 4.4.  Error Handling in mPlane Workflows
 
@@ -2550,6 +2566,18 @@ Internet-Draft                 mPlane Spec                   August 2015
    components or clients which cannot be handled due to a syntactic or
    semantic error in the message itself.
 
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 46]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
 5.  The Role of the Supervisor
 
    From the point of view of the mPlane protocol, a supervisor is merely
@@ -2570,14 +2598,6 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    The workflows on each side of the supervisor are independent; indeed,
    the supervisor itself will generally respond to client-initiated
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 46]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    exchanges, and use both component-initiated and supervisor-initiated
    exchanges with subordinate components.
 
@@ -2604,6 +2624,16 @@ Internet-Draft                 mPlane Spec                   August 2015
    This simple example illustrates the three main responsibilities of
    the supervisor, which are described in more detail below.
 
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 47]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
 6.  Component Registration
 
    In order to be able to use components to perform measurements, the
@@ -2626,14 +2656,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    For many components - probes and simple repositories - very simple
    authentication often suffices, such that any client with a
    certificate with an issuer recognized as valid is acceptable, and all
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 47]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    capabilities are available to.  Larger repositories often need finer
    grained control, mapping specific peer certificates to identities
    internal to the repository's access control system (e.g. database
@@ -2655,6 +2677,18 @@ Internet-Draft                 mPlane Spec                   August 2015
    the components, the granularity of the capabilities to be provided to
    the clients.  It is for this reason that the mPlane SDK does not
    provide a generic supervisor.
+
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 48]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
 9.  Security Considerations
 
@@ -2679,17 +2713,6 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    This document has no actions for IANA.
 
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 48]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
 11.  Contributors
 
    This document is based on Deliverable 1.4, the architecture and
@@ -2712,6 +2735,16 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
               (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 49]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
    [RFC5905]  Mills, D., Martin, J., Burbank, J., and W. Kasch, "Network
               Time Protocol Version 4: Protocol and Algorithms
@@ -2739,13 +2772,6 @@ Internet-Draft                 mPlane Spec                   August 2015
               Information Export (IPFIX) Abstract Data Types", RFC 7373,
               September 2014.
 
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 49]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    [D14]      Trammell, B., "mPlane Architecture Specification", April
               2015, <https://www.ict-
               mplane.eu/sites/default/files//public/public-page/public-
@@ -2760,6 +2786,20 @@ Authors' Addresses
    Switzerland
 
    Email: ietf@trammell.ch
+
+
+
+
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 50]
+
+Internet-Draft                 mPlane Spec                   August 2015
 
 
    Mirja Kuehlewind (editor)
@@ -2797,4 +2837,20 @@ Authors' Addresses
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 50]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 51]
