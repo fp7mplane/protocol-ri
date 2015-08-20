@@ -67,26 +67,36 @@ Present implementation work is focused on mPlane represented in JSON using HTTPS
 
 # Terminology
 
+[EDITOR'S NOTE: these terms are not capitalized within the document at this time. Fix this.]
+
 Client:
-:todo, see {{components-and-clients}}
+: An entity which implements the mPlane protocol, receives capabilities published by one or more components, and sends specifications to those component(s) to perform measurements and analysis. See {{components-and-clients}}.
 
 Component:
-:todo, see {{components-and-clients}}
+: An entity which implements the mPlane protocol specified
+within this document, advertises its capabilities and accepts specifications which request the use of those capabilities. The measurements, analyses, storage facilities and other services provided by a component are completely defined by its capabilities. See {{components-and-clients}}.
 
 mPlane Message:
-:todo, see {{message-types}}
+: The atomic unit of exchange in the mPlane protocol. The treatment of a message at a client or component receiving it is based upon its type; see {{message-types}}.
 
 Capability:
-:todo, see {{capability-and-withdrawal}}
+: An mPlane message that contains a statement of a component's ability and willingness to perform a specific operation, conveyed from a component to a client. A capability does not represent a guarantee that the specific operation can or will be performed at a specific point in time. See {{capability-and-withdrawal}}
 
 Specification:
-:todo, see {{specification-and-interrupt}}
+: An mPlane message that contains a statement of a client's
+desire that a component should perform a specific operation, conveyed from a
+client to a component. It can be conceptually viewed as a capability whose
+parameters have been filled in with values. See {{specification-and-interrupt}}.
 
 Result:
-:todo, see {{result}}
+: An mPlane message containing a statement produced by a component that a
+particular measurement was taken and the given values were observed, or that a
+particular operation or analysis was performed and a the given values were
+produced. It can be conceptually viewed as a specification whose result
+columns have been filled in with values. See {{result}}.
 
 Element:
-:todo, see {{element-registry}}
+An identifier for a parameter or result column in a capability, specification, or result, binding a name to a primitive type. Elements are contained in registries that contain the vocabulary from which mPlane capabilities, specifications, and results can be built. See {{element-registry}}.
 
 # Overview of the mPlane Architecture
 
