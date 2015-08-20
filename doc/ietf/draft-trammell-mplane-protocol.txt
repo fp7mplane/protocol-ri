@@ -63,49 +63,49 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 Table of Contents
 
-   1.  Overview of the mPlane Architecture . . . . . . . . . . . . .   3
-     1.1.  Key Architectural Principles and Features . . . . . . . .   4
-       1.1.1.  Flexibility and Extensibility . . . . . . . . . . . .   5
-       1.1.2.  Schema-centric Measurement Definition . . . . . . . .   5
-       1.1.3.  Iterative Measurement Support . . . . . . . . . . . .   5
-       1.1.4.  Weak Imperativeness . . . . . . . . . . . . . . . . .   5
-     1.2.  Entities and Relationships  . . . . . . . . . . . . . . .   7
-       1.2.1.  Components and Clients  . . . . . . . . . . . . . . .   7
-       1.2.2.  Probes and Repositories . . . . . . . . . . . . . . .   8
-       1.2.3.  Supervisors and Federation  . . . . . . . . . . . . .   8
-       1.2.4.  Reasoner  . . . . . . . . . . . . . . . . . . . . . .  10
-       1.2.5.  External Interfaces to mPlane Entities  . . . . . . .  10
-     1.3.  Message Types and Message Exchange Sequences  . . . . . .  10
-     1.4.  From Architecture to Protocol Specification . . . . . . .  12
-   2.  Protocol Information Model  . . . . . . . . . . . . . . . . .  12
-     2.1.  Element Registry  . . . . . . . . . . . . . . . . . . . .  12
-       2.1.1.  Structured Element Names  . . . . . . . . . . . . . .  13
-       2.1.2.  Primitive Types . . . . . . . . . . . . . . . . . . .  14
-       2.1.3.  Augmented Registry Information  . . . . . . . . . . .  15
-     2.2.  Message Types . . . . . . . . . . . . . . . . . . . . . .  15
-       2.2.1.  Capability and Withdrawal . . . . . . . . . . . . . .  16
-       2.2.2.  Specification and Interrupt . . . . . . . . . . . . .  16
-       2.2.3.  Result  . . . . . . . . . . . . . . . . . . . . . . .  16
-       2.2.4.  Receipt and Redemption  . . . . . . . . . . . . . . .  17
-       2.2.5.  Indirection . . . . . . . . . . . . . . . . . . . . .  17
-       2.2.6.  Exception . . . . . . . . . . . . . . . . . . . . . .  17
-       2.2.7.  Envelope  . . . . . . . . . . . . . . . . . . . . . .  18
-     2.3.  Message Sections  . . . . . . . . . . . . . . . . . . . .  18
-       2.3.1.  Message Type and Verb . . . . . . . . . . . . . . . .  19
-       2.3.2.  Version . . . . . . . . . . . . . . . . . . . . . . .  19
-       2.3.3.  Registry  . . . . . . . . . . . . . . . . . . . . . .  20
-       2.3.4.  Label . . . . . . . . . . . . . . . . . . . . . . . .  20
-       2.3.5.  Temporal Scope (When) . . . . . . . . . . . . . . . .  20
-       2.3.6.  Parameters  . . . . . . . . . . . . . . . . . . . . .  25
-       2.3.7.  Metadata  . . . . . . . . . . . . . . . . . . . . . .  26
-       2.3.8.  Result Columns and Values . . . . . . . . . . . . . .  26
-       2.3.9.  Export  . . . . . . . . . . . . . . . . . . . . . . .  27
-       2.3.10. Link  . . . . . . . . . . . . . . . . . . . . . . . .  27
-       2.3.11. Token . . . . . . . . . . . . . . . . . . . . . . . .  28
-       2.3.12. Contents  . . . . . . . . . . . . . . . . . . . . . .  29
-     2.4.  Message Uniqueness and Idempotence  . . . . . . . . . . .  29
-       2.4.1.  Message Schema  . . . . . . . . . . . . . . . . . . .  29
-       2.4.2.  Message Identity  . . . . . . . . . . . . . . . . . .  30
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  Overview of the mPlane Architecture . . . . . . . . . . . . .   4
+     3.1.  Key Architectural Principles and Features . . . . . . . .   5
+       3.1.1.  Flexibility and Extensibility . . . . . . . . . . . .   5
+       3.1.2.  Schema-centric Measurement Definition . . . . . . . .   6
+       3.1.3.  Iterative Measurement Support . . . . . . . . . . . .   6
+       3.1.4.  Weak Imperativeness . . . . . . . . . . . . . . . . .   6
+     3.2.  Entities and Relationships  . . . . . . . . . . . . . . .   7
+       3.2.1.  Components and Clients  . . . . . . . . . . . . . . .   7
+       3.2.2.  Probes and Repositories . . . . . . . . . . . . . . .   8
+       3.2.3.  Supervisors and Federation  . . . . . . . . . . . . .   9
+       3.2.4.  External Interfaces to mPlane Entities  . . . . . . .  10
+     3.3.  Message Types and Message Exchange Sequences  . . . . . .  11
+     3.4.  Integrating Measurement Tools into mPlane . . . . . . . .  12
+     3.5.  From Architecture to Protocol Specification . . . . . . .  12
+   4.  Protocol Information Model  . . . . . . . . . . . . . . . . .  12
+     4.1.  Element Registry  . . . . . . . . . . . . . . . . . . . .  12
+       4.1.1.  Structured Element Names  . . . . . . . . . . . . . .  14
+       4.1.2.  Primitive Types . . . . . . . . . . . . . . . . . . .  15
+       4.1.3.  Augmented Registry Information  . . . . . . . . . . .  15
+     4.2.  Message Types . . . . . . . . . . . . . . . . . . . . . .  16
+       4.2.1.  Capability and Withdrawal . . . . . . . . . . . . . .  16
+       4.2.2.  Specification and Interrupt . . . . . . . . . . . . .  17
+       4.2.3.  Result  . . . . . . . . . . . . . . . . . . . . . . .  17
+       4.2.4.  Receipt and Redemption  . . . . . . . . . . . . . . .  17
+       4.2.5.  Indirection . . . . . . . . . . . . . . . . . . . . .  18
+       4.2.6.  Exception . . . . . . . . . . . . . . . . . . . . . .  18
+       4.2.7.  Envelope  . . . . . . . . . . . . . . . . . . . . . .  18
+     4.3.  Message Sections  . . . . . . . . . . . . . . . . . . . .  18
+       4.3.1.  Message Type and Verb . . . . . . . . . . . . . . . .  19
+       4.3.2.  Version . . . . . . . . . . . . . . . . . . . . . . .  20
+       4.3.3.  Registry  . . . . . . . . . . . . . . . . . . . . . .  20
+       4.3.4.  Label . . . . . . . . . . . . . . . . . . . . . . . .  20
+       4.3.5.  Temporal Scope (When) . . . . . . . . . . . . . . . .  21
+       4.3.6.  Parameters  . . . . . . . . . . . . . . . . . . . . .  25
+       4.3.7.  Metadata  . . . . . . . . . . . . . . . . . . . . . .  26
+       4.3.8.  Result Columns and Values . . . . . . . . . . . . . .  26
+       4.3.9.  Export  . . . . . . . . . . . . . . . . . . . . . . .  27
+       4.3.10. Link  . . . . . . . . . . . . . . . . . . . . . . . .  27
+       4.3.11. Token . . . . . . . . . . . . . . . . . . . . . . . .  28
+       4.3.12. Contents  . . . . . . . . . . . . . . . . . . . . . .  29
+     4.4.  Message Uniqueness and Idempotence  . . . . . . . . . . .  29
 
 
 
@@ -114,35 +114,79 @@ Trammell & Kuehlewind   Expires February 21, 2016               [Page 2]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-     2.5.  Designing Measurement and Repository Schemas  . . . . . .  30
-   3.  Representations and Session Protocols . . . . . . . . . . . .  31
-     3.1.  JSON representation . . . . . . . . . . . . . . . . . . .  31
-       3.1.1.  Textual representations of element values . . . . . .  32
-       3.1.2.  Example mPlane Capabilities and Specifications  . . .  33
-     3.2.  mPlane over HTTPS . . . . . . . . . . . . . . . . . . . .  38
-       3.2.1.  mPlane PKI for HTTPS  . . . . . . . . . . . . . . . .  39
-       3.2.2.  Access Control in HTTPS . . . . . . . . . . . . . . .  39
-       3.2.3.  Paths in mPlane Link and Export URLs  . . . . . . . .  40
-     3.3.  mPlane over WebSockets over TLS . . . . . . . . . . . . .  41
-     3.4.  mPlane over SSH . . . . . . . . . . . . . . . . . . . . .  41
-   4.  Workflows in HTTPS  . . . . . . . . . . . . . . . . . . . . .  42
-     4.1.  Client-Initiated  . . . . . . . . . . . . . . . . . . . .  42
-       4.1.1.  Capability Discovery  . . . . . . . . . . . . . . . .  43
-     4.2.  Component-Initiated . . . . . . . . . . . . . . . . . . .  43
-       4.2.1.  Callback Control  . . . . . . . . . . . . . . . . . .  44
-     4.3.  Indirect Export . . . . . . . . . . . . . . . . . . . . .  45
-     4.4.  Error Handling in mPlane Workflows  . . . . . . . . . . .  46
-   5.  The Role of the Supervisor  . . . . . . . . . . . . . . . . .  47
-   6.  Component Registration  . . . . . . . . . . . . . . . . . . .  48
-   7.  Client Authentication . . . . . . . . . . . . . . . . . . . .  48
-   8.  Capability Composition and Specification Decomposition  . . .  48
-   9.  Security Considerations . . . . . . . . . . . . . . . . . . .  49
-   10. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  49
-   11. Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  49
-   12. Informative References  . . . . . . . . . . . . . . . . . . .  49
+       4.4.1.  Message Schema  . . . . . . . . . . . . . . . . . . .  29
+       4.4.2.  Message Identity  . . . . . . . . . . . . . . . . . .  30
+     4.5.  Designing Measurement and Repository Schemas  . . . . . .  30
+   5.  Representations and Session Protocols . . . . . . . . . . . .  31
+     5.1.  JSON representation . . . . . . . . . . . . . . . . . . .  31
+       5.1.1.  Textual representations of element values . . . . . .  32
+       5.1.2.  Example mPlane Capabilities and Specifications  . . .  33
+     5.2.  mPlane over HTTPS . . . . . . . . . . . . . . . . . . . .  38
+       5.2.1.  mPlane PKI for HTTPS  . . . . . . . . . . . . . . . .  39
+       5.2.2.  Access Control in HTTPS . . . . . . . . . . . . . . .  39
+       5.2.3.  Paths in mPlane Link and Export URLs  . . . . . . . .  40
+     5.3.  mPlane over WebSockets over TLS . . . . . . . . . . . . .  41
+     5.4.  mPlane over SSH . . . . . . . . . . . . . . . . . . . . .  41
+   6.  Workflows in HTTPS  . . . . . . . . . . . . . . . . . . . . .  42
+     6.1.  Client-Initiated  . . . . . . . . . . . . . . . . . . . .  42
+       6.1.1.  Capability Discovery  . . . . . . . . . . . . . . . .  43
+     6.2.  Component-Initiated . . . . . . . . . . . . . . . . . . .  43
+       6.2.1.  Callback Control  . . . . . . . . . . . . . . . . . .  44
+     6.3.  Indirect Export . . . . . . . . . . . . . . . . . . . . .  45
+     6.4.  Error Handling in mPlane Workflows  . . . . . . . . . . .  45
+   7.  The Role of the Supervisor  . . . . . . . . . . . . . . . . .  46
+     7.1.  Component Registration  . . . . . . . . . . . . . . . . .  47
+     7.2.  Client Authentication . . . . . . . . . . . . . . . . . .  47
+     7.3.  Capability Composition and Specification Decomposition  .  48
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  48
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  48
+   10. Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  48
+   11. Informative References  . . . . . . . . . . . . . . . . . . .  49
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  50
 
-1.  Overview of the mPlane Architecture
+1.  Introduction
+
+   This document describes the mPlane architecture and protocol, which
+   is designed to provide control and coordination of heterogeneous
+   network measurement tools.  It is based heavily on the mPlane
+   project's deliverable 1.4 [D14], and is submitted for the information
+   of the Internet engineering community.  Section 3 gives an overview
+   of the mPlane architecture, Section 4 defines the protocol
+   information model, and Section 5 defines the representations of this
+   data model and session protocols over which mPlane could be
+   supported.
+
+   Present implementation work is focused on mPlane represented in JSON
+   using HTTPS as a session protocol [RFC3205].  Section 6 demonstrates
+   how mPlane's separation of connection initiation and message
+   initiation works in this environment.
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 3]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
+2.  Terminology
+
+   Client: :todo, see Section 3.2.1
+
+   Component: :todo, see Section 3.2.1
+
+   mPlane Message: :todo, see Section 4.2
+
+   Capability: :todo, see Section 4.2.1
+
+   Specification: :todo, see Section 4.2.2
+
+   Result: :todo, see Section 4.2.3
+
+   Element: :todo, see Section 4.1
+
+3.  Overview of the mPlane Architecture
 
    mPlane is built around an architecture in which components provide
    network measurement services and access to stored measurement data
@@ -162,27 +206,30 @@ Internet-Draft                 mPlane Spec                   August 2015
    architecture is merely a matter of the capabilities it provides.
    Components can be pulled together into an infrastructure by a
    supervisor, which presents a client interface to subordinate
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 3]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    components and a component interface to superordinate clients,
    aggregating capabilities into higher-level measurements and
    distributing specifications to perform them.
 
-   A client which provides automation support for measurement iteration
-   in troubleshooting and root cause analysis is called a reasoner.
-
    This arrangement is shown in schematic form in the diagram below.
+
+
+
+
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 4]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
                 __________
                /           \
-               | Client/   |
-               \  Reasoner /
+               |   Client  |
+               \           /
                 -----------
                      ^
                      | specification/capability/result
@@ -199,7 +246,7 @@ Internet-Draft                 mPlane Spec                   August 2015
           |                     |
           v                     v
      /---------\ indirect \____________/
-    | component |-------->| repository |
+    < component >-------->| repository |
      \---------/  export  \____________/
 
    Figure 1: General arrangement of entities in the mPlane architecture
@@ -210,23 +257,12 @@ Internet-Draft                 mPlane Spec                   August 2015
    specification embodies an API call; and each result returns the
    results of an API call.
 
-1.1.  Key Architectural Principles and Features
+3.1.  Key Architectural Principles and Features
 
    mPlane differs from a simple RPC facility in several important ways,
    detailed in the subsections below.
 
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 4]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-1.1.1.  Flexibility and Extensibility
+3.1.1.  Flexibility and Extensibility
 
    First, given the heterogeneity of the measurement tools and
    techniques applied, it is necessary for the protocol to be as
@@ -238,10 +274,18 @@ Internet-Draft                 mPlane Spec                   August 2015
    understand these capabilities and send specifications to invoke them
    is a client.  Everything a component can do, from the point of view
    of mPlane, is entirely described by its capabilities.  Capabilities
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 5]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    are even used to expose optional internal features of the protocol
    itself, and provide a method for built-in protocol extensibility.
 
-1.1.2.  Schema-centric Measurement Definition
+3.1.2.  Schema-centric Measurement Definition
 
    Second, given the flexibility required above, the key to measurement
    interoperability is the comparison of data types.  Each capability,
@@ -259,7 +303,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    without requiring central coordination beyond the domain or set of
    domains running the application.
 
-1.1.3.  Iterative Measurement Support
+3.1.3.  Iterative Measurement Support
 
    Third, the exchange of messages in the protocol was chosen to support
    iterative measurement in which the aggregated, high-level results of
@@ -268,20 +312,12 @@ Internet-Draft                 mPlane Spec                   August 2015
    (capabilities and specifications) and data messages (results) into a
    single workflow.
 
-1.1.4.  Weak Imperativeness
+3.1.4.  Weak Imperativeness
 
    Fourth, the mPlane protocol is weakly imperative.  A capability
    represents a willingness and an ability to perform a given
    measurement or execute a query, but not a guarantee or a reservation
    to do so.  Likewise, a specification contains a set of parameters and
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 5]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    a temporal scope for a measurement a client wishes a component to
    perform on its behalf, but execution of specifications is best-
    effort.  A specification is not an instruction which must result
@@ -293,6 +329,15 @@ Internet-Draft                 mPlane Spec                   August 2015
    supervisor only intermittently.  In this environment, the operability
    and conditions in which the probes find themselves may change more
    rapidly than can be practicably synchronized with a central
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 6]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    supervisor; requiring reliable operation would compromise scalability
    of the architecture.
 
@@ -329,26 +374,26 @@ Internet-Draft                 mPlane Spec                   August 2015
    supervisor has no control over the functionality and availability of
    its associated probes.
 
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 6]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-1.2.  Entities and Relationships
+3.2.  Entities and Relationships
 
    The entities in the mPlane protocol and the relationships among them
    are described in more detail in the subsections below.
 
-1.2.1.  Components and Clients
+3.2.1.  Components and Clients
 
    Specifically, a component is any entity which implements the mPlane
    protocol specified within this document, advertises its capabilities
    and accepts specifications which request the use of those
    capabilities.  The measurements, analyses, storage facilities and
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 7]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    other services provided by a component are completely defined by its
    capabilities.
 
@@ -382,19 +427,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
           Figure 2: The simplest form of the mPlane architecture
 
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 7]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-1.2.2.  Probes and Repositories
+3.2.2.  Probes and Repositories
 
    Measurement components can be roughly divided into two categories:
    probes and repositories.  Probes perform measurements, and
@@ -409,7 +442,15 @@ Internet-Draft                 mPlane Spec                   August 2015
    is completely described by its capabilities, and some components may
    combine properties of both probes and repositories.
 
-1.2.3.  Supervisors and Federation
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 8]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
+3.2.3.  Supervisors and Federation
 
    An entity which implements both the client and component interfaces
    can be used to build and federate domains of mPlane components.  This
@@ -419,36 +460,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    lower-level capabilities provided by these components into higher-
    level capabilities exposed to its clients.  This arrangement is shown
    in the figure below.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 8]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
                        ________________
                        |              |
@@ -483,10 +494,18 @@ Internet-Draft                 mPlane Spec                   August 2015
    The set of components which respond to specifications from a single
    supervisor is referred to as an mPlane domain.  Domain membership is
    also determined by the issuer of the certificates identifying the
-   clients, components, and supervisor, as detailed in Section 3.2.2.
+   clients, components, and supervisor, as detailed in Section 5.2.2.
    Within a given domain, each client and component connects to only one
    supervisor.  Underlying measurement components and clients may indeed
    participate in multiple domains, but these are separate entities from
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016               [Page 9]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    the point of view of the architecture.  Interdomain measurement is
    supported by federation among supervisors: a local supervisor
    delegates measurements in a remote domain to that domain's
@@ -498,29 +517,11 @@ Internet-Draft                 mPlane Spec                   August 2015
    identity information provided by the session protocol (HTTPS,
    WebSockets, or SSH) in the general case.
 
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 9]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    Since the logic for aggregating control and data for a given
    application is very specific to that application, note that there is
    no generic supervisor implementation provided with the mPlane SDK.
 
-1.2.4.  Reasoner
-
-   Within an mPlane domain, a special client known as a reasoner may
-   control automated or semi-automated iteration of measurements, e.g.
-   working with a supervisor to iteratively run measurements using a set
-   of components to perform root cause analysis.  While the reasoner is
-   key to the mPlane project, it is architecturally merely another
-   client, though it will often be co-located with a supervisor for
-   implementation convenience.
-
-1.2.5.  External Interfaces to mPlane Entities
+3.2.4.  External Interfaces to mPlane Entities
 
    The mPlane protocol specified in this document is designed for the
    exchange of control messages in an iterative measurement process, and
@@ -549,11 +550,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    repository backed by a relational database could have a web-based
    graphical user interface that interacts directly with the database.
 
-1.3.  Message Types and Message Exchange Sequences
 
-   The basic messages in the mPlane protocol are capabilities,
-   specifications, and results, as described above.  The full protocol
-   contains other message types as well.  Withdrawals cancel
+
+
+
 
 
 
@@ -562,6 +562,11 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 10]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
+3.3.  Message Types and Message Exchange Sequences
+
+   The basic messages in the mPlane protocol are capabilities,
+   specifications, and results, as described above.  The full protocol
+   contains other message types as well.  Withdrawals cancel
    capabilities (i.e., indicate that the component is no longer capable
    or willing to perform a given measurement) and interrupts cancel
    specifications (i.e., indicate that the component should stop
@@ -576,7 +581,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    In the nominal sequence, a capability leads to a specification leads
    to a result, where results may be transmitted by some other protocol.
    All the paths through the sequence of messages are shown in the
-   diagram below; message types are described in detail in Section 2.2.
+   diagram below; message types are described in detail in Section 4.2.
    In the diagram, solid lines mean a message is sent in reply to the
    previous message in sequence (i.e. a component sends a capability,
    and a client replies or follows with a specification), and dashed
@@ -605,11 +610,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    Within a given mPlane domain, these patterns can be combined (along
    with indirect export and direct access) to facilitate complex
    interactions among clients and components according to the
-   requirements imposed by the application and the deployment of
-   components in the network.
-
-
-
 
 
 
@@ -618,7 +618,25 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 11]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-1.4.  From Architecture to Protocol Specification
+   requirements imposed by the application and the deployment of
+   components in the network.
+
+3.4.  Integrating Measurement Tools into mPlane
+
+   mPlane's flexibility and the self-description of measurements
+   provided by the capability-specification-result cycle was designed to
+   allow a wide variety of existing measurement tools, both probes and
+   repositories, to be integrated into an mPlane domain.  In both cases,
+   the key to integration is to define a capability for each of the
+   measurements the tool can perform or the queries the repository needs
+   to make available within an mPlane domain.  Each capability has a set
+   of parameters - information required to run the measurement or the
+   query - and a set of result columns - information which the
+   measurement or query returns.  The parameters and result columns make
+   up the measurement's schema, and are chosen from an extensible
+   registry of elements.  Practical details are given in Section 4.5.
+
+3.5.  From Architecture to Protocol Specification
 
    The remainder of this document builds the protocol specification
    based on this architecture from the bottom up.  First, we define the
@@ -631,7 +649,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    measurement infrastructures, and detail the responsibilities of an
    mPlane supervisor.
 
-2.  Protocol Information Model
+4.  Protocol Information Model
 
    The mPlane protocol is message-oriented, built on the representation-
    and session-protocol-independent exchange of messages between clients
@@ -642,12 +660,19 @@ Internet-Draft                 mPlane Spec                   August 2015
    advice on using the information model to model measurements and
    queries.
 
-2.1.  Element Registry
+4.1.  Element Registry
 
    An element registry makes up the vocabulary by which mPlane
    components and clients can express the meaning of parameters,
    metadata, and result columns for mPlane statements.  A registry is
    represented as a JSON [RFC7159] object with the following keys:
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 12]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
    o  registry-format: currently "mplane-0", determines the supported
       features of the registry format.
@@ -666,18 +691,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    o  elements: a list of objects, each of which has the following three
       keys:
 
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 12]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
       *  name: The name of the element.
 
    o  prim: The name of the primitive type of the element, from the list
-      of primitives in Section 2.1.2.
+      of primitives in Section 4.1.2.
 
       *  desc: An English-language description of the meaning of the
          element.
@@ -704,6 +721,15 @@ Internet-Draft                 mPlane Spec                   August 2015
      ]
    }
 
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 13]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Fully qualified element names consist of the element's name as an
    anchor after the URI from which the element came, e.g. "http://ict-
    mplane.eu/registry/core#full.structured.name".  Elements within the
@@ -711,7 +737,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    qualified names.  However, within a given mPlane message, elements
    are considered equal based on unqualified names.
 
-2.1.1.  Structured Element Names
+4.1.1.  Structured Element Names
 
    To ease understanding of mPlane type registries, element names are
    structured by convention; that is, an element name is made up of the
@@ -722,14 +748,6 @@ Internet-Draft                 mPlane Spec                   August 2015
       specifies or measures.  All elements with the same basename
       describe the same basic property.  For example, all elements with
       basename '"source"' relate to the source of a packet, flow, active
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 13]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
       measurement, etc.; and elements with basename '"delay"'' relate to
       the measured delay of an operation.
 
@@ -760,6 +778,14 @@ Internet-Draft                 mPlane Spec                   August 2015
 
       *  "NNpct" (where NN is a two-digit number 01-99): percentile
 
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 14]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
       *  "median": shorthand for and equivalent to "50pct".
 
       *  "count": count of values aggregated
@@ -771,20 +797,12 @@ Internet-Draft                 mPlane Spec                   August 2015
    Information Element Registry), element names are not necessarily
    structured.
 
-2.1.2.  Primitive Types
+4.1.2.  Primitive Types
 
    The mPlane protocol supports the following primitive types for
    elements in the type registry:
 
    o  string: a sequence of Unicode characters
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 14]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    o  natural: an unsigned integer
 
@@ -803,7 +821,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    o  url: a uniform resource locator
 
-2.1.3.  Augmented Registry Information
+4.1.3.  Augmented Registry Information
 
    Additional keys beyond prim, desc, and name may appear in an mPlane
    registry to augment information about each element; these are not
@@ -816,13 +834,21 @@ Internet-Draft                 mPlane Spec                   August 2015
    o  units: If applicable, units in which the element is expressed;
       equal to the units part of a structured name if present.
 
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 15]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    o  ipfix-eid: The element ID of the equivalent IPFIX [RFC7011]
       Information Element.
 
    o  ipfix-pen: The SMI Private Enterprise Number of the equivalent
       IPFIX Information Element, if any.
 
-2.2.  Message Types
+4.2.  Message Types
 
    Workflows in mPlane are built around the capability - specification -
    result cycle.  Capabilities, specifications, and results are kinds of
@@ -832,15 +858,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    in a capability; and a result is a statement that a component
    measured a given set of values at a given point in time according to
    a specification.
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 15]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    Other types of messages outside this nominal cycle are referred to as
    notifications.  Types of notifications include Withdrawals,
@@ -857,7 +874,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    The following types of messages are supported by the mPlane protocol:
 
-2.2.1.  Capability and Withdrawal
+4.2.1.  Capability and Withdrawal
 
    A capability is a statement of a component's ability and willingness
    to perform a specific operation, conveyed from a component to a
@@ -870,7 +887,18 @@ Internet-Draft                 mPlane Spec                   August 2015
    reply to a specification which attempts to invoke a capability no
    longer offered.
 
-2.2.2.  Specification and Interrupt
+
+
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 16]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
+4.2.2.  Specification and Interrupt
 
    A specification is a statement that a component should perform a
    specific operation, conveyed from a client to a component.  It can be
@@ -884,20 +912,12 @@ Internet-Draft                 mPlane Spec                   August 2015
    If the specification has pending results, those results are returned
    in response to the interrupt.
 
-2.2.3.  Result
+4.2.3.  Result
 
    A result is a statement produced by a component that a particular
    measurement was taken and the given values were observed, or that a
    particular operation or analysis was performed and a the given values
    were produced.  It can be conceptually viewed as a specification
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 16]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    whose result columns have been filled in with values.  Note that, in
    keeping with the stateless nature of the mPlane protocol, a result
    contains the full set of parameters from which it was derived.
@@ -908,7 +928,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    results will be conveyed to a third component using an external
    protocol.
 
-2.2.4.  Receipt and Redemption
+4.2.4.  Receipt and Redemption
 
    A receipt is returned instead of a result by a component in response
    to a specification which either:
@@ -925,26 +945,6 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    A redemption is sent from a client to a component for a previously
    received receipt to attempt to retrieve delayed results.  It may
-   contain only the token section, or all sections of the received
-   receipt.
-
-2.2.5.  Indirection
-
-   An indirection is returned instead of a result by a component to
-   indicate that the client should contact another component for the
-   desired result.
-
-2.2.6.  Exception
-
-   An exception is sent from a client to a component or from a component
-   to a client to signal an exceptional condition within the
-   infrastructure itself.  They are not meant to signal exceptional
-   conditions within a measurement performed by a component; see
-   Section 4.4 for more.  An exception contains only two sections: an
-   optional token referring back to the message to which the exception
-   is related (if any), and a message section containing free-form,
-   preferably human readable information about the exception.
-
 
 
 
@@ -954,7 +954,27 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 17]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-2.2.7.  Envelope
+   contain only the token section, or all sections of the received
+   receipt.
+
+4.2.5.  Indirection
+
+   An indirection is returned instead of a result by a component to
+   indicate that the client should contact another component for the
+   desired result.
+
+4.2.6.  Exception
+
+   An exception is sent from a client to a component or from a component
+   to a client to signal an exceptional condition within the
+   infrastructure itself.  They are not meant to signal exceptional
+   conditions within a measurement performed by a component; see
+   Section 6.4 for more.  An exception contains only two sections: an
+   optional token referring back to the message to which the exception
+   is related (if any), and a message section containing free-form,
+   preferably human readable information about the exception.
+
+4.2.7.  Envelope
 
    An envelope is used to contain other messages.  Message containment
    is necessary in contexts in which multiple mPlane messages must be
@@ -975,13 +995,20 @@ Internet-Draft                 mPlane Spec                   August 2015
       simultaneously send a measurement specification along with a
       callback control specification).
 
-2.3.  Message Sections
+4.3.  Message Sections
 
    Each message is made up of sections, as described in the subsection
    below.  The following table shows the presence of each of these
    sections in each of the message types supported by mPlane: "req."
    means the section is required, "opt." means it is optional; see the
    subsection on each message section for details.
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 18]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
 
 | Section        | Capability | Spec. | Result | Receipt    | Envelope |
 | -------------- | ---------- | ----- | ------ |------------|----------|
@@ -1002,19 +1029,11 @@ Internet-Draft                 mPlane Spec                   August 2015
 
              Figure 4: Message Sections for Each Message Type
 
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 18]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    Withdrawals and indirections take the same sections as capabilities;
    and redemptions and interrupts take the same sections as receipts.
    Exceptions are not shown in this table.
 
-2.3.1.  Message Type and Verb
+4.3.1.  Message Type and Verb
 
    The verb is the action to be performed by the component.  The
    following verbs are supported by the base mPlane protocol, but
@@ -1039,6 +1058,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    course, any single component can implement capabilities with any
    number of different verbs.
 
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 19]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Within the SDK, the primary difference between "measure" and "query"
    is that the temporal scope of a "measure" specification is taken to
    refer to when the measurement should be scheduled, while the temporal
@@ -1050,23 +1077,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    envelope contains a mixture of different unspecified kinds of
    messages.
 
-2.3.2.  Version
+4.3.2.  Version
 
    The "version" section contains the version of the mPlane protocol to
    which the message conforms, as an integer serially incremented with
    each new protocol revision.  This section is required in all
    messages.  This document describes version 1 of the protocol.
 
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 19]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-2.3.3.  Registry
+4.3.3.  Registry
 
    The "registry" section contains the URL identifying the element
    registry used by this message, and from which the registry can be
@@ -1077,7 +1095,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    "http://ict-mplane.eu/registry/core".
 
-2.3.4.  Label
+4.3.4.  Label
 
    The "label" section of a statement contains a human-readable label
    identifying it, intended solely for use when displaying information
@@ -1091,25 +1109,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    mPlane clients and components should never use the label as a unique
    identifier for a message, or assume any semantic meaning in the label
    - the test of message equality and relatedness is always based upon
-   the schema and values as in Section 2.4.
-
-2.3.5.  Temporal Scope (When)
-
-   The "when" section of a statement contains its temporal scope.
-
-   A temporal scope refers to when a measurement can be run (in a
-   capability), when it should be run (in a specification), or when it
-   was run (in a result).  Temporal scopes can be either absolute or
-   relative, and may have an optional period, referring to how often
-   single measurements should be taken.
-
-   The general form of a temporal scope (in BNF-like syntax) is as
-   follows:
-
-
-
-
-
+   the schema and values as in Section 4.4.
 
 
 
@@ -1121,6 +1121,19 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 20]
 
 Internet-Draft                 mPlane Spec                   August 2015
 
+
+4.3.5.  Temporal Scope (When)
+
+   The "when" section of a statement contains its temporal scope.
+
+   A temporal scope refers to when a measurement can be run (in a
+   capability), when it should be run (in a specification), or when it
+   was run (in a result).  Temporal scopes can be either absolute or
+   relative, and may have an optional period, referring to how often
+   single measurements should be taken.
+
+   The general form of a temporal scope (in BNF-like syntax) is as
+   follows:
 
    simple-when = <singleton> |            # A single point in time
                  <range> |                # A range in time
@@ -1157,6 +1170,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    Conversely, a capability without a period can only be fulfilled by a
    specification without a period.
 
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 21]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Within a result, only absolute ranges are allowed within the temporal
    scope, and refers to the time range of the measurements contributing
    to the result.  Note that the use of absolute times here implies that
@@ -1170,13 +1191,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    "when: 2009-02-20 13:02:15 ... 2014-04-04 04:27:19"
 
    A relative range covering three and a half days might be:
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 21]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    "when: 2009-04-04 04:00:00 + 3d12h"
 
@@ -1195,7 +1209,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    "when: 2017-11-23 18:30:00 ... future"
 
-2.3.5.1.  Repeating Measurements
+4.3.5.1.  Repeating Measurements
 
    Within specifications, the temporal scope can be extended to support
    repeated measurement.  A repeated specification is conceptually
@@ -1205,20 +1219,6 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    The general form of a temporal scope in a repeated specification is
    as follows (BNF-like syntax):
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1350,7 +1350,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    midnight would be: \texttt{when: repeat now ... future cron 0 0 0 * *
    * }
 
-2.3.6.  Parameters
+4.3.6.  Parameters
 
    The "parameters" section of a message contains an ordered list of the
    parameters for a given measurement: values which must be provided by
@@ -1408,7 +1408,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    Parameter and constraint values must be a representation of an
    instance of the primitive type of the associated element.
 
-2.3.7.  Metadata
+4.3.7.  Metadata
 
    The "metadata" section contains measurement metadata: key-value pairs
    associated with a capability inherited by its specification and
@@ -1426,7 +1426,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    '"location.longitude = 8.55272"', which while not particularly useful
    for analysis purposes, can be used to draw maps of measurements.
 
-2.3.8.  Result Columns and Values
+4.3.8.  Result Columns and Values
 
    Results are represented using two sections: "results" which identify
    the elements to be returned by the measurement, and "resultvalues"
@@ -1458,7 +1458,7 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 26]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-2.3.9.  Export
+4.3.9.  Export
 
    The "export" section contains a URL or partial URL for indirect
    export.  Its meaning depends on the kind and verb of the message:
@@ -1492,7 +1492,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    schemas and protocol identifiers match between collector and
    exporter.
 
-2.3.10.  Link
+4.3.10.  Link
 
    The "link" section contains the URL to which messages in the next
    step in the workflow (i.e. a specification for a capability, a result
@@ -1522,7 +1522,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    at the URL given in the link in order to retrieve results or initiate
    measurement.
 
-2.3.11.  Token
+4.3.11.  Token
 
    The "token" section contains an arbitrary string by which a message
    may be identified in subsequent communications in an abbreviated
@@ -1570,7 +1570,7 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 28]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-2.3.12.  Contents
+4.3.12.  Contents
 
    The "contents" section appears only in envelopes, and is an ordered
    list of messages.  If the envelope's kind identifies a message kind,
@@ -1578,7 +1578,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    otherwise if the kind is "message", the contents may contain a mix of
    any kind of message.
 
-2.4.  Message Uniqueness and Idempotence
+4.4.  Message Uniqueness and Idempotence
 
    Messages in the mPlane protocol are intended to support state
    distribution: capabilities, specifications, and results are meant to
@@ -1589,7 +1589,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    relative temporal scopes), messages are idempotent: the receipt of a
    duplicate message at a client or component is a null operation.
 
-2.4.1.  Message Schema
+4.4.1.  Message Schema
 
    The combination of elements in the "parameters" and "results"
    sections, together with the registry from which these elements are
@@ -1626,7 +1626,7 @@ Trammell & Kuehlewind   Expires February 21, 2016              [Page 29]
 Internet-Draft                 mPlane Spec                   August 2015
 
 
-2.4.2.  Message Identity
+4.4.2.  Message Identity
 
    A message's identity is composed of its schema, together with its
    temporal scope, metadata, parameter values, and indirect export
@@ -1643,7 +1643,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    identity sections to uniquely identify messages; e.g. to generate
    message tokens.
 
-2.5.  Designing Measurement and Repository Schemas
+4.5.  Designing Measurement and Repository Schemas
 
    As noted, the key to integrating a measurement tool into an mPlane
    infrastructure is properly defining the schemas for the measurements
@@ -1704,7 +1704,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    dialect of SQL necessary can integrate directly with the repository
    separate from the capabilities provided over mPlane.
 
-3.  Representations and Session Protocols
+5.  Representations and Session Protocols
 
    The mPlane protocol is built atop an abstract data model in order to
    support multiple representations and session protocols.  The
@@ -1712,7 +1712,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    [RFC7159] objects transported via HTTP [RFC7230] over TLS [RFC5246]
    (commonly known as HTTPS).
 
-3.1.  JSON representation
+5.1.  JSON representation
 
    In the JSON representation, an mPlane message is a JSON object,
    mapping sections by name to their contents.  The name of the message
@@ -1739,11 +1739,11 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
    o  "when" : a string containing a temporal scope, as described in
-      Section 2.3.5.
+      Section 4.3.5.
 
    o  "parameters" : a JSON object mapping (non-qualified) element
       names, either to constraints or to parameter values, as
-      appropriate, and as described in Section 2.3.6.
+      appropriate, and as described in Section 4.3.6.
 
    o  "metadata" : a JSON object mapping (non-qualified) element names
       to metadata values.
@@ -1762,7 +1762,7 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    o  "contents" : an array of objects containing messages.
 
-3.1.1.  Textual representations of element values
+5.1.1.  Textual representations of element values
 
    Each primitive type is represented as a value in JSON as follows,
    following the Textual Representation of IPFIX Abstract Data Types
@@ -1799,7 +1799,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    seconds are represented with a variable number of digits after an
    optional decimal point after the fraction.
 
-3.1.2.  Example mPlane Capabilities and Specifications
+5.1.2.  Example mPlane Capabilities and Specifications
 
    To illustrate how mPlane messages are encoded, we consider first two
    capabilities for a very simple application - ping - as mPlane JSON
@@ -2090,7 +2090,7 @@ Internet-Draft                 mPlane Spec                   August 2015
                     "delay.twoway.icmp.count"]
    }
 
-3.2.  mPlane over HTTPS
+5.2.  mPlane over HTTPS
 
    The default session protocol for mPlane messages is HTTP over TLS
    with mandatory mutual authentication.  This grants confidentiality
@@ -2120,7 +2120,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    bidirectional protocol.  This makes it necessary to specify mappings
    between this bidirectional message channel and the sequence of HTTPS
    requests and responses for each deployment scenario.  These mappings
-   are given in Section 4.  Note that in a given mPlane domain, any or
+   are given in Section 6.  Note that in a given mPlane domain, any or
    all of these mappings may be used simultaneously.
 
 
@@ -2140,7 +2140,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    (Redirection) response code.  Otherwise, the response should contain
    response code 200 OK.
 
-3.2.1.  mPlane PKI for HTTPS
+5.2.1.  mPlane PKI for HTTPS
 
    The clients and components within an mPlane domain generally share a
    single certificate issuer, specific to a single mPlane domain.
@@ -2160,14 +2160,14 @@ Internet-Draft                 mPlane Spec                   August 2015
    compartmentalization is necessary to keep one domain from authorizing
    components and clients within another domain.
 
-3.2.2.  Access Control in HTTPS
+5.2.2.  Access Control in HTTPS
 
    For components with simple authorization policies (e.g., many
    probes), the ability to establish a connection implies verification
    of a client certificate valid within the domain, and further implies
    authorization to continue with any capability offered by the
    component.  Conversely, in component-initiated workflows (see
-   Section 4.2), the ability of a component to connect to the supervisor
+   Section 6.2), the ability of a component to connect to the supervisor
    implies that the supervisor will trust capabilities from that
    component.
 
@@ -2198,7 +2198,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    capabilities at the supervisor that it is authorized to execute.  The
    same controls are enforced on specifications.
 
-3.2.3.  Paths in mPlane Link and Export URLs
+5.2.3.  Paths in mPlane Link and Export URLs
 
    In general, when connecting to a component for the first time, a
    client or supervisor will have been configured with a URL from which
@@ -2246,7 +2246,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    can export to the repository.  The same pattern can be used to
    delegate posting of specifications and results securely.
 
-3.3.  mPlane over WebSockets over TLS
+5.3.  mPlane over WebSockets over TLS
 
    Though not presently implemented by the SDK, the mPlane protocol
    specification is designed such that it can also use the WebSockets
@@ -2269,7 +2269,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    We suspect the situation with WebSockets will improve as
    implementations mature.
 
-3.4.  mPlane over SSH
+5.4.  mPlane over SSH
 
    Though not presently implemented by the SDK, the mPlane protocol
    specification is designed such that it can also use the Secure Shell
@@ -2306,7 +2306,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    advantage over using a small PKI with an algorithmic mapping from
    subject distinguished names to access control identities.
 
-4.  Workflows in HTTPS
+6.  Workflows in HTTPS
 
    As noted above, mPlane protocol supports three patterns of workflow:
    client-initiated, component-initiated, and indirect export.  These
@@ -2319,41 +2319,11 @@ Internet-Draft                 mPlane Spec                   August 2015
    initiator are independent from the connection initiator, and callback
    control and capability discovery as described here are unnecessary.
 
-   In this figure in this section, the following symbols have the
-   following meanings:
-
-   | Symbol | Description                           |
-   | ------ | --------------------------------------|
-   | C      | Capability                            |
-   | Ccb    | Callback Capability                   |
-   | Ce     | Export Capability                     |
-   | Cc     | Collect Capability                    |
-   | S      | Specification                         |
-   | Scb    | Callback Specification                |
-   | Se     | Export Specification                  |
-   | R      | Result                                |
-   | Rc     | Receipt                               |
-   | Rd     | Redemption                            |
-   | Ex     | External protocol for indirect export |
-   | I      | Interrupt                             |
-
-   Colors are as elsewhere in the document: blue for capabilities and
-   capability-related messages, red for specifications, and black for
-   results.
-
-4.1.  Client-Initiated
+6.1.  Client-Initiated
 
    Client-initiated workflows are appropriate for stationary components,
    i.e., those with stable, routable addresses, which can therefore act
    as HTTPS servers.  This is generally the case for supervisors, large
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 42]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    repositories, repositories acting as gateways to external data
    sources, and certain large-scale or public probes.
 
@@ -2376,11 +2346,19 @@ Internet-Draft                 mPlane Spec                   August 2015
    capabilities from components for later use: there may be a
    significant delay between retrieval of capabilities and transmission
    of specifications following from those capabilities.  It is not
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 42]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    necessary for a client to check to see whether a given capability it
    has previously retrieved is still valid before sending a
    specification.
 
-4.1.1.  Capability Discovery
+6.1.1.  Capability Discovery
 
    For direct client-initiated workflows, the URL(s) from which to GET
    capabilities is a client configuration parameter.  The client-
@@ -2397,29 +2375,20 @@ Internet-Draft                 mPlane Spec                   August 2015
    capability discovery, instead of URLs for each component with which
    it wants to communicate.
 
-4.2.  Component-Initiated
+6.2.  Component-Initiated
 
    Component-initiated workflows are appropriate for components which do
    not have stable routable addresses (i.e., are behind NATs and/or are
    mobile), and which are used by clients that do.  Common examples of
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 43]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    such components are lightweight probes on mobile devices and customer
    equipment on access networks, interacting directly with a supervisor.
 
-   In this case, the usual client-server relationship is reversed.
-
-   Here, when the component becomes available, it opens an HTTPS
-   connection to the client and POSTs its capabilities to a known,
-   configured URL at the supervisor.  The supervisor remembers which
-   capabilities it wishes to use on which components, and prepares
-   specifications for later retrieval by the client.
+   In this case, the usual client-server relationship is reversed.  When
+   the component becomes available, it opens an HTTPS connection to the
+   client and POSTs its capabilities to a known, configured URL at the
+   supervisor.  The supervisor remembers which capabilities it wishes to
+   use on which components, and prepares specifications for later
+   retrieval by the client.
 
    The component then polls the supervisor, opening HTTPS connections
    and attempting to GET a specification from a known URL.  The client
@@ -2432,7 +2401,16 @@ Internet-Draft                 mPlane Spec                   August 2015
    In this case, the component must be configured with the client's
    URL(s).
 
-4.2.1.  Callback Control
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 43]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
+6.2.1.  Callback Control
 
    Callback control allows the supervisor to specify to the component
    when it should call back, in order to allow centralized scheduling of
@@ -2457,15 +2435,6 @@ Internet-Draft                 mPlane Spec                   August 2015
     'results':    []
    }
 
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 44]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    Then, when the component polls the client the first time, it responds
    with an envelope containing two specifications: the measurement it
    wants the client to perform, and a callback specification, containing
@@ -2488,11 +2457,20 @@ Internet-Draft                 mPlane Spec                   August 2015
    control on a per-component basis of the tradeoff between polling load
    and response time.
 
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 44]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Components implementing component-initiated workflows should support
    callback control in order to ensure the scalability of large mPlane
    infrastructures.
 
-4.3.  Indirect Export
+6.3.  Indirect Export
 
    Many common measurement infrastructures involve a large number of
    probes exporting large volumes of data to a (much) smaller number of
@@ -2514,14 +2492,6 @@ Internet-Draft                 mPlane Spec                   August 2015
    (with verb "measure" and with a protocol identified in the "export"
    section) and a collection capability from the collector (with the
    verb "collect" and with a URL in the "export" section describing
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 45]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
    where the exporter should export), either via a client-initiated
    workflow or a capability discovery server.  The client then sends a
    specification to the exporter, which matches the schema and parameter
@@ -2538,12 +2508,20 @@ Internet-Draft                 mPlane Spec                   August 2015
    subsequently retrieved by a client using a client-initiated workflow
    to the collector.
 
-4.4.  Error Handling in mPlane Workflows
+6.4.  Error Handling in mPlane Workflows
 
    Any component may signal an error to its client or supervisor at any
    time by sending an exception message.  While the taxonomy of error
    messages is at this time left up to each individual component, given
    the weakly imperative nature of the mPlane protocol, exceptions
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 45]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    should be used sparingly, and only to notify components and clients
    of errors with the mPlane infrastructure itself.
 
@@ -2566,25 +2544,16 @@ Internet-Draft                 mPlane Spec                   August 2015
    components or clients which cannot be handled due to a syntactic or
    semantic error in the message itself.
 
+7.  The Role of the Supervisor
 
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 46]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-5.  The Role of the Supervisor
-
-   From the point of view of the mPlane protocol, a supervisor is merely
-   a combined component and client.  The logic binding client and
-   component interfaces within the supervisor is application-specific,
-   as it involves the following operations according to the semantics of
-   each application:
+   For simple infrastructures, a set of components may be controlled
+   directly by a client.  However, in more complex infrastructures
+   providing support for multiple clients, a supervisor can mediate
+   between clients and components.  From the point of view of the mPlane
+   protocol, a supervisor is merely a combined component and client.
+   The logic binding client and component interfaces within the
+   supervisor is application-specific, as it involves the following
+   operations according to the semantics of each application:
 
    o  translating lower-level capabilities from subordinate components
       into higher-level (composed) capabilities, according to the
@@ -2601,15 +2570,23 @@ Internet-Draft                 mPlane Spec                   August 2015
    exchanges, and use both component-initiated and supervisor-initiated
    exchanges with subordinate components.
 
-   Here we see a a very simple arrangement with a single client using a
-   single supervisor to perform measurements using a single component.
-   The component uses a component-initiated workflow to associate with a
-   supervisor, and the client uses a client-initiated workflow.
 
-   First, the component registers with the supervisor, POSTing its
-   capabilities.  The supervisor creates composed capabilities derived
-   from these component capabilities, and makes them available to its
-   client, which GETs them when it connects.
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 46]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
+   Supervisors can of course be nested in this arrangement, e.g.
+   allowing high-level measurements to be aggregated from a set of
+   subdomains, or federation of measurement across administrative domain
+   boundaries.
+
+   In the general case, the component first registers with the
+   supervisor, POSTing its capabilities.  The supervisor creates
+   composed capabilities derived from these component capabilities, and
+   makes them available to its client, which GETs them when it connects.
 
    The client then initiates a measurement by POSTing a specification to
    the supervisor, which decomposes it into a more-specific
@@ -2624,17 +2601,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    This simple example illustrates the three main responsibilities of
    the supervisor, which are described in more detail below.
 
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 47]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-6.  Component Registration
+7.1.  Component Registration
 
    In order to be able to use components to perform measurements, the
    supervisor must register the components associated with it.  For
@@ -2651,13 +2618,22 @@ Internet-Draft                 mPlane Spec                   August 2015
    supervisor to maintain a set of capabilities associated with a set of
    components currently part of the mPlane infrastructure it supervises.
 
-7.  Client Authentication
+7.2.  Client Authentication
 
    For many components - probes and simple repositories - very simple
    authentication often suffices, such that any client with a
    certificate with an issuer recognized as valid is acceptable, and all
    capabilities are available to.  Larger repositories often need finer
    grained control, mapping specific peer certificates to identities
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 47]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    internal to the repository's access control system (e.g. database
    users).
 
@@ -2666,7 +2642,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    each client is authorized to access.  This mapping is part of the
    supervisor's configuration.
 
-8.  Capability Composition and Specification Decomposition
+7.3.  Capability Composition and Specification Decomposition
 
    The most dominant responsibility of the supervisor is composing
    capabilities from its subordinate components into aggregate
@@ -2678,19 +2654,7 @@ Internet-Draft                 mPlane Spec                   August 2015
    the clients.  It is for this reason that the mPlane SDK does not
    provide a generic supervisor.
 
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 48]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
-
-9.  Security Considerations
+8.  Security Considerations
 
    The mPlane protocol allows the control of network measurement
    devices.  The protocol itself uses HTTPS as a session layer, and is
@@ -2709,15 +2673,23 @@ Internet-Draft                 mPlane Spec                   August 2015
    protocols used within an mPlane domain must be secured at least as
    well as the mPlane protocol itself.
 
-10.  IANA Considerations
+9.  IANA Considerations
 
    This document has no actions for IANA.
 
-11.  Contributors
+10.  Contributors
 
    This document is based on Deliverable 1.4, the architecture and
    protocol specification document produced by the mPlane project [D14],
    which is the work of the mPlane consortium, specifically B.
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 48]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    Trammell, M.  Kuehlewind, M.  Mellia, A.  Finamore, S.  Pentassuglia,
    G.  De Rosa, F.  Invernizzi, M.  Milanesio, D.  Rossi, S.  Niccolini,
    I.  Leontiadis, T.  Szemethy, B.  Szabo, R.  Winter, M.  Faath, B.
@@ -2725,7 +2697,10 @@ Internet-Draft                 mPlane Spec                   August 2015
    European Commission under grant agreement FP7-318627 mPlane.  Support
    does not imply endorsement.
 
-12.  Informative References
+11.  Informative References
+
+   [RFC3205]  Moore, K., "On the use of HTTP as a Substrate", BCP 56,
+              RFC 3205, February 2002.
 
    [RFC3339]  Klyne, G., Ed. and C. Newman, "Date and Time on the
               Internet: Timestamps", RFC 3339, July 2002.
@@ -2735,16 +2710,6 @@ Internet-Draft                 mPlane Spec                   August 2015
 
    [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
               (TLS) Protocol Version 1.2", RFC 5246, August 2008.
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 49]
-
-Internet-Draft                 mPlane Spec                   August 2015
-
 
    [RFC5905]  Mills, D., Martin, J., Burbank, J., and W. Kasch, "Network
               Time Protocol Version 4: Protocol and Algorithms
@@ -2772,6 +2737,15 @@ Internet-Draft                 mPlane Spec                   August 2015
               Information Export (IPFIX) Abstract Data Types", RFC 7373,
               September 2014.
 
+
+
+
+
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 49]
+
+Internet-Draft                 mPlane Spec                   August 2015
+
+
    [D14]      Trammell, B., "mPlane Architecture Specification", April
               2015, <https://www.ict-
               mplane.eu/sites/default/files//public/public-page/public-
@@ -2786,20 +2760,6 @@ Authors' Addresses
    Switzerland
 
    Email: ietf@trammell.ch
-
-
-
-
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 50]
-
-Internet-Draft                 mPlane Spec                   August 2015
 
 
    Mirja Kuehlewind (editor)
@@ -2837,20 +2797,4 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 51]
+Trammell & Kuehlewind   Expires February 21, 2016              [Page 50]
