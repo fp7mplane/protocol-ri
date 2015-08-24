@@ -209,6 +209,7 @@ class ClientShell(cmd.Cmd):
 
         # share Http*Client's environment thru self._client
         # self._supervisor = mplane.svgui_handlers.ClientGui(config=config, cs=self,client=self._client)
+        self._client._reguri = registry_uri
         self._supervisor = ClientGui(config=config, cs=self,client=self._client)
         # self.run()
 

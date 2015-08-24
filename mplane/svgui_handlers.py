@@ -62,158 +62,6 @@ CONFIGFILE = "conf/guiconf.json"
 DIRECTORY_USERSETTINGS = "conf/usersettings"
 
 
-# class ClientGui(mplane.client.BaseClient):
-    # """
-    # Based on: mplane.client.HttpListenerClient.
-    # Core implementation of an mPlane JSON-over-HTTP(S) client.
-    # Supports component-initiated workflows. Intended for building
-    # supervisors.
-
-    # """
-    # def __init__(self, config, tls_state=None,
-                 # supervisor=False, exporter=None, io_loop=None, cs=None, client=None):
-        # super().__init__(tls_state, supervisor=supervisor,
-                        # exporter=exporter)
-
-        # self._cs = cs
-        # self._client = client
-        # self._tls_state = tls_state
-        
-        # # TODO: cleanup if not needed, as being common (self._cs)
-        # gui_port = GUI_PORT
-        # if "gui-port" in config["gui"]:
-            # listen_port = int(config["gui"]["gui-port"])
-
-        # registration_path = REGISTRATION_PATH
-        # if "registration-path" in config["client"]:
-            # registration_path = config["client"]["registration-path"]
-
-        # specification_path = SPECIFICATION_PATH
-        # if "registration-path" in config["client"]:
-            # specification_path = config["client"]["specification-path"]
-
-        # result_path = RESULT_PATH
-        # if "result-path" in config["client"]:
-            # result_path = config["client"]["result-path"]
-
-        # # link to which results must be sent
-        # self._link = config["client"]["listen-spec-link"]
-        # logging.debug(">>> ClientGui.__init__: self._link = " + str(self._link))
-
-        # # Outgoing messages per component identifier
-        # self._outgoing = {}
-
-        # # specification serial number
-        # # used to create labels programmatically
-        # self._ssn = 0
-
-        # # Capability
-        # self._callback_capability = {}
-
-        # # Create a request handler pointing at this client
-        # self._tornado_application = tornado.web.Application([
-            # (r"/" + registration_path, mplane.client.RegistrationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + registration_path + "/", mplane.client.RegistrationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + specification_path, mplane.client.SpecificationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + specification_path + "/", mplane.client.SpecificationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + result_path, mplane.client.ResultHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + result_path + "/", mplane.client.ResultHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-
-            # (r"/" + S_CAPABILITY_PATH, S_CapabilityHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + S_CAPABILITY_PATH + "/", S_CapabilityHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + S_SPECIFICATION_PATH, S_SpecificationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + S_SPECIFICATION_PATH + "/", S_SpecificationHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + S_RESULT_PATH, S_ResultHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + S_RESULT_PATH + "/", S_ResultHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-
-            # (r"/" + GUI_LOGIN_PATH, LoginHandler, {'supervisor': self._client}),
-            # (r"/" + GUI_USERSETTINGS_PATH, UserSettingsHandler, {'supervisor': self._client}),
-            # (r"/" + GUI_LISTCAPABILITIES_PATH, ListCapabilitiesHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + GUI_LISTPENDINGS_PATH, ListPendingsHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + GUI_LISTRESULTS_PATH, ListResultsHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + GUI_GETRESULT_PATH, GetResultHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/" + GUI_RUNCAPABILITY_PATH, RunCapabilityHandler, {'supervisor': self._client, 'tlsState': self._tls_state}),
-            # (r"/", ForwardHandler, {'forwardUrl': '/gui/static/login.html'}),
-            # (r"/gui", ForwardHandler, {'forwardUrl': '/gui/static/login.html'})
-        # ], cookie_secret="123456789-TODO-REPLACE", static_path=r"www/", static_url_prefix=r"/" + GUI_STATIC_PATH + "/")
-        # # http_server = tornado.httpserver.HTTPServer(self._tornado_application, ssl_options=tls_state.get_ssl_options())
-        # http_server = tornado.httpserver.HTTPServer(self._tornado_application)
-
-        # # run the server
-        # logging.debug(">>> ClientGui running on port " + str(listen_port))
-        # http_server.listen(listen_port)
-        # if io_loop is not None:
-            # cli_t = Thread(target=self.listen_in_background(io_loop))
-        # else:
-            # cli_t = Thread(target=self.listen_in_background)
-        # cli_t.daemon = True
-        # cli_t.start()
-
-    # def listen_in_background(self, io_loop=None):
-        # """
-        # The server listens for requests in background, while
-        # the supervisor console remains accessible
-        # """
-        # if io_loop is None:
-            # tornado.ioloop.IOLoop.instance().start()
-
-    # def _push_outgoing(self, identity, msg):
-        # if identity not in self._outgoing:
-            # self._outgoing[identity] = []
-        # self._outgoing[identity].append(msg)
-
-    # def invoke_capability(self, cap_tol, when, params, relabel=None, callback_when=None):
-        # """
-        # Given a capability token or label, a temporal scope, a dictionary
-        # of parameters, and an optional new label, derive a specification
-        # and queue it for retrieval by the appropriate identity (i.e., the
-        # one associated with the capability).
-
-        # If the identity has indicated it supports callback control,
-        # the optional callback_when parameter queues a callback spec to
-        # schedule the next callback.
-        # """
-        # # grab cap, spec, and identity
-        # # logging.debug(">>> ClientGui.invoke_capability")
-        # (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
-        # identity = self.identity_for(cap.get_token())
-        # spec.set_link(self._link)
-
-        # callback_cap = None
-        # if identity in self._callback_capability:
-            # # prepare a callback spec if we need to
-            # callback_cap = self._callback_capability[identity]
-        # if callback_cap and callback_when:
-            # callback_spec = mplane.model.Specification(capability=callback_cap)
-            # callback_spec.set_when(callback_when)
-            # envelope = mplane.model.Envelope()
-            # envelope.append_message(callback_spec)
-            # envelope.append_message(spec)
-            # self._push_outgoing(identity, envelope)
-        # else:
-            # self._push_outgoing(identity, spec)
-        # return spec
-
-    # def interrupt_capability(self, cap_tol):
-        # # get the receipt
-        # rr = super().result_for(cap_tol)
-        # identity = self.identity_for(rr.get_token(), receipt=True)
-        # interrupt = mplane.model.Interrupt(specification=rr)
-        # self._push_outgoing(identity, interrupt)
-
-    # def _add_capability(self, msg, identity):
-        # """
-        # Override Client's add_capability, check for callback control
-        # """
-        # if msg.verb() == mplane.model.VERB_CALLBACK:
-            # # FIXME this is kind of dodgy; we should do better checks to
-            # # make sure this is a real callback capability
-            # self._callback_capability[identity] = msg
-        # else:
-            # # not a callback control cap, just add the capability
-            # super()._add_capability(msg, identity)
-
-
 def get_dn(supervisor, request):
     """
     Extracts the DN from the request object. 
@@ -630,7 +478,8 @@ class ListCapabilitiesHandler(mplane.client.MPlaneHandler):
             self.redirect("/gui/static/login.html")
             return
         
-        _flist = filterlist(self, reguri="mplane/components/ott-probe/ott-registry.json")
+        # _flist = filterlist(self, reguri="mplane/components/ott-probe/ott-registry.json")
+        _flist = filterlist(self, reguri=self._supervisor._reguri)
         # logging.debug("_flist = " + str( _flist ))
         try:
             msg = ""
@@ -694,7 +543,7 @@ class ListResultsHandler(mplane.client.MPlaneHandler):
             self.redirect("/gui/static/login.html")
             return
 
-        _flist = filterlist(self, reguri="mplane/components/ott-probe/ott-registry.json")
+        _flist = filterlist(self, reguri=self._supervisor._reguri)
         # logging.debug("_flist = " + str( _flist ))
         try:
             msg = ""
@@ -757,7 +606,7 @@ class ListPendingsHandler(mplane.client.MPlaneHandler):
             self.redirect("/gui/static/login.html")
             return
 
-        _flist = filterlist(self, reguri="mplane/components/ott-probe/ott-registry.json")
+        _flist = filterlist(self, reguri=self._supervisor._reguri)
         # logging.debug("_flist = " + str( _flist ))
         try:
             msg = ""
