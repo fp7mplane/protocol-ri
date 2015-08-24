@@ -15,7 +15,7 @@ Copy the `www` directory to the root of your web server, so that the the `http:/
 
 To run the supervisor GUI, from the `protocol-ri` directory, run:
 
-```python3.4 -m mplane.svgui --config conf/vgui.conf 2>~/log/svgui.log```
+```python3.4 -m mplane.svgui --config conf/svgui.conf 2>~/log/svgui.log```
 
 and in another terminal windows start the components:
 
