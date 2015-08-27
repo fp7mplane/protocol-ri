@@ -1,8 +1,8 @@
 ---
 title: mPlane Protocol Specification
-abbrev: mPlane Spec
+abbrev: mPlane Protocol
 docname: draft-trammell-mplane-protocol-00
-date: 2015-8-20
+date: 2015-8-27
 category: info
 ipr: trust200902
 pi: [toc]
@@ -96,7 +96,7 @@ produced. It can be conceptually viewed as a specification whose result
 columns have been filled in with values. See {{result}}.
 
 Element:
-An identifier for a parameter or result column in a capability, specification, or result, binding a name to a primitive type. Elements are contained in registries that contain the vocabulary from which mPlane capabilities, specifications, and results can be built. See {{element-registry}}.
+: An identifier for a parameter or result column in a capability, specification, or result, binding a name to a primitive type. Elements are contained in registries that contain the vocabulary from which mPlane capabilities, specifications, and results can be built. See {{element-registry}}.
 
 # Overview of the mPlane Architecture
 

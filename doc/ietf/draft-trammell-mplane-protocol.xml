@@ -21,7 +21,7 @@
 <?rfc toc="yes"?>
 
   <front>
-    <title abbrev="mPlane Spec">mPlane Protocol Specification</title>
+    <title abbrev="mPlane Protocol">mPlane Protocol Specification</title>
 
     <author initials="B." surname="Trammell" fullname="Brian Trammell" role="editor">
       <organization>ETH Zurich</organization>
@@ -46,7 +46,7 @@
       </address>
     </author>
 
-    <date year="2015" month="August" day="20"/>
+    <date year="2015" month="August" day="27"/>
 
     
     
@@ -105,10 +105,9 @@ particular measurement was taken and the given values were observed, or that a
 particular operation or analysis was performed and a the given values were
 produced. It can be conceptually viewed as a specification whose result
 columns have been filled in with values. See <xref target="result"/>.</t>
+  <t hangText='Element:'>
+  An identifier for a parameter or result column in a capability, specification, or result, binding a name to a primitive type. Elements are contained in registries that contain the vocabulary from which mPlane capabilities, specifications, and results can be built. See <xref target="element-registry"/>.</t>
 </list></t>
-
-<t>Element:
-An identifier for a parameter or result column in a capability, specification, or result, binding a name to a primitive type. Elements are contained in registries that contain the vocabulary from which mPlane capabilities, specifications, and results can be built. See <xref target="element-registry"/>.</t>
 
 </section>
 <section anchor="overview-of-the-mplane-architecture" title="Overview of the mPlane Architecture">

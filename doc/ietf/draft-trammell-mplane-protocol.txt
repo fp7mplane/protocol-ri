@@ -5,7 +5,7 @@
 Network Working Group                                   B. Trammell, Ed.
 Internet-Draft                                        M. Kuehlewind, Ed.
 Intended status: Informational                                ETH Zurich
-Expires: February 21, 2016                               August 20, 2015
+Expires: February 28, 2016                               August 27, 2015
 
 
                      mPlane Protocol Specification
@@ -36,7 +36,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on February 21, 2016.
+   This Internet-Draft will expire on February 28, 2016.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 1]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 1]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    the Trust Legal Provisions and are provided without warranty as
@@ -109,9 +109,9 @@ Table of Contents
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 2]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 2]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
        4.4.1.  Message Schema  . . . . . . . . . . . . . . . . . . .  30
@@ -165,9 +165,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 3]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 3]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 2.  Terminology
@@ -210,20 +210,20 @@ Internet-Draft                 mPlane Spec                   August 2015
       conceptually viewed as a specification whose result columns have
       been filled in with values.  See Section 4.2.3.
 
-   Element: An identifier for a parameter or result column in a
-   capability, specification, or result, binding a name to a primitive
-   type.  Elements are contained in registries that contain the
-   vocabulary from which mPlane capabilities, specifications, and
-   results can be built.  See Section 4.1.
+   Element:  An identifier for a parameter or result column in a
+      capability, specification, or result, binding a name to a
+      primitive type.  Elements are contained in registries that contain
+      the vocabulary from which mPlane capabilities, specifications, and
+      results can be built.  See Section 4.1.
 
 
 
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 4]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 4]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 3.  Overview of the mPlane Architecture
@@ -277,9 +277,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 5]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 5]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
                 __________
@@ -333,9 +333,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 6]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 6]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    are even used to expose optional internal features of the protocol
@@ -389,9 +389,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 7]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 7]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    supervisor; requiring reliable operation would compromise scalability
@@ -445,9 +445,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 8]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 8]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    other services provided by a component are completely defined by its
@@ -501,9 +501,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016               [Page 9]
+Trammell & Kuehlewind   Expires February 28, 2016               [Page 9]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 3.2.3.  Supervisors and Federation
@@ -557,9 +557,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 10]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 10]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    the point of view of the architecture.  Interdomain measurement is
@@ -613,9 +613,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 11]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 11]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 3.3.  Message Types and Message Exchange Sequences
@@ -669,9 +669,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 12]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 12]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    requirements imposed by the application and the deployment of
@@ -725,9 +725,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 13]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 13]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    o  registry-format: currently "mplane-0", determines the supported
@@ -781,9 +781,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 14]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 14]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Fully qualified element names consist of the element's name as an
@@ -837,9 +837,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 15]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 15]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
       *  "median": shorthand for and equivalent to "50pct".
@@ -893,9 +893,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 16]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 16]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    o  ipfix-eid: The element ID of the equivalent IPFIX [RFC7011]
@@ -949,9 +949,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 17]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 17]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 4.2.2.  Specification and Interrupt
@@ -1005,9 +1005,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 18]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 18]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    contain only the token section, or all sections of the received
@@ -1061,9 +1061,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 19]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 19]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 | Section        | Capability | Spec. | Result | Receipt    | Envelope |
@@ -1117,9 +1117,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 20]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 20]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Within the SDK, the primary difference between "measure" and "query"
@@ -1173,9 +1173,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 21]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 21]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 4.3.5.  Temporal Scope (When)
@@ -1229,9 +1229,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 22]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 22]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Within a result, only absolute ranges are allowed within the temporal
@@ -1285,9 +1285,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 23]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 23]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
   repeated-when = # implicit inner scope of now
@@ -1341,9 +1341,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 24]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 24]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    days of the month, and months at which the specification will repeat.
@@ -1397,9 +1397,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 25]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 25]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    A repeated specification to take measurements each day of the year at
@@ -1453,9 +1453,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 26]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 26]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
       probing of any host within a given /24 might be '"destination.ip4:
@@ -1509,9 +1509,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 27]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 27]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 4.3.9.  Export
@@ -1565,9 +1565,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 28]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 28]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    client at the URL given.  See the section on workflows below for
@@ -1621,9 +1621,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 29]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 29]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 4.3.12.  Contents
@@ -1677,9 +1677,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 30]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 30]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 4.4.2.  Message Identity
@@ -1733,9 +1733,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 31]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 31]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    For measurements taken instantaneously, the verb "measure" should be
@@ -1789,9 +1789,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 32]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 32]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    o  "when" : a string containing a temporal scope, as described in
@@ -1845,9 +1845,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 33]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 33]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    expressed in terms of UTC, so time zone offsets are neither required
@@ -1901,9 +1901,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 34]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 34]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    {
@@ -1957,9 +1957,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 35]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 35]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    {
@@ -2013,9 +2013,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 36]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 36]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
   {
@@ -2069,9 +2069,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 37]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 37]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    {
@@ -2125,9 +2125,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 38]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 38]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    {
@@ -2181,9 +2181,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 39]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 39]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    When sending mPlane messages over HTTPS, the Content-Type of the
@@ -2237,9 +2237,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 40]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 40]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    In an mPlane domain containing a supervisor, each component trusts
@@ -2293,9 +2293,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 41]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 41]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    In this case, only components explicitly delegated by the supervisor
@@ -2349,9 +2349,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 42]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 42]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Implementation and further specification of SSH as a session layer is
@@ -2405,9 +2405,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 43]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 43]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    necessary for a client to check to see whether a given capability it
@@ -2461,9 +2461,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 44]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 44]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
 6.2.1.  Callback Control
@@ -2517,9 +2517,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 45]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 45]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Components implementing component-initiated workflows should support
@@ -2573,9 +2573,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 46]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 46]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    should be used sparingly, and only to notify components and clients
@@ -2629,9 +2629,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 47]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 47]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Supervisors can of course be nested in this arrangement, e.g.
@@ -2685,9 +2685,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 48]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 48]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    internal to the repository's access control system (e.g. database
@@ -2741,9 +2741,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 49]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 49]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    Trammell, M.  Kuehlewind, M.  Mellia, A.  Finamore, S.  Pentassuglia,
@@ -2797,9 +2797,9 @@ Internet-Draft                 mPlane Spec                   August 2015
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 50]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 50]
 
-Internet-Draft                 mPlane Spec                   August 2015
+Internet-Draft               mPlane Protocol                 August 2015
 
 
    [D14]      Trammell, B., "mPlane Architecture Specification", April
@@ -2853,4 +2853,4 @@ Authors' Addresses
 
 
 
-Trammell & Kuehlewind   Expires February 21, 2016              [Page 51]
+Trammell & Kuehlewind   Expires February 28, 2016              [Page 51]
