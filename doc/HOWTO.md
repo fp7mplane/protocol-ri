@@ -26,6 +26,14 @@ The minimum sequence of commands to run a capability and retrieve results is:
 
 While executing these operations, the supervisor and the component will print some status udate messages, giving information about the communications going on.
 
+### Common Problems
+
+1. If an error like this ```AttributeError: 'module' object has no attribute 'url'``` shows up, try to update the urllib3 library: ```sudo pip3 install --upgrade urllib3```
+
+2. If you get something like ```ssl.CertificateError: hostname '127.0.0.1' doesn't match 'Supervisor-1.SSB.mplane.org'```, try the following steps:
+  - add the following entry in ```/etc/hosts```: ```127.0.0.1 Supervisor-1.SSB.mplane.org```
+  - replace all “127.0.0.1” with “Supervisor-1.SSB.mplane.org” in the conf files.
+
 ## Sample Configuration Files
 Sample configuration files are located in ```protocol-ri/conf/``` in the mPlane GitHub repository.
 
