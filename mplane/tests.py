@@ -21,86 +21,71 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# FIXME: from X import Y is not great for readability and maintainability.
-#        fixing this would be nice but is relatively low priority.
 
-from nose.tools import *
-from mplane import azn
-from mplane import tls
-from mplane import model
-from mplane import scheduler
-from mplane import utils
-import configparser
-from os import path
-
+from nose.tools import assert_equal, assert_true, assert_false, raises
+import mplane.azn
+import mplane.tls
+import mplane.utils
+import mplane.model
+import mplane.scheduler
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
+import configparser
 import threading
 import urllib3
 import time
 import ssl
-
-
-
-''' HELPERS '''
-
-# FIXME: the following helper should be moved in mplane.utils module.
-def get_config(config_file):
-    """
-    Open a config file, parse it and return a config object.
-    """
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(utils.search_path(config_file))
-    return config
+import sys
+import os
+import io
 
 # FIXME: this entire module abuses package-level variables.
 #        fixing this would be nice but is relatively low priority.
 
 ###
-### azn.py tests
+### mplane.azn.py tests
 ###
 
-conf_dir = path.abspath(path.join(path.dirname(__file__),"..","testdata"))
+conf_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),"..","testdata"))
 conf_file = 'component-test.conf'
-config_path = path.join(conf_dir, conf_file)
-config_path_no_tls = path.join(conf_dir, "component-test-no-tls.conf")
+config_path = os.path.join(conf_dir, conf_file)
+config_path_no_tls = os.path.join(conf_dir, "component-test-no-tls.conf")
 id_true_role = "org.mplane.Test.Clients.Client-1"
 id_false_role = "Dummy"
 
 def test_Authorization():
-    res_none = azn.Authorization(None)
-    assert_true(isinstance(res_none, azn.AuthorizationOff))
-    res_auth = azn.Authorization(get_config(config_path))
-    assert_true(isinstance(res_auth, azn.AuthorizationOn))
-    res_no_tls = azn.Authorization(get_config(config_path_no_tls))
-    assert_true(isinstance(res_no_tls, azn.AuthorizationOff))
+    res_none = mplane.azn.Authorization(None)
+    assert_true(isinstance(res_none, mplane.azn.AuthorizationOff))
+    res_auth = mplane.azn.Authorization(mplane.utils.get_config(config_path))
+    assert_true(isinstance(res_auth, mplane.azn.AuthorizationOn))
+    res_no_tls = mplane.azn.Authorization(mplane.utils.get_config(config_path_no_tls))
+    assert_true(isinstance(res_no_tls, mplane.azn.AuthorizationOff))
 
 
 def test_AuthorizationOn():
-    model.initialize_registry()
-    cap = model.Capability(label="test-log_tcp_complete-core")
-    res = azn.AuthorizationOn(get_config(config_path))
-    assert_true(isinstance(res, azn.AuthorizationOn))
+    mplane.model.initialize_registry()
+    cap = mplane.model.Capability(label="test-log_tcp_complete-core")
+    res = mplane.azn.AuthorizationOn(mplane.utils.get_config(config_path))
+    assert_true(isinstance(res, mplane.azn.AuthorizationOn))
     assert_true(res.check(cap, id_true_role))
     assert_false(res.check(cap, id_false_role))
 
 
 def test_AuthorizationOff():
-    model.initialize_registry()
-    cap = model.Capability(label="test-log_tcp_complete-core")
-    res = azn.AuthorizationOff()
-    assert_true(isinstance(res, azn.AuthorizationOff))
+    mplane.model.initialize_registry()
+    cap = mplane.model.Capability(label="test-log_tcp_complete-core")
+    res = mplane.azn.AuthorizationOff()
+    assert_true(isinstance(res, mplane.azn.AuthorizationOff))
     assert_true(res.check(cap, id_true_role))
 
 ###
-### tls.py tests
+### mplane.tls.py tests
 ###
 
-cert = utils.search_path(path.join(conf_dir, "Component-SSB.crt"))
-key = utils.search_path(path.join(conf_dir, "Component-SSB-plaintext.key"))
-ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
+cert = mplane.utils.search_path(os.path.join(conf_dir, "Component-SSB.crt"))
+key = mplane.utils.search_path(os.path.join(conf_dir, "Component-SSB-plaintext.key"))
+ca_chain = mplane.utils.search_path(os.path.join(conf_dir, "root-ca.crt"))
 
 identity = "org.mplane.SSB.Components.Component-1"
 forged_identity = "org.example.test"
@@ -109,10 +94,10 @@ host = "127.0.0.1"
 port = 8080
 
 # No forged_identity
-tls_with_file = tls.TlsState(config=get_config(config_path))
+tls_with_file = mplane.tls.TlsState(config=mplane.utils.get_config(config_path))
 # No TLS sections but with forged_identity
-tls_with_file_no_tls = tls.TlsState(config=get_config(config_path_no_tls),
-                                    forged_identity=forged_identity)
+tls_with_file_no_tls = mplane.tls.TlsState(config=mplane.utils.get_config(config_path_no_tls),
+                                           forged_identity=forged_identity)
 
 def test_TLSState_init():
     assert_equal(tls_with_file._cafile, ca_chain)
@@ -176,15 +161,15 @@ def test_TLSState_extract_local_identity():
     local_identity = tls_with_file.extract_local_identity()
     assert_equal(local_identity, identity)
     local_identity = tls_with_file_no_tls.extract_local_identity()
-    assert_equal(local_identity, tls.DUMMY_DN)
+    assert_equal(local_identity, mplane.tls.DUMMY_DN)
     local_identity = tls_with_file_no_tls.extract_local_identity(
         forged_identity)
     assert_equal(local_identity, forged_identity)
 
 
-s_cert = utils.search_path(path.join(conf_dir, "Supervisor-SSB.crt"))
-s_key = utils.search_path(path.join(conf_dir, "Supervisor-SSB-plaintext.key"))
-s_ca_chain = utils.search_path(path.join(conf_dir, "root-ca.crt"))
+s_cert = mplane.utils.search_path(os.path.join(conf_dir, "Supervisor-SSB.crt"))
+s_key = mplane.utils.search_path(os.path.join(conf_dir, "Supervisor-SSB-plaintext.key"))
+s_ca_chain = mplane.utils.search_path(os.path.join(conf_dir, "root-ca.crt"))
 url = urllib3.util.url.parse_url("https://127.0.0.1:8888")
 
 s_identity = "org.mplane.SSB.Supervisors.Supervisor-1"
@@ -219,7 +204,7 @@ def test_peer_identity():
     time.sleep(0.5)
 
     assert_equal(tls_with_file.extract_peer_identity(url), s_identity)
-    assert_equal(tls_with_file_no_tls.extract_peer_identity(url), tls.DUMMY_DN)
+    assert_equal(tls_with_file_no_tls.extract_peer_identity(url), mplane.tls.DUMMY_DN)
     try:
         tls_with_file.extract_peer_identity('break me!')
     except ValueError as e:
@@ -229,12 +214,12 @@ def test_peer_identity():
         time.sleep(0.5)
 
 #
-# scheduler tests
+# mplane.scheduler tests
 #
 
 def create_test_capability():
-    model.initialize_registry()
-    cap = model.Capability()
+    mplane.model.initialize_registry()
+    cap = mplane.model.Capability()
     cap.set_when("now ... future / 1s")
     cap.add_parameter("source.ip4", "10.0.27.2")
     cap.add_parameter("destination.ip4")
@@ -246,13 +231,13 @@ def create_test_capability():
     return cap
 
 def create_test_specification():
-    spec = model.Specification(capability=st_cap)
+    spec = mplane.model.Specification(capability=st_cap)
     spec.set_parameter_value("destination.ip4", "10.0.37.2")
     spec.set_when("2017-12-24 22:18:42 + 1m / 1s")
     return spec
 
 def create_test_results():
-    res = model.Result(specification=st_spec)
+    res = mplane.model.Result(specification=st_spec)
     res.set_when("2017-12-24 22:18:42.993000 ... " +
                  "2017-12-24 22:19:42.991000")
     res.set_result_value("delay.twoway.icmp.us.min", 33155)
@@ -261,23 +246,23 @@ def create_test_results():
     res.set_result_value("delay.twoway.icmp.count", 58220)
     return res
 
-class SchedulerTestService(scheduler.Service):
+class SchedulerTestService(mplane.scheduler.Service):
     def run(self, specification, check_interrupt):
         return st_res
 
 st_cap = create_test_capability()
 st_spec = create_test_specification()
-st_receipt = model.Receipt(specification=st_spec)
+st_receipt = mplane.model.Receipt(specification=st_spec)
 st_res = create_test_results()
 
-service = scheduler.Service(st_cap)
+service = mplane.scheduler.Service(st_cap)
 test_service = SchedulerTestService(st_cap)
 
 
 # Class Service tests:
 
 def test_Service_init():
-    assert_true(isinstance(service, scheduler.Service))
+    assert_true(isinstance(service, mplane.scheduler.Service))
     # check parameter assignment
     assert_equal(service._capability, st_cap)
 
@@ -298,7 +283,7 @@ def test_Service_capability():
 
 
 # Is this method really needed? Why can't we use
-# set_link method of model.Statement class?
+# set_link method of mplane.model.Statement class?
 def test_Service_capability_link():
     link = "http://dummy/link.json"
     service.set_capability_link(link)
@@ -312,16 +297,16 @@ def test_Service__repr__():
 
 # Class Job tests:
 
-job = scheduler.Job(test_service, st_spec)
+job = mplane.scheduler.Job(test_service, st_spec)
 
 def test_Job_init():
-    assert_true(isinstance(job, scheduler.Job))
+    assert_true(isinstance(job, mplane.scheduler.Job))
     # check parameter assignment
     assert_equal(job.service, test_service)
     assert_equal(job.specification, st_spec)
     assert_equal(job.session, None)
     assert_equal(job._callback, None)
-    assert_true(isinstance(job.receipt, model.Receipt))
+    assert_true(isinstance(job.receipt, mplane.model.Receipt))
     assert_true(isinstance(job._interrupt, threading.Event))
 
 
@@ -348,7 +333,7 @@ def test_Job_finished_false():
 
 def test_Job_get_reply_receipt():
     # Job has not run (yet).
-    assert_true(isinstance(job.get_reply(), model.Receipt))
+    assert_true(isinstance(job.get_reply(), mplane.model.Receipt))
 
 
 def test_Job_run():
@@ -364,10 +349,10 @@ def test_Job_finished_true():
 
 def test_Job_get_reply_result():
     # Job has run.
-    assert_true(isinstance(job.get_reply(), model.Result))
+    assert_true(isinstance(job.get_reply(), mplane.model.Result))
 
 # Create a job that fails
-job_failure = scheduler.Job(service, st_spec)
+job_failure = mplane.scheduler.Job(service, st_spec)
 
 
 def test_Job_failed():
@@ -378,61 +363,72 @@ def test_Job_failed():
 
 def test_Job_get_reply_failed():
     # Job has failed.
-    assert_true(isinstance(job_failure.get_reply(), model.Exception))
+    assert_true(isinstance(job_failure.get_reply(), mplane.model.Exception))
 
 #
-# utils tests
+# mplane.utils tests
 #
 
 utils_conf_file = 'utils-test.conf'
-utils_test_path = path.join(conf_dir, utils_conf_file)
+utils_test_path = os.path.join(conf_dir, utils_conf_file)
 
 def test_read_setting():
-    res = utils.read_setting(utils_test_path, 'true_param')
+    res = mplane.utils.read_setting(utils_test_path, 'true_param')
     assert_true(res)
-    res = utils.read_setting(utils_test_path, 'false_param')
+    res = mplane.utils.read_setting(utils_test_path, 'false_param')
     assert_false(res)
-    res = utils.read_setting(utils_test_path, 'other_param')
+    res = mplane.utils.read_setting(utils_test_path, 'other_param')
     assert_equal(res, 'other')
-    res = utils.read_setting(utils_test_path, 'missing_param')
+    res = mplane.utils.read_setting(utils_test_path, 'missing_param')
     assert_equal(res, None)
 
 
 @raises(ValueError)
 def test_search_path():
     root_path = '/var'
-    assert_equal(utils.search_path(root_path), root_path)
+    assert_equal(mplane.utils.search_path(root_path), root_path)
     existing_input_path = 'mplane'
-    output_path = path.abspath('mplane')
-    assert_equal(utils.search_path(existing_input_path), output_path)
+    output_path = os.path.abspath('mplane')
+    assert_equal(mplane.utils.search_path(existing_input_path), output_path)
     unexisting_input_path = 'missing'
-    assert_equal(utils.search_path(unexisting_input_path), '')
+    assert_equal(mplane.utils.search_path(unexisting_input_path), '')
 
 
 @raises(ValueError)
 def test_check_file():
-    utils.check_file('missing')
+    mplane.utils.check_file('missing')
 
+
+def test_print_then_prompt():
+    line = "this is a test"
+    old_stdout = sys.stdout
+    result = io.StringIO()
+    sys.stdout = result
+    mplane.utils.print_then_prompt(line)
+    sys.stdout = old_stdout
+    result_string = result.getvalue()
+    assert_equal(result_string,
+                 line+"\n|mplane| ")
 
 def test_normalize_path():
     another_root_path = '/conf'
-    assert_equal(utils.normalize_path(another_root_path), another_root_path)
+    assert_equal(mplane.utils.normalize_path(another_root_path), another_root_path)
     another_existing_input_path = 'conf'
-    another_output_path = path.abspath('conf')
-    assert_equal(utils.normalize_path(another_existing_input_path),
+    another_output_path = os.path.abspath('conf')
+    assert_equal(mplane.utils.normalize_path(another_existing_input_path),
                  another_output_path)
 
 def test_add_value_to():
     d = {1: ['one']}
-    utils.add_value_to(d, 1, 'One')
+    mplane.utils.add_value_to(d, 1, 'One')
     assert_equal(d, {1: ['one', 'One']})
-    utils.add_value_to(d, 2, 'two')
+    mplane.utils.add_value_to(d, 2, 'two')
     assert_equal(d, {1: ['one', 'One'], 2: ['two']})
 
 
 def test_split_stmt_list():
-    model.initialize_registry()
-    cap = model.Capability()
+    mplane.model.initialize_registry()
+    cap = mplane.model.Capability()
     cap.set_when("now ... future / 1s")
     cap.add_parameter("source.ip4", "10.0.27.2")
     cap.add_parameter("destination.ip4")
@@ -441,9 +437,28 @@ def test_split_stmt_list():
     cap.add_result_column("delay.twoway.icmp.us.mean")
     cap.add_result_column("delay.twoway.icmp.count")
     cap.add_result_column("packets.lost")
-    capjson = model.unparse_json(cap)
-    res = utils.split_stmt_list('['+capjson+']')
+    capjson = mplane.model.unparse_json(cap)
+    res = mplane.utils.split_stmt_list('['+capjson+']')
     caps = []
     caps.append(cap)
     # using repr as no __eq__ methos is implemented fot capability objects
     assert_equal(repr(res[0]), repr(caps[0]))
+
+
+def test_parse_url():
+    scheme="http"
+    host="www.mplane.org"
+    port="8080"
+    path="/test"
+    url_str = scheme + "://" + host + ":" + port + path
+    mplane_url = urllib3.util.Url(scheme=scheme,
+                                  host=host,
+                                  port=port,
+                                  path=path)
+    assert_equal(mplane.utils.parse_url(mplane_url), url_str)
+    path = "test"
+    mplane_url = urllib3.util.Url(scheme=scheme,
+                                  host=host,
+                                  port=port,
+                                  path=path)
+    assert_equal(mplane.utils.parse_url(mplane_url), url_str)
