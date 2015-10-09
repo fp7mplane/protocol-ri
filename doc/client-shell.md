@@ -13,6 +13,7 @@ The mPlane Client Shell is a simple client intended for debugging of mPlane infr
 - `runcap`: Run a capability given its label or token
 - `listmeas`: List known measurements (receipts and results)
 - `showmeas`: Show the details of a measurement given its label or token.
+- `stopmeas`: Sends an interrupt for a measurement.
 - `tbenable`: Enable tracebacks for subsequent exceptions. Used for client debugging.
 
 Type `help` to get this summary. Shut down the shell by typing EOF (control-D).

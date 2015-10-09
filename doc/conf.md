@@ -1,39 +1,62 @@
 
 ## mPlane SDK Configuration Files
 
-The TLS state, access control, client framework, command-line client, and component runtime use a unified configuration file in Windows INI file format (as supported by the Python standard library `configparser` module).
+The client framework, component framework and the supervisor, use three configuration files in JSON format: `client.json`, `component.json` and `supervisor.json`.
 
-Please note that the INI-style configuration facility is provisional, and will be replaced with a JSON-style configuration facility in a future release; additionally, there are plans to make the configuration keys themselves more easier to use and internally self-consistent.
 
-**None of the content of this document should therefore be considered stable.**
+Below there is a description of all the sections and keys needed in each configuration file
 
-The following sections and keys are presently supported/required by each module:
+- `TLS` section: certificate configuration. Needed by component, client and supervisor to support HTTPS URLs. Has the following keys:
 
-- `TLS` section: Certificate configuration. Required by component and client to support HTTPS URLs. Has the following keys:
     - `ca-chain`: path to file containing PEM-encoded certificates for the valid certificate authorities.
     - `cert`: path to file containing decoded and PEM-encoded certificate identifying this component/client. Must contain the decoded certificate as well, from which the distinguished name can be extracted.
-    - `key`: path to file containing (decrypted) PEM-encoded secret key associated with this component/client's certificate
-- `Roles` section: Maps identities to roles for access control. Used by component.py. Each key in this section is an mPlane identity (see below), and the value is a comma-separated list of arbitrary role names assigned to the identity.
-- `Authorizations` section: Authorizes defined roles to invoke services associated with capabilities by capability label or token. Each key is a capability label or token, and the value is a comma-separated list of arbitrary role names which may invoke the capability. The use of labels is recommended for authorizations, as it makes authorization configuration more auditable. If authorizations are present, _only_ those capabilities which are explicitly authorized to a given client identity will be invocable.
-- `component` section: Global configuration for the component framework.
-  - `registry_preload`: path to a JSON file containing a private registry to preload on startup. Preloaded registry files will not be fetched from their canonical URL when referenced.
-  - `registry_uri`: URI of the base registry to use for all services offered by this component.
-  - `workflow`: either `client-initiated` or `component-initiated`; see [the protocol specification](protocol-spec.md) for more.
-  - `listen-port`: for client-initiated workflows, port to listen on.
-  - `client_host`: for component-initated workflows, client or supervisor to connect to.
-  - `client_port`: for component-initiated workflows, port to connect to
-  - `registration_path`: for component-initiated workflows, path to post capabilities to
-  - `specification_path`: for component-initiated workflows, path to get specifications from.
-  - `result_path`: for component-initiated workflows, path to post results to.
-- `client` section: Global configuration for the client framework.
-  - `listen-port`: for client-initiated workflows, port to listen on.
-  - `registration_path`: for component-initiated workflows, path to accept capabilities on
-  - `specification_path`: for component-initiated workflows, path to make specifications available on
-  - `result_path`: for component-initiated workflows, path to accept results on
+    - `key`: path to file containing (decrypted) PEM-encoded secret key associated with this component/client's certificate.
 
-### Component Modules
+- `Access` section: this section groups the `Roles` and the `Authorizations` sections, that provide informations for Authentication and Authorization. Used by component and supervisor.
 
-In addition, any section in a configuration file given to component.py which begins with the substring `module_` will cause a component module to be loaded at runtime and that modules services to be made available (see Implementing a Component below). The `module` key in this section identifies the Python module to load by name. All other keys in this section are passed to the module's `services()` function as keyword arguments.
+	- `Roles` section: maps identities to roles for access control. Each key in this section is an arbitrary role name, and the value is a list of identities (Distinguished Names) mapped to the role.
+	- `Authorizations` section: authorizes defined roles to invoke services associated with capabilities by capability label or token. Each key is a capability label or token, and the value is a list of arbitrary role names (the ones defined in the roles section) which may invoke the capability. The use of labels is recommended for authorizations, as it makes authorization configuration more auditable. If authorizations are present, _only_ those capabilities which are explicitly authorized to a given client identity will be invocable.
+
+- `Registries` section: used by component, client and supervisor. Contains informations about the registry initialization. There are 2 keys:
+
+	- `default`: URI of the base registry to use for all services handled by the component/supervisor/client. Components with more specialized registries will transmit this information inside the 'registry' field in the capabilities, and the supervisor/client will dinamically load the additional registry keys needed.
+	- `preload`: path to a JSON file containing a private registry to preload on startup. Preloaded registry files will not be fetched from their canonical URL when referenced.
+
+- `Component` section: required by component, contains the global configuration for the component framework. There are 3 possible sections (and one key), but two of them (`Initiator` and `Listener`) are mutually exclusive:
+
+	- `Modules` section: **this section is mandatory, otherwise the component will not load any service!** Each key is a component module to be loaded at runtime. The key name itself identifies the Python module to load by name, while the list of values associated to the key is passed to the module's `services()` function as keyword arguments.
+	- `Initiator` section: **this section is mutually exclusive with `Listener` section.** If this section is present, the component will adopt the component-initiated workflow. Contains the URLs used to register capabilities, retrieve specifications and return results. If the URLs are coincident, only one `url` key is needed in this section. Otherwise, if the URLs are different, three keys are needed:
+
+		- `capability-url`: URL to post capabilities to
+		- `specification-url`: URL to get specifications from.
+		- `result-url`: URL to post results to
+
+	- `Listener` section: **this section is mutually exclusive with `Initiator` section.** If this section is present, the component will adopt the client-initiated workflow. Contains the following keys:
+
+		- `port`: port to listen on
+		- `interfaces`: list of IPs to listen on. If empty, the component will listen on all the available IPs
+
+	- `scheduler-max-results`: max number of results returned for a repeated measurement
+
+- `Client` section: required by client, contains the global configuration for the client framework. There are 2 mutually exclusive possible sections:
+
+	- `Initiator` section: **this section is mutually exclusive with `Listener` section.** If this section is present, the client will adopt the client-initiated workflow. Contains the URLs used to register capabilities, retrieve specifications and return results. If the URLs are coincident, only one `url` key is needed in this section. Otherwise, if the URLs are different, three keys are needed:
+
+		- `capability-url`: URL to get capabilities from, and to which specifications will be sent (unless the `link` section in the received capabilities indicates a different URL)
+
+	- `Listener` section: **this section is mutually exclusive with `Initiator` section.** If this section is present, the client will adopt the component-initiated workflow. Contains the following keys:
+
+		- `port`: port to listen on
+		- `interfaces`: list of IPs to listen on. If empty, the client will listen on all the available IPs
+		- `capability-path`: path to accept capabilities on
+		- `specification-path`: path to make specifications available on
+		- `result-path`: path to accept results on
+
+- The supervisor contains both the `Client` and the `Component` sections:
+
+	- the `Client` section configures the client part of the supervisor, in other words **the part that communicates with the component**
+	- the `Component` section configures the component part of the supervisor, in other words **the part that communicates with the client**
+
 
 ### Identities
 

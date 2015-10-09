@@ -1,0 +1,37 @@
+{
+  "TLS": {
+    "cert": "PKI/ca/certs/Supervisor-SSB.crt",
+    "key": "PKI/ca/certs/Supervisor-SSB-plaintext.key",
+    "ca-chain": "PKI/ca/root-ca/root-ca.crt"
+  },
+  "Access": {
+    "Authorizations": {
+      "ping-average-ip4": ["guest", "admin"],
+      "ping-detail-ip4": ["admin"]
+    },
+    "Roles": {
+      "guest": ["org.mplane.SSB.Clients.Client-1", "org.mplane.SSB.Clients.Client-2", "org.mplane.TI.Clients.Client-1"],
+      "admin": ["Identity.Unauthenticated.Default", "org.mplane.SSB.Supervisors.Supervisor-1"]
+    }
+  },
+  "Registries": {
+    "default": "http://ict-mplane.eu/registry/demo",
+    "preload": []
+  },
+  "Component": {
+    "Listener": {
+      "port": "8890",
+      "interfaces": []
+    },
+    "scheduler_max_results": "20"
+  },
+  "Client": {
+    "Listener": {
+      "port": "8889",
+      "interfaces": [],
+      "capability-path": "register/capability",
+      "specification-path": "show/specification",
+      "result-path": "register/result"
+    }
+  }
+}

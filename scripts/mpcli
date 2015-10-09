@@ -27,7 +27,7 @@ import cmd
 import traceback
 import urllib3
 import argparse
-import configparser
+import json
 from time import sleep
 
 class ClientShell(cmd.Cmd):
@@ -47,16 +47,17 @@ class ClientShell(cmd.Cmd):
             urllib3.disable_warnings()
         except:
             pass
-            
-        # preload any registries necessary
-        if "client" in config:
 
-            if "registry_preload" in config["client"]:
-                mplane.model.preload_registry(
-                    config["client"]["registry_preload"])
-
-            if "registry_uri" in config["client"]:
-                registry_uri = config["client"]["registry_uri"]
+        if config is not None:
+            # preload any registries necessary
+            if "Registries" in config:
+                if "preload" in config["Registries"]:
+                    for reg in config["Registries"]["preload"]:
+                        mplane.model.preload_registry(reg)
+                if "default" in config["Registries"]:
+                    registry_uri = config["Registries"]["default"]
+                else:
+                    registry_uri = None
             else:
                 registry_uri = None
         else:
@@ -75,32 +76,24 @@ class ClientShell(cmd.Cmd):
         # don't print tracebacks by default
         self._print_tracebacks = False
 
-        # default workflow is client-initiated
-        # FIXME this should be boolean instead
-        self._workflow = "client-initiated"
-
-        if "client" in config:
-            if "workflow" in config["client"]:
-                self._workflow = config["client"]["workflow"]
-
-        if self._workflow == "component-initiated":
-            self._client = mplane.client.HttpListenerClient(config=config,
-                                                            tls_state=tls_state)
-        elif self._workflow == "client-initiated":
-            self._client = mplane.client.HttpInitiatorClient(config=config,
-                                                             tls_state=tls_state)
-
+        if config is None:
+            self._initiator = True
+            self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
         else:
-            raise ValueError("workflow setting in " + args.CONF +
-                             " can only be 'client-initiated' or 'component-initiated'")
-
-
-        if "client" in config and self._workflow != "component-initiated":
-            if "default-url" in config["client"]:
-                self.do_seturl(config["client"]["default-url"])
-
-            if "capability-url" in config["client"]:
-                self.do_getcap(config["client"]["capability-url"])
+            if "Initiator" in config["Client"] and "Listener" in config["Client"]:
+                raise ValueError("Client cannot be 'Initiator' and 'Listener' simultaneously. "
+                                 "Remove one of them from " + args.config + "")
+            if "Initiator" in config["Client"]:
+                self._initiator = True
+                self._client = mplane.client.HttpInitiatorClient(tls_state=tls_state)
+                if "capability-url" in config["Client"]["Initiator"]:
+                    self.do_seturl(config["Client"]["Initiator"]["capability-url"])
+                    self.do_getcap(config["Client"]["Initiator"]["capability-url"])
+            elif "Listener" in config["Client"]:
+                self._initiator = False
+                self._client = mplane.client.HttpListenerClient(config=config, tls_state=tls_state)
+            else:
+                raise ValueError("Need either a 'Initiator' or 'Listener' object under 'Client' in " + args.config)
 
     def do_seturl(self, arg):
         """
@@ -117,7 +110,7 @@ class ClientShell(cmd.Cmd):
             print("Usage: seturl [url]")
             return
 
-        if self._workflow == "client-initiated":
+        if self._initiator is True:
             self._client.set_default_url(url)
         else:
             print("This command can only be used in client-initiated workflows")
@@ -130,7 +123,7 @@ class ClientShell(cmd.Cmd):
         Usage: getcap [url]
 
         """
-        if self._workflow == "client-initiated":
+        if self._initiator is True:
             try:
                 url = arg.split()[0]
                 url = urllib3.util.parse_url(url)
@@ -499,17 +492,15 @@ if __name__ == "__main__":
                         help="Configuration file")
     args = parser.parse_args()
 
-    # Read the configuration file, if given
-    if args.config:
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(mplane.utils.search_path(args.config))
+    # check if conf file parameter has been inserted in the command line
+    if not args.config:
+        print('\nWARNING: missing --config, using default settings. Client may be unstable\n')
+        parser.print_help()
+        config = None
     else:
-        # hack a default configuration together
-        config = {}
-        config["is_default"] = True
-        config["client"] = {}
-        config["client"]["workflow"] = "client-initiated"
+        # Read the configuration file
+        conf_file = open(mplane.utils.search_path(args.config), 'r')
+        config = json.load(conf_file)
 
     # create a shell
     cs = ClientShell(config)

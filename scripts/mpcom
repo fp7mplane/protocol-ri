@@ -24,7 +24,7 @@
 #
 
 import mplane.component
-import configparser
+import json
 import argparse
 
 if __name__ == "__main__":
@@ -37,18 +37,25 @@ if __name__ == "__main__":
 
     # check if conf file parameter has been inserted in the command line
     if not args.CONF:
-        print('\nERROR: missing --config\n')
+        print('\nWARNING: missing --config, using default settings. Component may be unstable\n')
         parser.print_help()
-        exit(1)
-
-    # Read the configuration file
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(mplane.utils.search_path(args.CONF))
-
-    if config["component"]["workflow"] == "component-initiated":
-        component = mplane.component.InitiatorHttpComponent(config)
-    elif config["component"]["workflow"] == "client-initiated":
-        component = mplane.component.ListenerHttpComponent(config)
+        config = None
     else:
-        raise ValueError("need either a 'client-initiated' or 'component-initiated' workflow in " + args.CONF + "")
+        # Read the configuration file
+        conf_file = open(mplane.utils.search_path(args.CONF), 'r')
+        config = json.load(conf_file)
+
+    if config is None:
+        component = mplane.component.InitiatorHttpComponent(config)
+    else:
+        if "Initiator" in config["Component"] and "Listener" in config["Component"]:
+            raise ValueError("Component cannot be 'Initiator' and 'Listener' simultaneously. "
+                             "Remove one of them from " + args.CONF + "")
+        if "Initiator" in config["Component"]:
+            component = mplane.component.InitiatorHttpComponent(config)
+        elif "Listener" in config["Component"]:
+            component = mplane.component.ListenerHttpComponent(config)
+        else:
+            print("WARNING: need either a 'Initiator' or 'Listener' object under 'Component' in " + args.CONF +
+                  ". Using default settings (Initiator)")
+            component = mplane.component.InitiatorHttpComponent(config)
