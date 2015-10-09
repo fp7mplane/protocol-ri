@@ -23,6 +23,8 @@ import re
 import mplane.model
 import json
 import urllib3
+import configparser
+
 
 def read_setting(filepath, param):
     """
@@ -56,7 +58,6 @@ def search_path(path):
 
     if not os.path.exists(norm_path):
         raise ValueError("Error: File " + norm_path + " does not appear to exist.")
-        exit(1)
 
     return norm_path
 
@@ -67,7 +68,6 @@ def check_file(filename):
     """
     if not os.path.exists(filename):
         raise ValueError("Error: File " + filename + " does not appear to exist.")
-        exit(1)
 
 def normalize_path(path):
     """
@@ -85,7 +85,7 @@ def print_then_prompt(line):
 
     """
     print(line)
-    print('|mplane| ', end="", flush = True)
+    print('|mplane| ', end="", flush=True)
     pass
 
 def add_value_to(container, key, value):
@@ -112,9 +112,21 @@ def split_stmt_list(msg):
 
 def unparse_url(url):
     """ Returns a link in string format from an Url object """
+    # FIXME: return str(url) do the same and leverages  on urllib3 library.
     link = url.scheme + "://" + url.host + ":" + str(url.port)
     if url.path.startswith("/"):
         link = link + url.path
     else:
         link = link + "/" + url.path
     return link
+
+def get_config(config_file):
+    """
+    Open a config file, parse it and return a config object.
+    """
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(mplane.utils.search_path(config_file))
+    return config
+
+
