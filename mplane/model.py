@@ -2856,6 +2856,7 @@ class Exception(BareNotification):
                 errmsg = "Unspecified exception"
             self._errmsg = errmsg
 
+        # FIXME this does not appear to be used anywhere. Remove?
         self.status = status
 
     def __repr__(self):
