@@ -2591,7 +2591,13 @@ class Specification(Statement):
         return KIND_SPECIFICATION
 
     def fulfills(self, capability):
-        """ Returns True if this Speficication fulfills the Capability"""
+        """ 
+        Returns True if this Specification fulfills the Capability
+        A specification fulfills a capability if the schemas match,
+        if the temporal scope of the specification is covered by that
+        of the capability, and if the specification's parameter values 
+        meet the capability's parameter constraints.
+        """
         # verify that the schema hash is equal
         if self._schema_hash() != capability._schema_hash():
             return False
@@ -2599,6 +2605,11 @@ class Specification(Statement):
         # Verify that the specification is within the capability's temporal scope
         if not self._when.follows(capability.when()):
             return False
+
+        # Verify that the specification's parameters match the capability's constraints
+        for pname in capability.parameter_names():
+            if not capability.can_set_parameter_value(self.get_parameter_value(pname)):
+                return False
 
         # Works for me.
         return True
