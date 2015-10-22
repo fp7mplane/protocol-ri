@@ -156,15 +156,14 @@ class ClientShell(cmd.Cmd):
         Usage: listcap
 
         """
-        for label in sorted(self._client.capability_labels()):
-            print("Capability %s (token %s)" %
-                  (label, self._client.capability_for(label).get_token()))
 
         for token in sorted(self._client.capability_tokens()):
             cap = self._client.capability_for(token)
             if cap.get_label() is None:
                 print("Capability (token %s)" % (token))
-
+            else:
+                print("Capability %s (token %s)" % (cap.get_label(), cap.get_token()))
+                
     def do_showcap(self, arg):
         """
         Show details for a capability by label or token

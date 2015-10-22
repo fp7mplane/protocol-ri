@@ -36,19 +36,20 @@ from threading import Thread
 
 class RelayService(mplane.scheduler.Service):
 
-    def __init__(self, cap, identity, client, lock, messages):
+    def __init__(self, cap, token, identity, client, lock, messages):
         self.relay = True
         self._identity = identity
         self._client = client
         self._lock = lock
         self._messages = messages
+        self._token = token
         super(RelayService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
         pattern = re.compile("-\d+$")
         trunc_pos = pattern.search(spec.get_label())
         trunc_label = spec.get_label()[:trunc_pos.start()]
-        fwd_spec = self._client.invoke_capability(trunc_label, spec.when(), spec.parameter_values())
+        fwd_spec = self._client.invoke_capability(self._token, spec.when(), spec.parameter_values())
         result = None
         pending = False
         while result is None:
@@ -141,10 +142,11 @@ class BaseSupervisor(object):
 
     def handle_message(self, msg, identity):
         if isinstance(msg, mplane.model.Capability):
-            if [msg.get_label(), identity] not in self._caps:
-                self._caps.append([msg.get_label(), identity])
-                serv = RelayService(msg, identity, self._client,
-                                    self._lock, self._spec_messages)
+            if [msg.get_token(), identity] not in self._caps:
+                self._caps.append([msg.get_token(), identity])
+
+                serv = RelayService(msg, msg.get_token(), identity, self._client, self._lock, self._spec_messages)
+
                 self._component.scheduler.add_service(serv)
 
                 if self.comp_workflow == "client-initiated" and \
@@ -165,7 +167,7 @@ class BaseSupervisor(object):
         elif isinstance(msg, mplane.model.Withdrawal):
             if not msg.get_label() == "callback":
                 self._component.remove_capability(self._component.scheduler.capability_for_key(msg.get_token()))
-                self._caps.remove([msg.get_label(), identity])
+                self._caps.remove([msg.get_token(), identity])
 
         elif isinstance(msg, mplane.model.Envelope):
             for imsg in msg.messages():

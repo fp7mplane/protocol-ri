@@ -2608,7 +2608,7 @@ class Specification(Statement):
 
         # Verify that the specification's parameters match the capability's constraints
         for pname in capability.parameter_names():
-            if not capability.can_set_parameter_value(self.get_parameter_value(pname)):
+            if not capability.can_set_parameter_value(pname, self.get_parameter_value(pname)):
                 return False
 
         # Works for me.
