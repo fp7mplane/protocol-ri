@@ -1,13 +1,19 @@
 # Simple instructions for Certificate Generation Scripts
 
-There are three .sh scripts in this folder:
+This folder contains three main .sh scripts:
 
 -   create-component-cert.sh
 -   create-client-cert.sh
 -   create-supervisor-cert.sh
--   create-ca.sh (use this only in case you don't care about compatibility with the PKI provided in this repository, see [Generating a new CA](#generating-a-new-ca) below for more info)
 
-In the ./etc/ folder there are the configuration files for each of those scripts.
+Configuration files for each of those scripts can be found in the  the ./etc/ subfolder
+
+Additionally, in case you don't care about compatibility with the PKI provided in this repository, we provide a further script:
+
+-   create-ca.sh
+
+Its use is however not encouraged;  see [Generating a new CA](#generating-a-new-ca) below for more info.
+
 
 ###Generating a certificate
 
