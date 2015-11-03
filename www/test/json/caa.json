@@ -1,0 +1,21 @@
+{
+    "BlindScan":[
+        {
+            "capability":"measure",
+            "label":"Card A/1",
+            "parameters":{
+                "KovacsB":""
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "when":"H928"
+        }
+    ]
+}

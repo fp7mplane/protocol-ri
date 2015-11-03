@@ -1,0 +1,95 @@
+{
+    "list":[
+        {
+            "refreshButtonVisible":false,
+            "title":"Szolgáltatások",
+            "headerVisible":false,
+            "borderVisible":false,
+            "type":"chart",
+            "content":{
+                "measurements":[
+                    {
+                    	title:"<center><h3>Be és kimenő adatok Pest megyében</h3></center>", 	
+                        "series":[
+                            {
+                                "seriesId":"incoming",
+                                "field":{
+                                    "value":1
+                                },
+                                "title":"Bejövő",
+                                "visible":true,
+                                "color":"#4f80bc",
+                                "label":false,
+                                "type":"area",
+                                "label":{
+                                	format:"##bit/s",
+                                	visible:false
+                                },
+                                line:{
+                                	width:2,
+                                	color:"#001f5f"
+                                	
+                                },
+                                showTitleOnBalloon:true
+                            },
+                            {
+                                "seriesId":"outgoing",
+                                "field":{
+                                    "value":2
+                                },
+                                "title":"Kimenő",
+                                "visible":true,
+                                "color":"#bac7de",
+                                "label":false,
+                                "type":"area",
+                                label:{
+                                	format:"##bit/s",
+                                	visible:false
+                                },
+                                line:{
+                                	width:2,
+                                	color:"#001f5f"
+                                	
+                                },
+                                showTitleOnBalloon:true
+                            }
+                        ],
+                         cursor:true,
+                        "chartType":"combo",
+                        "legend":false,
+                        "dataUrl":"test/json/nisz/bandwidth-data.json",
+                        "axes":[
+                            {
+                                "position":"bottom",
+                                "id":"category",
+                                "grid":false,
+                                "type":"Time",
+                                label:{
+		
+									font:"serif",			
+									fontSize:10,
+									bold:true,
+									color:"000029",
+								
+									
+                                }
+                            },
+                            {
+                                "position":"right",
+                                "grid":true,
+                                "type":"Numeric",
+								"id":"left",
+                                label:{
+									font:"serif",			
+									fontSize:10,
+									bold:false,
+									format:"##bit/s",
+                                }
+                            }                           
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

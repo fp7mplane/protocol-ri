@@ -1,0 +1,35 @@
+{
+    "list":[
+        {
+            "refreshButtonVisible":false,
+            "title":"",
+            "headerVisible":false,
+            "type":"chart",
+            "borderVisible":false,
+            "content":{
+                "measurements":[
+                    {
+                        title:"<h3>Aktuális éves SLA adatok</h3>",
+                        field:{
+                            "name":0,
+                            "value":1,
+                            "tooltip":2
+                        },
+                        "config":{
+                            "columns":2,
+                            "type":"text",
+                            "padding":5
+                        },
+                        "label":{
+                            "position":"top",
+                            "labelColor":"#000000"
+                        },
+                        "dataUrl":"test/json/nisz/pipa-data.json",
+                        "refreshIntervall":25,
+                        "chartType":"status"
+                       
+                    }
+                ]}
+        }
+    ]
+}

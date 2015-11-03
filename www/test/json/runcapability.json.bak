@@ -1,0 +1,15 @@
+{
+	"capability": "measure",
+	"label": "ping-detail-ip4",
+	"link": "",
+	"parameters": {
+		"destination.ip4": "8.8.8.8",
+		"source.ip4": "91.227.139.40"
+	},
+	"registry": "http://h139-40.rackhostvps.com/ott-registry.json",
+	"results": ["time",
+	"delay.twoway.icmp.us"],
+	"token": "9e966a4d4be354cd23461af68b29eb9e",
+	"version": 1,
+	"when": "now+30s/5s"
+}

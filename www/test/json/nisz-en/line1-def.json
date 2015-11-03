@@ -1,0 +1,67 @@
+{
+    "list":[
+        {
+            "refreshButtonVisible":false,
+            "title":"Szolgáltatások",
+            "headerVisible":false,
+            "borderVisible":false,
+            "type":"chart",
+            "content":{
+                "measurements":[
+                    {
+                    	title:"<center><h3>BEC Activity </h3></center>", 	
+                        "series":[
+                            {
+                                "seriesId":"Akármik az év során",
+                                "field":{
+                                    "value":1
+                                },
+                                "title":"Típus1",
+                                "visible":true,
+                                "color":"#97b4d7",
+                                "label":false,
+                                "type":"area",
+                                line:{
+                                	width:3,
+                                	color:"#001f5f"
+                                	
+                                }
+                            }
+                        ],
+                         cursor:true,
+                        "chartType":"combo",
+                        "legend":false,
+                        "zoom":true,
+                        "dataUrl":"test/json/nisz/column3-data.json",
+                        "axes":[
+                            {
+                                "position":"bottom",
+                                "id":"category",
+                                "grid":false,
+                                "type":"Time",
+                                "autoGridCount":true,
+                                label:{
+		
+									font:"serif",			
+									fontSize:10,
+									bold:true
+                                }
+                            },
+                            {
+                                "position":"right",
+                                "grid":true,
+                                "type":"Numeric",
+								"id":"left",
+                                label:{
+									font:"serif",			
+									fontSize:10,
+									bold:false
+                                }
+                            }                           
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,73 @@
+{"list":[
+	{
+		"type":"graph",
+		"headerVisible":false,
+		"refreshButtonVisible":false,
+		"borderVisible":false,
+		"content":{
+			url: "test/json/nisz/map-data.json",
+			showStatus: false,
+			saveButtonVisible:true,
+			partialRefresh:false,
+			saveUrl: "test/json/test.json",
+			toolBarVisible: false,
+			editable:false,
+			moveable:false,
+			zoomable:false,	
+ 			background:{
+            	image:"resource/dashboard-layout/image/nisz/hungary.png",
+                x:0,
+                y:0,
+                width:500,
+                height:337,                    
+            },	
+             colorMap:{
+                    labelColor:{
+                        hex:"#323232",
+                        opacity:1
+                    },
+                    bgColor:{
+                        hex:"#FFFFFF",
+                        opacity:0
+                    },
+                    origBgColor:{
+                        hex:"#FFFFFF",
+                        opacity:0
+                    },
+                    bgColorHover:{
+                        hex:"#FF961E",
+                        opacity:0
+                    },
+                    bgColorHoverLight:{
+                        hex:"#FFDC96",
+                        opacity:0
+                    },
+                    bgColorActive:{
+                        hex:"#FF821E",
+                        opacity:0
+                    },
+                    maskColor:{
+                        hex:"#FFFFFF",
+                        opacity:0
+                    }
+                },
+            actions:{
+            	node:[
+        		        	
+        		{
+        			eventType: "click",
+        			command: "link",
+        			target:"popup",
+        			url:"NiszdemoMegye.html?editable=false"
+        		},
+        		{
+        			eventType: "mouseover",
+        			command: "tooltip",
+        			width:400,
+        			height:300,
+        			url:"Chart2.html"
+        		}]
+            }
+		}
+	}
+]}

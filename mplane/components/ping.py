@@ -22,7 +22,7 @@
 #
 
 """
-Implements ICMP ping (delay.twoway.icmp) for integration into
+Implements ICMP ping (delay.twoway.icmp) for integration into 
 the mPlane reference implementation.
 
 """
@@ -57,7 +57,7 @@ def services(ip4addr = None, ip6addr = None):
         services.append(PingService(ping6_aggregate_capability(ip6addr)))
         services.append(PingService(ping6_singleton_capability(ip6addr)))
     return services
-
+    
 def _parse_ping_line(line):
     m = _pingline_re.search(line)
     if m is None:
@@ -142,24 +142,24 @@ def ping6_singleton_capability(ipaddr):
 class PingService(mplane.scheduler.Service):
     def __init__(self, cap):
         # verify the capability is acceptable
-        if not ((cap.has_parameter("source.ip4") or
+        if not ((cap.has_parameter("source.ip4") or 
                  cap.has_parameter("source.ip6")) and
-                (cap.has_parameter("destination.ip4") or
+                (cap.has_parameter("destination.ip4") or 
                  cap.has_parameter("destination.ip6")) and
                 (cap.has_result_column("delay.twoway.icmp.us") or
                  cap.has_result_column("delay.twoway.icmp.us.min") or
-                 cap.has_result_column("delay.twoway.icmp.us.mean") or
+                 cap.has_result_column("delay.twoway.icmp.us.mean") or                
                  cap.has_result_column("delay.twoway.icmp.us.max") or
                  cap.has_result_column("delay.twoway.icmp.count"))):
             raise ValueError("capability not acceptable")
         super(PingService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
-        # unpack parameters
+         # unpack parameters
         period = int(spec.when().period().total_seconds())
-        duration = spec.when().duration()
-        if duration is not None and duration.total_seconds() > 0:
-            count = int(duration.total_seconds() / period)
+        duration = spec.when().duration().total_seconds()
+        if duration is not None and duration > 0:
+            count = int(duration / period)
         else:
             count = None
 
@@ -183,7 +183,7 @@ class PingService(mplane.scheduler.Service):
             if oneping is not None:
                 print("ping "+repr(oneping))
                 pings.append(oneping)
-
+ 
         # shut down and reap
         try:
             ping_process.kill()

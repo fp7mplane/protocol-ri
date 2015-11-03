@@ -1,0 +1,113 @@
+{
+    "list":[
+        {
+            "refreshButtonVisible":false,
+            "title":"Szolgáltatások",
+            "headerVisible":false,
+            "borderVisible":false,
+            "type":"chart",
+            "content":{
+                "measurements":[
+                    {
+                    	title:"<center><h3>Active customer STB-s over last 12 hours</h3></center>",
+                        	
+                        "series":[
+                            {
+                                "seriesId":"tickets",
+                                "field":{
+                                    "value":1
+                                },
+                                "axis":"left",
+                                "title":"Aggregate packet loss count",
+                                "visible":true,
+                                "color":"#375f92",
+                                "label":{
+                                	display:"top",
+                                	format:"## pct",
+                                	color:"#000029"
+                                },
+                                gutter:"25%",
+                                "type":"column",
+                                "stacked":false,
+                                                     
+                        		"showTitleOnBalloon":true,
+                            },
+                            {
+                                "seriesId":"users",
+                                "field":{
+                                    "value":2
+                                    },
+                                "axis":"right",
+                                "title":"Active STB-s",
+                                "cursor":false,
+                                "visible":true,
+                                "zoom":false,
+                                "gutter":"25%",
+                                "labelVisible":false,
+                                "type":"line",
+                                 line:{
+                                	width:3,
+                                	color:"#001f5f"
+                                	
+                                },
+                                "showTitleOnBalloon":true,
+                            },
+                           
+                        ],
+						"cursor":true,
+                        "chartType":"combo",
+                        "legend":null,
+                        "dataUrl":"test/json/nisz-en/column1-data.json",
+                        "axes":[
+                            {
+                                "position":"bottom",
+                                "id":"category",
+                                "grid":false,
+                                "type":"Category",
+                                label:{
+                                	rotation:-45,			
+									font:"serif",			
+									fontSize:10,
+									bold:true,
+									color:"#000029"
+                                }
+                            },
+                            {
+                                "position":"left",
+                                "grid":true,
+                                "type":"Numeric",
+								"id":"left",
+                                label:{
+									font:"serif",			
+									fontSize:9,
+									bold:false,
+									color:"#000029"
+                                },
+                                title:"Aggregate packet loss count",
+								minimum:0,
+								maximum:400
+                            },
+                             {
+                                "position":"right",
+                                "grid":true,
+                                "type":"Numeric",
+                              	"id":"right",
+								label:{
+									font:"serif",			
+									fontSize:9,
+									bold:false,
+									color:"#000029"
+                                },
+                                title:"Active STB-s",
+                                minimum:0,
+								maximum:200
+                            }
+                            
+                           
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
