@@ -95,7 +95,7 @@ class BaseComponent(object):
 
     def remove_capability(self, capability):
         for service in self.scheduler.services:
-            if service.capability().get_label() == capability.get_label():
+            if service.capability().get_token() == capability.get_token():
                 self.scheduler.remove_service(service)
                 return
         print("No such service with label " + capability.get_label())
