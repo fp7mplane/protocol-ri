@@ -1625,16 +1625,19 @@ class Registry(object):
 
         # finally, iterate over elements and add them to the table
         for elem in d[KEY_ELEMENTS]:
-            name = elem[KEY_ELEMNAME]
-            prim = _prim[elem[KEY_ELEMPRIM]]
-            if KEY_ELEMDESC in elem:
-                desc = elem[KEY_ELEMDESC]
-            else:
-                desc = None
-            # Add the element in the subordinate in the parent namespace --
-            # FIXME probably want to check to make sure this is the right
-            # thing to do
-            self._add_element(Element(name, prim, desc, self._uri))
+            if type(elem) is dict:
+                name = elem[KEY_ELEMNAME]
+                prim = _prim[elem[KEY_ELEMPRIM]]
+                if KEY_ELEMDESC in elem:
+                    desc = elem[KEY_ELEMDESC]
+                else:
+                    desc = None
+                # Add the element in the subordinate in the parent namespace --
+                # FIXME probably want to check to make sure this is the right
+                # thing to do
+                self._add_element(Element(name, prim, desc, self._uri))
+            elif not type(elem) is str or not elem.startswith("COMMENT:"):
+                raise ValueError("Registry element format error: %s" % repr(elem), type(elem))
 
     def _parse_from_file(self, filename=None):
         if filename is None:
@@ -1698,7 +1701,6 @@ def registry_for_uri(uri):
 
     """
     global _registries
-
     if uri not in _registries:
         _registries[uri] = Registry(uri=uri)
 
@@ -2846,7 +2848,6 @@ class _StatementNotification(Statement):
             self._params = deepcopy(statement._params)
             self._resultcolumns = deepcopy(statement._resultcolumns)
             self._token = statement.get_token()
-            self._reguri = statement._reguri
 
     def __repr__(self):
         return "<"+self.kind_str()+": "+self._label_repr()+self.get_token()+">"

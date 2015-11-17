@@ -68,6 +68,7 @@ class BaseComponent(object):
         else:
             registry_uri = None
         mplane.model.initialize_registry(registry_uri)
+        print("Base Registry_length: %d \n" %  len(mplane.model.registry_for_uri(registry_uri)))
 
         self.tls = mplane.tls.TlsState(self.config)
         self.scheduler = mplane.scheduler.Scheduler(config)
