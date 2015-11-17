@@ -425,7 +425,7 @@ class InitiatorHttpComponent(BaseComponent):
             return
 
         if self._result_url[reply.get_token()] != "":
-            result_url = urllib3.util.parse_url()
+            result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
             # send result to the Client/Supervisor
             if self.pool.is_same_host(mplane.utils.parse_url(result_url)):
                 res = self.pool.urlopen('POST', self.result_path,
