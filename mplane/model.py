@@ -1653,9 +1653,8 @@ class Registry(object):
             # normalize path if is a file or if no scheme is given
             # (we assume that is is a file)
             scheme = urllib.parse.urlparse(uri).scheme
-            if scheme == "file" or scheme == "":
+            if scheme == "":
                 uri = "file://" + normalize_path(uri)
-
             try:
                 with urllib.request.urlopen(uri) as stream:
                     self._parse_json_bytestream(stream)
@@ -1701,8 +1700,13 @@ def registry_for_uri(uri):
 
     """
     global _registries
+    global _base_registry
+    if uri is None:
+        return _base_registry
     if uri not in _registries:
-        _registries[uri] = Registry(uri=uri)
+        newreg = Registry(uri=uri)
+        uri=newreg.uri()
+        _registries[newreg.uri()] = newreg 
 
     return _registries[uri]
 
