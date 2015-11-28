@@ -59,6 +59,7 @@ class BaseComponent(object):
 
         # preload any registries necessary
         if "registry_preload" in config["component"]:
+            print("Preload\n");
             mplane.model.preload_registry(
                 config["component"]["registry_preload"])
 
@@ -68,6 +69,7 @@ class BaseComponent(object):
         else:
             registry_uri = None
         mplane.model.initialize_registry(registry_uri)
+        print("Base Registry name: %s \n" % registry_uri)
         print("Base Registry_length: %d \n" %  len(mplane.model.registry_for_uri(registry_uri)))
 
         self.tls = mplane.tls.TlsState(self.config)
@@ -187,7 +189,11 @@ class DiscoveryHandler(MPlaneHandler):
         self.set_header("Content-Type", "text/html")
         self.write("<html><head><title>Capabilities</title></head><body>")
         no_caps_exposed = True
+        print("GO FOR CAPS")
         for key in self.scheduler.capability_keys():
+            print("KEY: ", key, self.scheduler.capability_for_key(key)._label )
+            print("NOINST", not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal))
+            print("CLASS",self.scheduler.azn.check(self.scheduler.capability_for_key(key), self.tls.extract_peer_identity(self.request)))
             if (not isinstance(self.scheduler.capability_for_key(key), mplane.model.Withdrawal) and
                     self.scheduler.azn.check(self.scheduler.capability_for_key(key),
                                              self.tls.extract_peer_identity(self.request))):
@@ -300,6 +306,23 @@ class InitiatorHttpComponent(BaseComponent):
         if not self.result_path.startswith("/"):
             self.result_path = "/" + self.result_path
 
+        self._ie_socket=None
+        if "indirect_export_uri" in self.config["component"]:
+            (proto, hostAndPort) = self.config["component"]["indirect_export_uri"].split("://") # udp://127.0.0.1:9900
+            (host, port) = ("", "")
+            try:
+                (host, port) = hostAndPort.split(":")
+                port = int(port)
+            except:
+                raise ValueError("IE uri given, but in a wrong format")
+            if host and port:
+                if proto == "udp":
+                    self._ie_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                else:
+                    raise ValueError("IE scheme '%s' is not supported" % proto)
+            else:
+                raise ValueError("EI uri is given, but in a wrong format")
+
         self.pool = self.tls.pool_for(self.url.scheme, self.url.host, self.url.port)
         self._result_url = dict()
         self.register_to_client()
@@ -395,7 +418,8 @@ class InitiatorHttpComponent(BaseComponent):
                         break
 
                     # hand spec to scheduler
-                    reply = self.scheduler.process_message(self._client_identity, spec, callback=self.return_results)
+                    cb = self.return_results_with_ie if self._ie_socket else self.return_results
+                    reply = self.scheduler.process_message(self._client_identity, spec, callback=cb)
                     if not isinstance(spec, mplane.model.Interrupt):
                         self._result_url[spec.get_token()] = spec.get_link()
 
@@ -410,8 +434,26 @@ class InitiatorHttpComponent(BaseComponent):
                 self.register_to_client()
 
             sleep(self.idle_time)
-
-    def return_results(self, receipt):
+ 
+    def return_results_with_ie(self, receipt):
+        """
+        transmits results to repo via "Indirect Export"
+        self._ie_socket must exist
+        """
+        job = self.scheduler.job_for_message(receipt)
+        reply = job.get_reply()
+        if isinstance(reply, mplane.model.Envelope):
+            reply= reply.last_message()
+        if isinstance(reply, mplane.model.Result):
+            try:
+                if self._ie_socket:
+                    print("Sending IE %s" % reply.get_label())
+                    self._ie_socket.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, port))
+            except Exception as e:
+                print("Error during IE sending: %s " % e)
+        self.return_results(receipt)
+ 
+    def return_results(self,receipt):
         """
         Checks if a job is complete, and in case sends it to the Client/Supervisor
 
@@ -422,12 +464,14 @@ class InitiatorHttpComponent(BaseComponent):
         # check if job is completed
         if (job.finished() is not True and
             job.failed() is not True):
+            print("Not returning partial result (%s len: %d, label: %s)" % (type(reply).__name__, len(reply), reply.get_label()))
             return
 
-        if self._result_url[reply.get_token()] != "":
-            result_url = urllib3.util.parse_url(self._result_url[reply.get_token()])
+        result_url_str = self._result_url[reply.get_token()]
+        if result_url_str != "":
+            result_url = urllib3.util.parse_url(result_url_str)
             # send result to the Client/Supervisor
-            if self.pool.is_same_host(result_url):
+            if self.pool.is_same_host(result_url_str):
                 res = self.pool.urlopen('POST', self.result_path,
                         body=mplane.model.unparse_json(reply).encode("utf-8"),
                         headers={"content-type": "application/x-mplane+json"})
@@ -441,36 +485,13 @@ class InitiatorHttpComponent(BaseComponent):
                         body=mplane.model.unparse_json(reply).encode("utf-8"),
                         headers={"content-type": "application/x-mplane+json"})
 
+       # handle response
+        label = reply.get_label()
 
-        if "repository_uri" in self.config["component"]:
-            (proto, hostAndPort) = self.config["component"]["repository_uri"].split("://") # udp://127.0.0.1:9900
-            (host, port) = ("", "")
-            try:
-                (host, port) = hostAndPort.split(":")
-                port = int(port)
-            except:
-                raise ValueError("repository_uri given, but in a wrong format")
-            if host and port:
-                if proto == "udp":
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    sock.sendto(mplane.model.unparse_json(reply).encode("utf-8"), (host, port))
-                else:
-                    raise ValueError("repository_uri given, but protocol is wrong")
-            else:
-                raise ValueError("repository_uri given, but in a wrong format")
-
-        # handle response
-        if isinstance(reply, mplane.model.Envelope):
-            for msg in reply.messages():
-                label = msg.get_label()
-                break
-        else:
+        if res.status == 200:
             if isinstance(reply, mplane.model.Exception):
                 print("Exception for " + reply.get_token() + " successfully returned!")
                 return
-
-            label = reply.get_label()
-        if res.status == 200:
             print("Result for " + label + " successfully returned!")
         else:
             print("Error returning Result for " + label)
