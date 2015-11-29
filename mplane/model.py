@@ -1621,7 +1621,9 @@ class Registry(object):
         # now parse includes depth-first
         if KEY_REGINCLUDE in d:
             for incuri in d[KEY_REGINCLUDE]:
+                print("Including registry uri %s (for registry %s)" % (incuri, self._uri))
                 self._include_registry(registry_for_uri(incuri))
+                print("Sucess for %s" % incuri)
 
         # finally, iterate over elements and add them to the table
         for elem in d[KEY_ELEMENTS]:
@@ -2985,6 +2987,11 @@ class Envelope(object):
     def append_message(self, msg):
         """ Appends a message to an Envelope """
         self._messages.append(msg)
+
+    def last_message(self): 
+        if len(self._messages) == 0:
+            return None
+        return self._messages[-1]
 
     def messages(self):
         """ Returns an iterator to iterate over all messages in an Envelope """

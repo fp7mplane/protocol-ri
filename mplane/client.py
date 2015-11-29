@@ -64,6 +64,12 @@ class BaseClient(object):
 
     def __init__(self, tls_state, supervisor=False, exporter=None):
         self._tls_state = tls_state
+        self.reset()
+        self._supervisor = supervisor
+        if self._supervisor:
+            self._exporter = exporter
+
+    def reset(self,args=None):
         self._capabilities = {}
         self._capability_labels = {}
         self._capability_identities = {}
@@ -72,14 +78,9 @@ class BaseClient(object):
         self._receipt_labels = {}
         self._results = {}
         self._result_labels = {}
-
         # structures for capability expiration after timeout
         self._capability_timeouts = {}
         self._capabilities_by_identity = {}
-
-        self._supervisor = supervisor
-        if self._supervisor:
-            self._exporter = exporter
 
     def _add_capability(self, msg, identity):
         """
@@ -92,7 +93,7 @@ class BaseClient(object):
 
         # FIXME retoken on token collision with another identity
         token = msg.get_token()
-
+        print("ADDING capability: %s, existing: %s" % (token, self._capabilities.keys()))
         self._capabilities[token] = msg
         self._capability_timeouts[token] = datetime.utcnow()
 
@@ -277,6 +278,7 @@ class BaseClient(object):
             if msg.get_label():
                 self._result_labels[msg.get_label()] = msg
         else:
+            # Exceptions are only added to result_labels if a receipt existed in receipts -WHY
             if receipt is not None:
                 self._result_labels[receipt.get_label()] = msg
 
@@ -686,6 +688,7 @@ class HttpListenerClient(BaseClient):
         the optional callback_when parameter queues a callback spec to
         schedule the next callback.
         """
+        print("INVOKE %s PARAMS %s" % (cap_tol, params))  
         # grab cap, spec, and identity
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         identity = self.identity_for(cap.get_token())
@@ -820,6 +823,7 @@ class SpecificationHandler(MPlaneHandler):
             specs = self._listenerclient._outgoing.pop(identity, [])
             env = mplane.model.Envelope()
             for spec in specs:
+                print("AppendSpec %s" % spec)
                 env.append_message(spec)
                 if isinstance(spec, mplane.model.Specification):
                     print("Specification " + spec.get_label() + " successfully pulled by " + identity)

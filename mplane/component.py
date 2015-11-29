@@ -35,6 +35,7 @@ import time
 from time import sleep
 import urllib3
 import socket
+import random
 
 # FIXME HACK
 # some urllib3 versions let you disable warnings about untrusted CAs,
@@ -279,6 +280,7 @@ class InitiatorHttpComponent(BaseComponent):
 
     def __init__(self, config, supervisor=False):
         self._supervisor = supervisor
+        self._callback_token = "comp-cb" + str(random.random())
         super(InitiatorHttpComponent, self).__init__(config)
 
         # FIXME: Configuration should take a URL, not build one from components.
@@ -369,7 +371,8 @@ class InitiatorHttpComponent(BaseComponent):
                     exit(0)
 
             # add callback capability to the list
-            callback_cap = mplane.model.Capability(label="callback", when = "now ... future")
+            callback_cap = mplane.model.Capability(label="callback", when = "now ... future", token = self._callback_token)
+            
             env.append_message(callback_cap)
 
         # send the envelope to the client
