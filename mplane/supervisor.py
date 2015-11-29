@@ -78,7 +78,7 @@ class RelayService(mplane.scheduler.Service):
 
 class BaseSupervisor(object):
     
-    def __init__(self, config):
+    def __init__(self, config, run=True):
         self._caps = []
         self.config = config
 
@@ -122,7 +122,8 @@ class BaseSupervisor(object):
             self._component = mplane.component.ListenerHttpComponent(config, io_loop=self._io_loop)
         else:
             raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
-        self.run()
+        if run:
+            self.run()
 
     def run(self):
         if (self.cli_workflow == "component-initiated" or

@@ -26,6 +26,7 @@
 import mplane.supervisor
 import configparser
 import argparse
+import importlib
 
 if __name__ == "__main__":
     # look for TLS configuration
@@ -46,4 +47,10 @@ if __name__ == "__main__":
     config.read(mplane.utils.search_path(args.config))
 
     # Start the supervisor
-    supervisor = mplane.supervisor.BaseSupervisor(config)
+    if "supervisor" in config and "class" in config["supervisor"]:
+        classname=config["supervisor"]["class"]
+        d = classname.rfind(".")
+        module = importlib.import_module(classname[0:d])
+        supervisor = getattr(module,classname[d+1:])(config)
+    else :
+        supervisor = mplane.supervisor.BaseSupervisor(config)
