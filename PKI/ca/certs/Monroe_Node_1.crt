@@ -1,0 +1,106 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 18 (0x12)
+    Signature Algorithm: sha1WithRSAEncryption
+        Issuer: DC=org, DC=monroe, OU=Root-CA, CN=Root-CA-1
+        Validity
+            Not Before: Oct 12 09:34:15 2015 GMT
+            Not After : Oct 11 09:34:15 2017 GMT
+        Subject: DC=org, DC=monroe, O=SSB, OU=Components, CN=Monroe_Node_1
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:ad:3c:9a:36:c2:1a:0a:8f:11:41:f7:ea:35:b8:
+                    d6:b9:9b:cf:65:12:04:91:e0:a4:34:cd:35:76:59:
+                    1a:f4:32:b8:62:43:dd:d7:56:7b:8a:cd:76:4a:31:
+                    70:38:80:a0:59:15:19:e1:2c:67:cc:e1:dd:c9:ff:
+                    99:b4:89:55:52:c3:d5:1c:c8:71:22:5f:bb:ec:00:
+                    88:7e:cf:c1:6a:27:35:f1:b7:c2:8a:d5:86:93:a4:
+                    11:76:e4:25:dd:5e:63:70:35:6d:22:54:95:65:b7:
+                    5e:ef:02:0d:cf:fc:6e:5c:37:ef:65:aa:b8:fc:2d:
+                    28:62:f0:2b:e7:5f:f6:1d:78:a8:6d:c9:ff:fe:f1:
+                    e5:ea:5a:00:84:70:c9:ce:92:3e:02:43:ba:62:48:
+                    19:0e:15:8e:5c:44:7f:3c:dc:1f:a4:a1:b6:e7:af:
+                    08:a5:41:38:96:fe:5c:d7:69:ec:d1:94:15:3c:e4:
+                    42:bd:5a:15:77:10:20:04:eb:ae:cd:9b:18:5f:11:
+                    71:f3:36:71:92:7e:c4:19:7a:09:0b:65:f0:58:da:
+                    47:9b:0f:9c:c6:fb:da:d1:ac:79:38:a6:ab:8a:8d:
+                    d2:cc:19:ef:93:b6:0f:84:52:7f:d3:3e:b4:78:c1:
+                    7b:06:83:ab:0c:4e:eb:45:50:d2:27:6b:a0:c0:4d:
+                    60:9b
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Subject Key Identifier: 
+                32:BB:71:80:0D:BA:D5:0A:DE:ED:27:8B:AE:A1:73:8D:B5:85:E9:B3
+            X509v3 Authority Key Identifier: 
+                keyid:D8:E8:1C:37:D0:D4:F7:24:2C:84:56:E0:17:0A:E7:23:A9:94:CA:94
+
+            X509v3 Subject Alternative Name: 
+                DNS:Monroe_Node_1.POLITO.monroe.org
+    Signature Algorithm: sha1WithRSAEncryption
+         00:65:f3:85:af:77:7f:b2:a0:7c:4c:17:90:53:13:80:b8:64:
+         27:e4:87:39:ed:1c:3c:4f:8b:56:af:bc:30:86:f6:98:a2:2d:
+         94:06:b4:05:e5:ee:96:2f:40:87:00:54:75:7a:57:70:df:5d:
+         1a:c1:71:44:84:8c:81:f6:0c:d3:bc:0c:77:16:f9:35:35:12:
+         39:1a:cf:e4:93:0b:6d:ad:5a:b7:3a:3a:36:b7:5e:9e:58:fa:
+         ed:10:19:88:13:3c:22:33:e2:26:21:41:6e:8b:81:68:3a:33:
+         26:8b:56:ef:55:ff:01:25:f0:ff:78:c2:85:ae:56:48:d7:73:
+         4d:bb:99:54:d4:a2:e3:70:59:b0:f4:12:8b:b9:7e:6e:a8:98:
+         b3:46:25:87:88:34:bd:b3:7b:9a:57:d2:cc:66:f2:01:95:26:
+         1a:c3:bf:ef:17:c5:f1:cc:5d:f1:ff:8c:f9:ab:c5:a4:95:48:
+         1b:b1:1c:35:3c:70:38:ce:5e:f9:d4:33:26:9c:59:92:a3:ab:
+         20:4c:15:c4:b3:5d:50:1c:30:96:b9:c3:10:27:74:f2:9b:ac:
+         b7:8d:21:8e:9d:27:f7:7e:24:74:62:9c:0a:b1:75:a7:3c:40:
+         4f:59:19:ba:c3:af:09:f6:7a:51:25:5b:63:fb:8a:b0:8c:3e:
+         a8:1a:33:ae:df:68:7c:8c:b0:02:22:c0:cc:b8:03:20:1c:59:
+         e9:2d:c1:f3:c9:26:6a:a3:50:3d:dd:28:d8:4d:ba:28:7b:65:
+         48:17:a4:53:6c:9d:36:7f:ff:1d:50:e5:ae:12:97:f4:44:7f:
+         38:14:e3:12:d6:1f:4c:da:a9:40:8d:65:b8:b1:3c:81:3f:22:
+         85:d5:e8:87:17:b7:94:73:20:15:ca:a6:fb:e7:b9:01:7d:3c:
+         8d:63:91:af:9c:d0:56:43:ff:3b:13:e2:04:18:d4:ec:0b:30:
+         e7:22:bb:b7:1c:c6:12:5f:4f:eb:6a:5c:e9:46:06:58:f0:a0:
+         93:66:3a:97:6b:c7:39:f9:2e:e5:0b:94:3e:e6:f0:c2:19:56:
+         9e:7a:f7:af:ae:9a:69:03:b0:6e:e4:98:63:a4:41:f5:db:2e:
+         b2:8a:7e:53:79:0f:9f:3e:d1:6a:2b:38:30:a3:f2:d3:02:ff:
+         80:46:a1:6b:35:62:09:a2:cc:0c:2d:70:66:0e:a5:72:49:aa:
+         0b:fc:e2:fa:1f:b2:d3:cc:a8:66:6c:c3:fb:80:e6:af:ee:8b:
+         e8:f7:ae:06:96:cf:ca:52:76:a0:01:5f:75:b7:63:16:a7:14:
+         78:84:25:b4:31:e1:62:00:29:6d:09:53:5b:68:5b:c4:90:ee:
+         5e:92:84:a9:0a:4d:f1:1a
+-----BEGIN CERTIFICATE-----
+MIIE4DCCAsigAwIBAgIBEjANBgkqhkiG9w0BAQUFADBTMRMwEQYKCZImiZPyLGQB
+GRYDb3JnMRYwFAYKCZImiZPyLGQBGRYGbW9ucm9lMRAwDgYDVQQLDAdSb290LUNB
+MRIwEAYDVQQDDAlSb290LUNBLTEwHhcNMTUxMDEyMDkzNDE1WhcNMTcxMDExMDkz
+NDE1WjBoMRMwEQYKCZImiZPyLGQBGRYDb3JnMRYwFAYKCZImiZPyLGQBGRYGbW9u
+cm9lMQwwCgYDVQQKDANTU0IxEzARBgNVBAsMCkNvbXBvbmVudHMxFjAUBgNVBAMM
+DU1vbnJvZV9Ob2RlXzEwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCt
+PJo2whoKjxFB9+o1uNa5m89lEgSR4KQ0zTV2WRr0MrhiQ93XVnuKzXZKMXA4gKBZ
+FRnhLGfM4d3J/5m0iVVSw9UcyHEiX7vsAIh+z8FqJzXxt8KK1YaTpBF25CXdXmNw
+NW0iVJVlt17vAg3P/G5cN+9lqrj8LShi8CvnX/YdeKhtyf/+8eXqWgCEcMnOkj4C
+Q7piSBkOFY5cRH883B+kobbnrwilQTiW/lzXaezRlBU85EK9WhV3ECAE667Nmxhf
+EXHzNnGSfsQZegkLZfBY2kebD5zG+9rRrHk4pquKjdLMGe+Ttg+EUn/TPrR4wXsG
+g6sMTutFUNIna6DATWCbAgMBAAGjgakwgaYwDgYDVR0PAQH/BAQDAgWgMAkGA1Ud
+EwQCMAAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMB0GA1UdDgQWBBQy
+u3GADbrVCt7tJ4uuoXONtYXpszAfBgNVHSMEGDAWgBTY6Bw30NT3JCyEVuAXCucj
+qZTKlDAqBgNVHREEIzAhgh9Nb25yb2VfTm9kZV8xLlBPTElUTy5tb25yb2Uub3Jn
+MA0GCSqGSIb3DQEBBQUAA4ICAQAAZfOFr3d/sqB8TBeQUxOAuGQn5Ic57Rw8T4tW
+r7wwhvaYoi2UBrQF5e6WL0CHAFR1eldw310awXFEhIyB9gzTvAx3Fvk1NRI5Gs/k
+kwttrVq3Ojo2t16eWPrtEBmIEzwiM+ImIUFui4FoOjMmi1bvVf8BJfD/eMKFrlZI
+13NNu5lU1KLjcFmw9BKLuX5uqJizRiWHiDS9s3uaV9LMZvIBlSYaw7/vF8XxzF3x
+/4z5q8WklUgbsRw1PHA4zl751DMmnFmSo6sgTBXEs11QHDCWucMQJ3Tym6y3jSGO
+nSf3fiR0YpwKsXWnPEBPWRm6w68J9npRJVtj+4qwjD6oGjOu32h8jLACIsDMuAMg
+HFnpLcHzySZqo1A93SjYTbooe2VIF6RTbJ02f/8dUOWuEpf0RH84FOMS1h9M2qlA
+jWW4sTyBPyKF1eiHF7eUcyAVyqb757kBfTyNY5GvnNBWQ/87E+IEGNTsCzDnIru3
+HMYSX0/ralzpRgZY8KCTZjqXa8c5+S7lC5Q+5vDCGVaeevevrpppA7Bu5JhjpEH1
+2y6yin5TeQ+fPtFqKzgwo/LTAv+ARqFrNWIJoswMLXBmDqVySaoL/OL6H7LTzKhm
+bMP7gOav7ovo964Gls/KUnagAV91t2MWpxR4hCW0MeFiACltCVNbaFvEkO5ekoSp
+Ck3xGg==
+-----END CERTIFICATE-----

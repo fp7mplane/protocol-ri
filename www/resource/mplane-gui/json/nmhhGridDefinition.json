@@ -1,0 +1,77 @@
+{
+                "config":{
+                    "fields":[
+                         {
+                            dataIndex:"probe",
+                            type:"string",
+                            text:"Típus",
+                            width:"100px",
+                            onTable:true
+                        },
+                        {
+                            dataIndex:"label",
+                            type:"string",
+                            text:"Kártya/Port",
+                            width:"120px",
+                            onTable:true
+                        },
+                        {
+                            dataIndex:"when",
+                            text:"Pozíció",
+                            type:"string",
+                            width:"120px"
+                        },
+                        {
+			
+                            dataIndex:"freq",
+                            text:"Frekvencia tartomány",
+                            type:"string",
+                            width:"240px"
+                        },
+                        {
+			
+                            dataIndex:"adat",
+                            text:"Mérési adatok",
+                            type:"string",
+                            width:"120px"
+                        },
+                        {
+                            dataIndex:"felh",
+                            text:"Felhasználó",
+                            type:"string",
+                            width:"120px"
+                        },
+                        {
+                            dataIndex:"datum",
+                            text:"Dátum",
+                            type:"string",
+                            width:"100%"
+                        },
+                        {
+                            dataIndex:"type",
+                            onTable:false,
+                            type:"string"
+                        }
+                    ],
+                    "local":false,
+                    "pageSize":200,
+                    "deletable":false,
+                    "readonly":true,
+                    "selectable":false,
+                    "dataUrl":"autofill",
+            		"refreshIntervall":30,
+                    "uniqueId":"label",
+                    "groupField":"probe",
+                    "filterable":true,
+                    "filterConfig":{
+                        "filters":{
+                        },
+                        "position":"top"
+                    },
+                    "defaultFilters":{
+			            "label":"",
+			            "type":"*"
+			            
+			        }
+                }
+}

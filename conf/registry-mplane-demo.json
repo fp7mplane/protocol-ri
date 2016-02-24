@@ -1,0 +1,279 @@
+{
+  "registry-format": "mplane-0",
+  "registry-revision": 0,
+  "registry-uri": "http://registry.ict-mplane.eu/mplane-demo-registry.json",
+  "includes": ["http://registry.ict-mplane.eu/demo.json",
+		"http://registry.ict-mplane.eu/tstat-registry.json"],
+  "elements": [
+    "COMMENT: FUB names", 
+    {
+      "name": "mSLA.tcpBandwidth.download.iperf",
+      "prim": "natural",
+      "desc": "Singleton download line capacity measurement using TCP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.tcpBandwidth.download.iperf.min",
+      "prim": "natural",
+      "desc": "Minimum download line capacity measurement using TCP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.tcpBandwidth.download.iperf.mean",
+      "prim": "natural",
+      "desc": "Mean download line capacity measurement using TCP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.tcpBandwidth.download.iperf.max",
+      "prim": "natural",
+      "desc": "Maximum download line capacity measurement using TCP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.tcpBandwidth.download.iperf.timecountseconds",
+      "prim": "natural",
+      "desc": "Count of valid download line capacity measurement using TCP protocol, with iperf meassurement tool"
+    },
+       {
+      "name": "mSLA.udpCapacity.download.iperf",
+      "prim": "natural",
+      "desc": "Singleton download line capacity measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.min",
+      "prim": "natural",
+      "desc": "Minimum download line capacity measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.mean",
+      "prim": "natural",
+      "desc": "Mean download line capacity measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.max",
+      "prim": "natural",
+      "desc": "Maximum download line capacity measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.timecountseconds",
+      "prim": "natural",
+      "desc": "Count of valid download line capacity measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.jitter",
+      "prim": "real",
+      "desc": "Jitter measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA.udpCapacity.download.iperf.error",
+      "prim": "real",
+      "desc": "Datagram loss in percentage measurement using UDP protocol, with iperf meassurement tool"
+    },
+    {
+      "name": "mSLA-Bandwidth_mean_Mbps-Correct-UDP",
+      "prim": "real",
+      "desc": "Agent probe that acts only as a destination point"
+    },
+    "COMMENT: NETVISOR names", 
+    {
+      "name": "http.code.max",
+      "prim": "natural",
+      "desc": "The maximal value of the HTTP result code during the test"
+    },
+    {
+      "name": "http.redirectcount.max",
+      "prim": "natural",
+      "desc": "Peak of HTTP redirects during the transaction."
+    },
+    {
+      "name": "qos.manifest",
+      "prim": "natural",
+      "desc": "Indicating the peak of the errorcode with respect the manifest descriptor"
+    },
+    {
+      "name": "qos.content",
+      "prim": "natural",
+      "desc": "Indicating the peak of the errorcode with respect the content"
+    },
+    {
+      "name": "qos.aggregate",
+      "prim": "natural",
+      "desc": "The minimum of the content and the manifest quality."
+    },
+    {
+      "name": "qos.level",
+      "prim": "natural",
+      "desc": "Quality level expressed in percents."
+    },
+    {
+      "name": "type.repo",
+      "prim": "string"
+    },
+    {
+      "name": "overall.grade",
+      "prim": "natural"
+    },
+    {
+      "name": "range.grade",
+      "prim": "string"
+    },
+    {
+      "name": "select.grade",
+      "prim": "string"
+    },
+    {
+      "name": "results.repo",
+      "prim": "string"
+    },
+    {
+      "name": "metric.repo",
+      "prim": "string"
+    },
+    "COMMENT: FTW names",
+    {
+      "name": "database.host",
+      "prim": "address",
+      "desc": "Database hostname or address"
+    },
+    {
+      "name": "database.port",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "database.dbname",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "database.user",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "database.password",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "database.features_table",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "database.flags_table",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "mPlane.supervisor",
+      "prim": "string",
+      "desc": "Url reasoner/client"
+    },
+    {
+      "name": "analysis.start",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "analysis.end",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "analysis.granularity",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "analysis.variable",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "analysis.feature",
+      "prim": "string",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.width",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.guard",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.min_distr_size",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.min_refset_size",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.slack_var",
+      "prim": "real",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.m",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "refset.k",
+      "prim": "natural",
+      "desc": "Database port number"
+    },
+    {
+      "name": "ripeatlas.db_connect_params",
+      "prim": "string",
+      "desc": "parameter line to connect to Postgres database"
+    },
+    {
+      "name": "ripeatlas.optionsline",
+      "prim": "string",
+      "desc": "sys.args like string line containing options to pass to perl scripts"
+    },
+    {
+      "name": "ripeatlas.list.probe.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "ripeatlas.udm.lookup.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "ripeatlas.udm.create.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "ripeatlas.udm.status.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "ripeatlas.udm.result.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "ripeatlas.udm.stop.resultline",
+      "prim": "string",
+      "desc": "Line containing results returned by the perl script, depends on the capability"
+    },
+    {
+      "name": "firelog.diagnose",
+      "prim": "string"
+    },
+    {
+      "name": "webqoe.diagnose",
+      "prim": "string"
+    }
+ ]
+}

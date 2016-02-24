@@ -1,0 +1,125 @@
+{
+    "BlindScan":[
+        {
+            "capability":"measure",
+            "label":"Card A / 1",
+            "parameters":{
+                "destination.ip4":"*",
+                "source.ip4":"192.168.25.0/24"
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "when":"53,0° NY",
+            "adat":"RF",
+	    "felh":"KovacsA",
+            "freq":"10950-11400 V",
+            "datum": "2015.10.30 16:24 - 2015.10.30 19:11"
+        }
+    ],
+    "BlindScan ":[
+        {
+            "capability":"measure",
+            "label":"Card B / 1",
+            "parameters":{
+                "destination.ip4":"*",
+                "source.ip4":"192.168.25.0/24"
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "adat":"RF+TS",
+            "when":"51,0° K",
+	    "felh":"KovacsA",
+            "freq":"10750-10800 H",
+            "datum": "2015.10.30 20:24 - 2015.10.31 03:11"
+        }
+    ],
+    "TP Import":[
+        {
+            "capability":"measure",
+            "label":"Card A / 2",
+            "parameters":{
+                "destination.ip4":"*",
+                "source.ip4":"192.168.25.0/24"
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "when":"55,0° K",
+            "adat":"RF+TS",
+            "felh":"SzaboB",
+            "freq":"10750-10800 V",
+            "datum": "2015.10.31 10:24 - 2015.10.31 13:51"
+        }
+    ],
+
+    "Fix TP":[
+        {
+            "capability":"measure",
+            "label":"Card A / 2",
+            "parameters":{
+                "destination.ip4":"*",
+                "source.ip4":"192.168.25.0/24"
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "when":"55,0° K",
+            "felh":"NAgyC",
+            "adat":"RF+TS",
+            "freq":"10888 V",
+            "datum": "2015.10.31 12:41 - 2015.10.31 12:41"
+        }
+    ],
+
+    "TP Import":[
+        {
+            "capability":"measure",
+            "label":"Card A / 2",
+            "parameters":{
+                "destination.ip4":"*",
+                "source.ip4":"192.168.25.0/24"
+            },
+            "registry":"http://ict-mplane.eu/registry/core",
+            "results":[
+                "delay.twoway.icmp.us.min",
+                "delay.twoway.icmp.us.mean",
+                "delay.twoway.icmp.us.max",
+                "delay.twoway.icmp.count"
+            ],
+            "token":"f6384fb216ff75d66327785996bdc17a",
+            "version":1,
+            "when":"55,0° K",
+            "felh":"Kis D",
+            "adat":"TS",
+            "freq":"10750-10800 V",
+            "datum": "2015.10.31 10:24 - 2015.10.31 13:51"
+        }
+    ],
+
+}

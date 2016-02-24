@@ -1,0 +1,3 @@
+{'when':['repeat now + 40s / 20s { now + 12s / 5s } ', 'now + 20s / 5s', 'now + 1d / 10s', 'now + 5m / 7s', 'now + 11s / 5s'],
+'source.ip4':['91.227.139.40'],
+'destination.ip4':['193.6.200.94', '213.140.7.241', '8.8.8.8']}

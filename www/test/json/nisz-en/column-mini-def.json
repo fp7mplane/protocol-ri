@@ -1,0 +1,94 @@
+{
+
+                "measurements":[
+                    {
+                    	title:"<center>Top 3</center>", 	
+                        "series":[
+                            {
+                                "seriesId":"closed",
+                                "field":{
+                                    "value":1
+                                },
+                                "title":"Budapest XI ker",
+                                "visible":true,
+                                "color":"#375f92",
+
+                                "gutter":"25%",
+                                "type":"column",
+                                showTitleOnBalloon:true
+                            },
+                            {
+                                "seriesId":"opened",
+                                "field":{
+                                    "value":2
+                                    },
+
+                                "title":"Budapest II ker",
+                                "cursor":false,
+                                "visible":true,
+                                "color":"#94b3d6",
+                                "zoom":false,
+                                "gutter":"25%",
+                                "labelVisible":false,
+                                "type":"column",
+                                showTitleOnBalloon:true
+                            },
+                            {
+                                "seriesId":"customer",
+                                "field":{
+                                    "value":3
+                                    },
+
+                                "title":"Budapest IX ker",
+                                "cursor":false,
+                                "visible":true,
+                                "color":"#23405f",
+                                "zoom":false,
+                                "gutter":"25%",
+                                "labelVisible":false,
+                                "type":"column",
+                                showTitleOnBalloon:true
+                            }
+                            
+                           
+                        ],
+                        
+                        "chartType":"combo",
+                        "legend":{
+                        	position:"right",
+                        	fontSize:8
+                        	
+                        },
+                        "dataUrl":"test/json/nisz/column-mini-data.json",
+                        "axes":[
+                            {
+                                "position":"bottom",
+                                "id":"category",
+                                "grid":true,
+                                "type":"Category",
+                                label:{
+                                	rotation:0,			
+									font:"serif",			
+									fontSize:9,
+									bold:true
+                                }
+                            },
+                            {
+                                "position":"left",
+                                "grid":true,
+                                "type":"Numeric",
+								"id":"left",
+                                label:{
+                                	format:"## db",
+									font:"serif",			
+									fontSize:9,
+									bold:false
+                                }
+
+                            }
+                            
+                        ]
+                        }
+                        ]
+
+}

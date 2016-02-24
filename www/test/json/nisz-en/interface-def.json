@@ -1,0 +1,70 @@
+{
+    "list":[
+        {
+            "refreshButtonVisible":false,
+            "title":"Szolgáltatások",
+            "headerVisible":false,
+            "borderVisible":false,
+            "type":"chart",
+            "content":{
+                "measurements":[
+                    {
+                    	title:"<center><h3>Pestmegye sávszélesség kihasználtsága (napi összesítés)</h3></center>", 	
+                        "series":[
+                            {
+                                "seriesId":"interface",
+                                "field":{
+                                    "value":1
+                                },
+                                "title":"Sávszélesség",
+                                "visible":true,
+                                "color":"#375f92",
+                                "label":{
+                                	visible:false,
+                                	format:"## %"
+                                },
+                                "gutter":"25%",
+                                "type":"column",
+                                showKeyOnBalloon:false
+                            }
+                        ],
+                        
+                        "chartType":"combo",
+                        "legend":false,
+                        "cursor":true,
+                        "zoom":true,
+                        "dataUrl":"test/json/nisz/interface-data.json",
+                        "axes":[
+                            {
+                                "position":"bottom",
+                                "id":"category",
+                                "grid":false,
+                                "type":"Time",
+                                label:{
+									rotation:0,			
+									font:"serif",			
+									fontSize:10,
+									bold:true
+                                }
+                            },
+                            {
+                                "position":"left",
+                                "grid":true,
+                                "type":"Numeric",
+								"id":"left",
+                                label:{
+									font:"serif",			
+									fontSize:10,
+									bold:false,
+									format:"## %"
+                                },
+                                minimum:0,
+                                maximum:100
+                            }                           
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
