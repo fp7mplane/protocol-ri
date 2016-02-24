@@ -33,6 +33,8 @@ import collections
 from datetime import datetime
 import mplane.model
 import mplane.scheduler
+import socket
+
 
 _pingline_re = re.compile("icmp_seq=(\d+)\s+\S+=(\d+)\s+time=([\d\.]+)\s+ms")
 
@@ -51,6 +53,14 @@ PingValue = collections.namedtuple("PingValue", ["time", "seq", "ttl", "usec"])
 def services(ip4addr = None, ip6addr = None):
     services = []
     if ip4addr is not None:
+        if ip4addr.upper() == "AUTO":
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                ip4addr = s.getsockname()[0]
+            except BaseException as e:
+                print("Cannot deterine source IP address: %s",e)
+                ip4addr = "127.0.0.1"
         services.append(PingService(ping4_aggregate_capability(ip4addr)))
         services.append(PingService(ping4_singleton_capability(ip4addr)))
     if ip6addr is not None:

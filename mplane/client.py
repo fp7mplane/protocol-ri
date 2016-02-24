@@ -64,6 +64,12 @@ class BaseClient(object):
 
     def __init__(self, tls_state, supervisor=False, exporter=None):
         self._tls_state = tls_state
+        self.reset()
+        self._supervisor = supervisor
+        if self._supervisor:
+            self._exporter = exporter
+
+    def reset(self,args=None):
         self._capabilities = {}
         self._capability_labels = {}
         self._capability_identities = {}
@@ -72,9 +78,9 @@ class BaseClient(object):
         self._receipt_labels = {}
         self._results = {}
         self._result_labels = {}
-        self._supervisor = supervisor
-        if self._supervisor:
-            self._exporter = exporter
+        # structures for capability expiration after timeout
+        self._capability_timeouts = {}
+        self._capabilities_by_identity = {}
 
     def _add_capability(self, msg, identity):
         """
@@ -87,20 +93,24 @@ class BaseClient(object):
 
         # FIXME retoken on token collision with another identity
         token = msg.get_token()
-
+        print("ADDING capability: %s, existing: %s" % (token, self._capabilities.keys()))
         self._capabilities[token] = msg
+        self._capability_timeouts[token] = datetime.utcnow()
 
         if msg.get_label():
             self._capability_labels[msg.get_label()] = msg
 
         if identity:
             self._capability_identities[token] = identity
+            mplane.utils.add_value_to(self._capabilities_by_identity, identity, token)
 
-    def _remove_capability(self, msg):
-        token = msg.get_token()
+    def _remove_capability(self, token):
         if token in self._capabilities:
             label = self._capabilities[token].get_label()
             del self._capabilities[token]
+            del self._capability_timeouts[token]
+            identity = self.identity_for(token)
+            self._capabilities_by_identity[identity].remove(token)
             if label and label in self._capability_labels:
                 del self._capability_labels[label]
 
@@ -117,8 +127,9 @@ class BaseClient(object):
 
         # FIXME check identity, exception on mismatch
 
+        print("Capability " + self._capabilities[token].get_label() + " from " + identity + " expired or withdrawn")
         if token in self._capabilities:
-            self._remove_capability(self._capabilities[token])
+            self._remove_capability(token)
         else:
             # Search all capabilities by schema
             for cap in self.capabilities_matching_schema(msg):
@@ -267,6 +278,7 @@ class BaseClient(object):
             if msg.get_label():
                 self._result_labels[msg.get_label()] = msg
         else:
+            # Exceptions are only added to result_labels if a receipt existed in receipts -WHY
             if receipt is not None:
                 self._result_labels[receipt.get_label()] = msg
 
@@ -633,18 +645,32 @@ class HttpListenerClient(BaseClient):
         http_server.listen(listen_port)
         if io_loop is not None:
             cli_t = Thread(target=self.listen_in_background(io_loop))
+            timeout_callback = tornado.ioloop.PeriodicCallback(self._check_timeouts, 5000, io_loop)
         else:
             cli_t = Thread(target=self.listen_in_background)
+            timeout_callback = tornado.ioloop.PeriodicCallback(self._check_timeouts, 5000)
+        timeout_callback.start()
         cli_t.daemon = True
         cli_t.start()
 
     def listen_in_background(self, io_loop=None):
-        """
-        The server listens for requests in background, while
-        the supervisor console remains accessible
-        """
+        """ The server listens for requests in background """
+
         if io_loop is None:
             tornado.ioloop.IOLoop.instance().start()
+
+    def _check_timeouts(self):
+        """ Checks if capabilities are expired, and if so, delete them """
+
+        expired_tokens = []
+        for token in self._capability_timeouts:
+            interval = datetime.utcnow() - self._capability_timeouts[token]
+            if interval.total_seconds() >= 10:
+                expired_tokens.append(token)
+
+        for token in expired_tokens:
+            cap_withdraw = mplane.model.Withdrawal(capability = self._capabilities[token])
+            self.handle_message(cap_withdraw, self.identity_for(token))
 
     def _push_outgoing(self, identity, msg):
         if identity not in self._outgoing:
@@ -662,6 +688,7 @@ class HttpListenerClient(BaseClient):
         the optional callback_when parameter queues a callback spec to
         schedule the next callback.
         """
+        print("INVOKE %s PARAMS %s" % (cap_tol, params))  
         # grab cap, spec, and identity
         (cap, spec) = self._spec_for(cap_tol, when, params, relabel)
         identity = self.identity_for(cap.get_token())
@@ -764,11 +791,13 @@ class RegistrationHandler(MPlaneHandler):
 
         # reply to the component
         response = ""
-        for new_cap in env.messages():
-            if isinstance(new_cap, mplane.model.Capability):
-                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"ok\"},"
+        for msg in env.messages():
+            if isinstance(msg, mplane.model.Capability):
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"ok\"},"
+            elif isinstance(msg, mplane.model.Withdrawal):
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Withdrawn\"},"
             else:
-                response = response + "\"" + new_cap.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
+                response = response + "\"" + msg.get_label() + "\":{\"registered\":\"no\", \"reason\":\"Not a capability\"},"
         response = "{" + response[:-1].replace("\n", "") + "}"
         self._respond_json_text(200, response)
         return
@@ -785,15 +814,25 @@ class SpecificationHandler(MPlaneHandler):
 
     def get(self):
         identity = self._tls.extract_peer_identity(self.request)
-        specs = self._listenerclient._outgoing.pop(identity, [])
-        env = mplane.model.Envelope()
-        for spec in specs:
-            env.append_message(spec)
-            if isinstance(spec, mplane.model.Specification):
-                print("Specification " + spec.get_label() + " successfully pulled by " + identity)
-            else:
-                print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
-        self._respond_json_text(200, mplane.model.unparse_json(env))
+
+        if identity in self._listenerclient._capabilities_by_identity:
+            # reset timeouts for capabilities from the component
+            for token in self._listenerclient._capabilities_by_identity[identity]:
+                self._listenerclient._capability_timeouts[token] = datetime.utcnow()
+
+            specs = self._listenerclient._outgoing.pop(identity, [])
+            env = mplane.model.Envelope()
+            for spec in specs:
+                print("AppendSpec %s" % spec)
+                env.append_message(spec)
+                if isinstance(spec, mplane.model.Specification):
+                    print("Specification " + spec.get_label() + " successfully pulled by " + identity)
+                else:
+                    print("Interrupt " + spec.get_token() + " successfully pulled by " + identity)
+            self._respond_json_text(200, mplane.model.unparse_json(env))
+        else:
+            self._respond_plain_text(428, "not registered")
+
 
 class ResultHandler(MPlaneHandler):
     """

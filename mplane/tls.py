@@ -71,7 +71,7 @@ class TlsState:
                 return urllib3.HTTPSConnectionPool(host, port,
                                                     key_file=self._keyfile,
                                                     cert_file=self._certfile,
-                                                    ca_certs=self._cafile)
+                                                    ca_certs=self._cafile,assert_hostname=False)
             else:
                 return urllib3.HTTPConnectionPool(host, port)
         elif scheme == "http":
@@ -81,10 +81,9 @@ class TlsState:
                 return urllib3.HTTPSConnectionPool(host, port,
                                                     key_file=self._keyfile,
                                                     cert_file=self._certfile,
-                                                    ca_certs=self._cafile)
+                                                    ca_certs=self._cafile,assert_hostname=False)
             else:
                 raise ValueError("SSL requested without providing certificate")
-                exit(1)
         elif scheme == "file":
             # FIXME what to do here?
             raise ValueError("Unsupported scheme "+scheme)

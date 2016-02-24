@@ -45,19 +45,6 @@
                     "filterable":true,
                     "filterConfig":{
                         "filters":{
-                            "label":{
-                                "type":"string",
-                                "text":"Label"
-                            },
-                            "type":{
-                                "type":"enum",
-                                "text":"Type",
-                                "enums":[
-                                    {id:"measure",label:"Measure"},
-                                    {id:"query",label:"Query"},
-                                    {id:"*",label:"Measure and Query"}
-                                ]
-                            }
                         },
                         "position":"top"
                     },

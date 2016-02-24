@@ -1,3 +1,21 @@
+/*
+Copyright (c) 2006-2015, NETvisor Zrt.
+All rights reserved.
+
+Open Source License
+------------------------------------------------------------------------------------------
+This version of Ext JS package is licensed under the terms of the Open Source GPL 3.0 license. 
+
+http://www.gnu.org/licenses/gpl.html
+
+--
+
+THIS SOFTWARE IS DISTRIBUTED "AS-IS" WITHOUT ANY WARRANTIES, CONDITIONS AND REPRESENTATIONS WHETHER EXPRESS OR IMPLIED,
+INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES AND CONDITIONS OF MERCHANTABILITY, MERCHANTABLE QUALITY, FITNESS FOR A
+PARTICULAR PURPOSE, DURABILITY, NON-INFRINGEMENT, PERFORMANCE AND THOSE ARISING BY STATUTE OR FROM CUSTOM OR USAGE OF TRADE
+OR COURSE OF DEALING.
+
+*/
 /**
  * @author Be?ta Pletscher
  * @docauthor Be?ta Pletscher

@@ -25,7 +25,7 @@ are considered to be of the same type and therefore comparable.
 '''
 
 setup(name='mplane-sdk',
-      version='0.9.0',
+      version='0.9.1',
       description='mPlane Software Development Kit for Python 3',
       long_description = long_description,
       author='Brian Trammell',

@@ -36,19 +36,20 @@ from threading import Thread
 
 class RelayService(mplane.scheduler.Service):
 
-    def __init__(self, cap, identity, client, lock, messages):
+    def __init__(self, cap, token, identity, client, lock, messages):
         self.relay = True
         self._identity = identity
         self._client = client
         self._lock = lock
         self._messages = messages
+        self._token = token
         super(RelayService, self).__init__(cap)
 
     def run(self, spec, check_interrupt):
         pattern = re.compile("-\d+$")
         trunc_pos = pattern.search(spec.get_label())
         trunc_label = spec.get_label()[:trunc_pos.start()]
-        fwd_spec = self._client.invoke_capability(trunc_label, spec.when(), spec.parameter_values())
+        fwd_spec = self._client.invoke_capability(self._token, spec.when(), spec.parameter_values())
         result = None
         pending = False
         while result is None:
@@ -77,7 +78,7 @@ class RelayService(mplane.scheduler.Service):
 
 class BaseSupervisor(object):
     
-    def __init__(self, config):
+    def __init__(self, config, run=True):
         self._caps = []
         self.config = config
 
@@ -121,7 +122,8 @@ class BaseSupervisor(object):
             self._component = mplane.component.ListenerHttpComponent(config, io_loop=self._io_loop)
         else:
             raise ValueError("workflow setting in " + args.CONF + " can only be 'client-initiated' or 'component-initiated'")
-        self.run()
+        if run:
+            self.run()
 
     def run(self):
         if (self.cli_workflow == "component-initiated" or
@@ -141,14 +143,18 @@ class BaseSupervisor(object):
 
     def handle_message(self, msg, identity):
         if isinstance(msg, mplane.model.Capability):
-            if [msg.get_label(), identity] not in self._caps:
-                self._caps.append([msg.get_label(), identity])
-                serv = RelayService(msg, identity, self._client,
-                                    self._lock, self._spec_messages)
-                if self.comp_workflow == "client-initiated":
-                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
+            if [msg.get_token(), identity] not in self._caps:
+                self._caps.append([msg.get_token(), identity])
+
+                serv = RelayService(msg, msg.get_token(), identity, self._client, self._lock, self._spec_messages)
+
                 self._component.scheduler.add_service(serv)
-                if self.comp_workflow == "component-initiated":
+
+                if self.comp_workflow == "client-initiated" and \
+                      "listen-cap-link" in self.config["component"]:
+                    serv.set_capability_link(self.config["component"]["listen-cap-link"])
+                if self.comp_workflow == "component-initiated" and \
+                        not msg.get_label() == "callback":
                     self._component.register_to_client([serv.capability()])
 
         elif isinstance(msg, mplane.model.Receipt):
@@ -160,8 +166,9 @@ class BaseSupervisor(object):
                 mplane.utils.add_value_to(self._spec_messages, identity, msg)
             
         elif isinstance(msg, mplane.model.Withdrawal):
-            # not yet implemented
-            pass
+            if not msg.get_label() == "callback":
+                self._component.remove_capability(self._component.scheduler.capability_for_key(msg.get_token()))
+                self._caps.remove([msg.get_token(), identity])
 
         elif isinstance(msg, mplane.model.Envelope):
             for imsg in msg.messages():

@@ -1,3 +1,21 @@
+/*
+Copyright (c) 2006-2015, NETvisor Zrt.
+All rights reserved.
+
+Open Source License
+------------------------------------------------------------------------------------------
+This version of Ext JS package is licensed under the terms of the Open Source GPL 3.0 license. 
+
+http://www.gnu.org/licenses/gpl.html
+
+--
+
+THIS SOFTWARE IS DISTRIBUTED "AS-IS" WITHOUT ANY WARRANTIES, CONDITIONS AND REPRESENTATIONS WHETHER EXPRESS OR IMPLIED,
+INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES AND CONDITIONS OF MERCHANTABILITY, MERCHANTABLE QUALITY, FITNESS FOR A
+PARTICULAR PURPOSE, DURABILITY, NON-INFRINGEMENT, PERFORMANCE AND THOSE ARISING BY STATUTE OR FROM CUSTOM OR USAGE OF TRADE
+OR COURSE OF DEALING.
+
+*/
 /**
  * @author Be?ta Pletscher
  * @docauthor Be?ta Pletscher
@@ -67,6 +85,7 @@ Ext.define('NV.mplane.gui.Constants',{
 		registry: "registry.json",
 		gridUrl: 'resource/mplane-gui/json/capabilityGridDefinition.json',
 		runUrl: '/gui/run/capability',
+		stopUrl: '/gui/stop/capability',
 		runningList:"/gui/list/pendings",
 		resultList:"/gui/list/results",
 		resultDetails: "/gui/get/result",
@@ -80,6 +99,7 @@ Ext.define('NV.mplane.gui.Constants',{
 		registry: "test/json/registry.json",
 		gridUrl: 'resource/mplane-gui/json/capabilityGridDefinition.json',
 		runUrl: 'resource/mplane-gui/json/capabilityGridDefinition.json',
+		stopUrl: 'resource/mplane-gui/json/capabilityGridDefinition.json',
 		runningList:"test/json/capabilities.json",
 		resultList:"test/json/listresult.json",
 		resultDetails: "test/json/getresults.json",
@@ -123,14 +143,14 @@ Ext.define('NV.mplane.gui.LoginForm',{
 	},
 	constructor:function(config){
 		this.callParent([Ext.apply(config,{
-			layout:{
+		layout:{
 				type:'vbox',
 				align:'center'
 			},
 			width:500,
 			height:210,
 			closable:false,
-			title: "Mplane login (new)",
+			title: "Mplane login",
 			buttons:[
 			   {
 				   text:"Ok",
@@ -432,7 +452,7 @@ Ext.define('NV.mplane.gui.utils.ondemand.OnDemand', {
 		    		},
 		    		items:[this.intervallField.getController(), {
 		    			xtype : "button",
-		    			text : "Set intervall",
+		    			text : "Set interval",
 		    			handler: function(){
 		    				this.dashboardConfig.from = this.intervallField.getValue().after;
 		    				this.dashboardConfig.to = this.intervallField.getValue().before;
@@ -867,6 +887,8 @@ Ext.define('NV.mplane.gui.Main',{
 		}
 
 		
+		
+		
 		this.menuPanel = Ext.create('Ext.panel.Panel', {
 		    title: 'Menu',
 		    width: 200,
@@ -890,7 +912,41 @@ Ext.define('NV.mplane.gui.Main',{
 		                
 		    },{
 		        title: 'Dashboard',
-		        html: 'No dashboard specified'
+		        items:[{
+					header : false,
+					border : false,
+					bodyBorder : false,
+					cls : 'hoverMenu',
+					layout : {
+						type : 'hbox'
+					},
+					items : [ {
+
+						xtype : 'image',
+						src : 'resource/mplane-gui/image/dashboard.png',
+						width : 30,
+						height : 30,
+						padding: '5'
+					}, {
+						xtype : 'label',
+						html : 'Sample dashboard',
+						height : 30,
+						border : false,
+						bodyBorder : false,
+						flex : 1,
+						cls : 'leftSubmenu',
+						padding: '5'
+
+					} ],
+					listeners : {
+						render : function(panel) {
+							panel.body.on('click', function() {
+								
+								NV.mplane.gui.Main.goToPage({page:'sampleDashboard'});
+							}, this);
+						}
+					}
+				}] 
 		    },{
 		        title: 'Settings',
 		        html: 'Manage users'
@@ -938,7 +994,18 @@ Ext.define('NV.mplane.gui.Main',{
 		if(this.tabPanel.items.keys.indexOf(params.page)>=0){	//opened
 			this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
 		}else{
-							//new
+			//dashoard hack
+			if(params.page=='sampleDashboard'){
+				newTab = Ext.create('NV.mplane.gui.tab.DashboardTab', {itemId:params.page});
+				this.renderedTabs[params.page] = newTab;
+				
+				this.tabPanel.add(this.renderedTabs[params.page]);
+				this.tabPanel.setActiveTab(this.tabPanel.child('#'+params.page));
+				
+				return;
+			}
+			
+			//new
 			if(NV.mplane.gui.Constants.capabilityMenu[params.page].type=='capability'){
 				newTab = Ext.create('NV.mplane.gui.tab.AllCapabilityTab', {itemId:params.page});
 				this.renderedTabs[params.page] = newTab;
@@ -985,6 +1052,7 @@ Ext.define('NV.mplane.gui.Main',{
 // @tag mplane-gui
 Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
 	extend:'Ext.panel.Panel',
+        config: { labels: [ 'aa', 'bb', 'cc'] },
 	
 	gridUrl: undefined,// NV.mplane.gui.Main.urls.gridUrl,
 	
@@ -1045,6 +1113,13 @@ Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
 	},
 
 	addExtraParametersToFilters: function(filterConfig){
+
+		filterConfig.filters['filter.label']={ text:'Label', type:'string' };
+		filterConfig.filters['filter.type']={ text:'Type', type:'enum', enums: [ 
+						{id:"measure",label:"Measure"}, {id:"query",label:"Query"}, 
+						{id:"*",label:"Measure and Query"} ] };
+		/* bnj: DN -> filter.probe conversion will be done on client side */
+		filterConfig.filters['DN']={ text:'Component DN', type:'list', url:'/gui/list/probes' };
 		for(var i = 0; i < this.parameterDescriptors.length; i++){
 			var filter = {
 					text:this.parameterDescriptors[i].name
@@ -1071,7 +1146,11 @@ Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
 				console.log(this.parameterDescriptors[i]);
 			}
 			
+			/* bnj:
 			filterConfig.filters[this.parameterDescriptors[i].name] = (filter);
+			*/
+			t = 'filter.' + this.parameterDescriptors[i].name;
+			filterConfig.filters[t] = (filter);
 		}
 		return filterConfig.filters;
 	},
@@ -1087,6 +1166,76 @@ Ext.define('NV.mplane.gui.tab.BaseCapabilityTab',{
 			this.grid.disableAutoRefresh();
 		}
 	}
+});
+
+
+//dashboard hack
+Ext.define('NV.mplane.gui.tab.DashboardTab',{
+	extend:'Ext.panel.Panel',
+	runUrl: undefined,
+	/**
+	 * read the grid configuaration and place
+	 */
+	constructor: function(config){
+		
+		var url = 'test/json/nisz-en/dashboard.json';
+		Ext.Ajax.request({
+			url : url,
+			method:'GET',
+			success : function(response) {
+				var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+				if (!json) {
+					return;
+				}	
+				
+				if(!json.parameters){
+					json.parameters = [];
+				}
+				for(var i=0; i<json.parameters.length; i++){
+					if(this.params[json.parameters[i].name]){
+						json.parameters[i].value = this.params[json.parameters[i].name];
+					}
+				}
+				
+				var model = Ext.create('NV.dashboard.layout.model.DashboardModel');
+				model.beginEdit();
+				model.set("editable", false);
+				model.set("cols", json.cols);
+				model.set("row", json.row);
+				model.set("panels", json.panels);
+				model.set("containers", json.visibilityGroups);
+				model.set("parameters", json.parameters==undefined?[]:json.parameters);
+				model.set("panelType", "panel");
+				model.set("containers", json.visibilityGroups);
+				model.set("parameters", json.parameters==undefined?[]:json.parameters);
+				model.set("dashboardID", this.objectId);
+				model.set("urls",{
+					base: "",
+					getDefaultProperties: "/gui/portlets",
+					imageFolderUrl: "/sla/res?REQUESTTYPE=GETIMAGE&IMAGENAME=",
+					lang: "/sla/base?REQUESTTYPE=GETACTUALLOCALE",
+					lang_path: "/sla/resource/dashboard-layout/json/lang/",
+					load: "/sla/res?REQUESTTYPE=GETCONFIGXML&OBJECTTYPE=Dashboard&REPORTTYPE=",//+objectId,
+					portlets: "/sla/res?REQUESTTYPE=GETPORTLETS",
+					save: "/sla/res?REQUESTTYPE=SETXML&OBJECTTYPE=Dashboard&REPORTTYPE=",//+objectId,
+					visibilityGroupUrl: "/sla/res?REQUESTTYPE=GETDASHBOARDPROPERTIES"
+				});
+			//	model.set('addPortletPanelClass', 'NV.sla.dashboard.gui.utils.dashboardeditor.InsertPortletPanel');
+				model.endEdit();
+				this.dashboard = Ext.create('NV.dashboard.layout.dashboard.Dashboard', model);
+				this.dashboard.render(this);
+			},
+			failure : function(response) {
+				NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+			},
+			scope:this
+		});
+		
+		this.callParent([Ext.apply(config,{
+			title:'Sample dashboard'
+			
+		})]);
+	}	
 });
 
 // @tag mplane-gui
@@ -1269,6 +1418,7 @@ Ext.define('NV.mplane.gui.tab.RunningMeasurementsTab',{
 	extend:'NV.mplane.gui.tab.BaseCapabilityTab',
 
 	detailsUrl: undefined,
+        stopUrl: undefined,
 	/**
 	 * read the grid configuaration and place
 	 */
@@ -1276,9 +1426,10 @@ Ext.define('NV.mplane.gui.tab.RunningMeasurementsTab',{
 		
 		
 		this.callParent([Ext.apply(config,{
-			title:'Running measurements',
+			title:'Pending measurements',
 			gridUrl: NV.mplane.gui.Main.urls.gridUrl,
-			detailsUrl: NV.mplane.gui.Main.urls.detailsUrl
+			detailsUrl: NV.mplane.gui.Main.urls.detailsUrl,
+                        stopUrl: NV.mplane.gui.Main.urls.stopUrl
 		})]);
 	},
 
@@ -1309,7 +1460,30 @@ Ext.define('NV.mplane.gui.tab.RunningMeasurementsTab',{
 				scope : this
 			});
 		
-	}
+	},
+
+       stopMeasure: function(f){
+           alert("Stopping " + f.data.probe);
+	   var url = Ext.String.urlAppend(this.stopUrl, "DN="+f.data.probe);
+                Ext.Ajax.request({
+                        url: url,
+                        method:'POST',
+                        success : function(response) {
+                                var json = NV.ext.ux.nv.GlobalErrorHandler.jsonResponseErrorHandler(response);
+                                if (!json) {
+                                        return;
+                                }
+
+                                alert(f.data.probe + ' has been stopped');
+				this.grid.store.reload();
+                        },
+                        failure : function(response) {
+                                NV.ext.ux.nv.GlobalErrorHandler.requestFailedErrorHandler(response);
+                        },
+			scope:this
+                });
+
+       }
 });
 
 // @tag mplane-gui
@@ -1739,9 +1913,27 @@ Ext.define('NV.mplane.gui.utils.OnDemand', {
 Ext.define("NV.mplane.gui.utils.PendingGrid",{
 	extend:'NV.mplane.gui.utils.CapabilityGrid',
 	
-	createExtraFieldsBefore : function(fieldConfig) {
-		
-	}
+        createExtraFieldsBefore : function(fieldConfig) {
+
+                fieldConfig.push({
+                        menuDisabled : true,
+                        sortable : false,
+                        xtype : 'actioncolumn',
+                        width : 30,
+                        items : [ {
+                                icon: 'resource/mplane-gui/image/stop.png',
+                                tooltip : 'Stop pending measurement',
+                                handler : function(grid, rowIndex, colIndex) {
+                                        var rec = grid.getStore().getAt(rowIndex);
+                                        this.myTab.stopMeasure(rec);
+                                },
+                                scope : this
+                        } ]
+                });
+
+        }
+
+
 });
 
 // @tag mplane-gui
@@ -2241,6 +2433,9 @@ Ext.define('NV.mplane.gui.windows.DetailsWindow', {
 // @tag mplane-gui
 Ext.define('NV.mplane.gui.windows.RunWindow',{
 	extend:'Ext.window.Window',
+        config: {
+		width:1000
+	},
 		
 	parent:undefined,
 	
@@ -2254,48 +2449,73 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 		if(size>1){
 			items.push(Ext.create('Ext.form.FieldContainer',{
 				layout:'hbox',
-		        anchor: '100%',
+		        	anchor: '100%',
+				width: '600',
 				items:[
 				       {xtype:"label", text:"Capability:", width:"100px"},
 				       {xtype:"label", text:measure.get("label")},
 				]
 			}));
 		}*/
+
+		var whenStore = new Ext.data.ArrayStore({
+		    expandData: true, 
+		    data : [ ],
+		    fields: [ {name: 'text'}  ],
+//		    autoLoad: true
+		});
+	
 		
-		items.push(Ext.create('Ext.form.field.Text',{
-			anchor: '100%',
-	        name: "when",
-	        value: measure.raw.when,
-	        fieldLabel: "When",
+		var current=this;
+
+		items.push(
+			Ext.create('Ext.form.field.ComboBox',{
+				anchor: '100%',
+				name: "when",
+				value: measure.raw.when,
+				fieldLabel: "When",
+                store: new Ext.data.ArrayStore({
+                    expandData: true,
+                    data : [ ],
+                    fields: [ {name: 'text'}  ],
+//                  autoLoad: true
+                }),
+				queryMode: "local",
+				width: "200",
+				msgTarget: 'under',
 	        
-//	        tooltip: 'When run?',
-//	        tooltipType: "title",
-//	        disabled: !editable,
-//	        readOnlyCls: 'NvReadonlyField',
+				tooltip: 'When run?',
+//	        	tooltipType: "title",
+//	        	disabled: !editable,
+//	        	readOnlyCls: 'NvReadonlyField',
+			validateOnChange: false, 
+				validator: function(o) { 
+					return current.whenvalidator(o); 
+				}
 		}));
 		
 		var descriptors = NV.mplane.gui.Constants.parameterMap;
 		for(var i in measure.raw.parameters){
-			var actParam = measure.raw.parameters[i];
-			var editable = false;
-			if(actParam.trim()=="*"){
+		    var actParam = measure.raw.parameters[i];
+		    var editable = false;
+		    if(actParam.trim()=="*"){
 				//ki kell tölteni,
 				editable = true;				
-			}else if(actParam.indexOf("..")>=0 ){
+		    }else if(actParam.indexOf("..")>=0 ){
 				//szám és - jel van benne -> ki kell tölteni
 				editable = true;
-			}else if(descriptors[i].prim=='address' && actParam.indexOf("/")>=0 ){
+		    }else if(descriptors[i].prim=='address' && actParam.indexOf("/")>=0 ){
 				//ip cím és ki kell tölteni
 				editable = true;
-			}else if(actParam.indexOf(",")>=0 ){
+	  	    }else if(actParam.indexOf(",")>=0 ){
 				//felsorolás és ki kell tölteni
 				editable = true;
-			}else{
+		    }else{
 				//fix értéke van
 				editable = false;
-			}
-			
+		    }
 
+		    if(editable) {
 			if(actParam.indexOf(",")>0){
 				//felsorolás típusú
 				var store = Ext.create('Ext.data.Store', {
@@ -2324,7 +2544,7 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 		    	    editable:editable
 				}));
 			}
-			if(descriptors[i].prim=='natural' || descriptors[i].prim=='real'){
+			else if(descriptors[i].prim=='natural' || descriptors[i].prim=='real'){
 				
 				var minValue, maxValue; 
 				if(actParam.indexOf("..")>=0){
@@ -2353,7 +2573,7 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			    }));
 			}
 			else if(descriptors[i].prim=='address'){
-				items.push(Ext.create('Ext.form.field.Text',{
+				items.push(Ext.create('Ext.form.field.ComboBox',{
 			        anchor: '100%',
 			        name: i,
 			        value: actParam,
@@ -2362,10 +2582,16 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        tooltipType: "title",
 			        disabled: !editable,
 			        readOnlyCls: 'NvReadonlyField',
+                                store: new Ext.data.ArrayStore({
+                                   expandData: true,
+                                   data : [ ],
+                                   fields: [ {name: 'text'}  ],
+                                }),
+		                queryMode: "local",
 			        regexText:'\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
 			    }));
 			}else if(descriptors[i].prim=='string' || descriptors[i].prim=='url' ){
-				items.push(Ext.create('Ext.form.field.Text',{
+				items.push(Ext.create('Ext.form.field.ComboBox',{
 			        anchor: '100%',
 			        name: i,
 			        value:actParam,
@@ -2373,10 +2599,16 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        disabled: !editable,
 			        tooltipType: "title",
 			        tooltip: descriptors[i].desc,
+                                store: new Ext.data.ArrayStore({
+                                   expandData: true,
+                                   data : [ ],
+                                   fields: [ {name: 'text'}  ],
+                                }),
+		                queryMode: "local",
 			        readOnlyCls: 'NvReadonlyField'
 			    }));
 			}else if(descriptors[i].prim=='time'){
-				items.push(Ext.create('Ext.form.field.Text',{
+				items.push(Ext.create('Ext.form.field.ComboBox',{
 			        anchor: '100%',
 			        name: i,
 			        fieldLabel: i,
@@ -2384,8 +2616,15 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        tooltipType: "title",
 			        disabled: !editable,
 			        value:actParam,
+                                store: new Ext.data.ArrayStore({
+                                   expandData: true,
+                                   data : [ ],
+                                   fields: [ {name: 'text'}  ],
+                                }),
+		                queryMode: "local",
 			        readOnlyCls: 'NvReadonlyField'
 		//	        regex:"\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
+
 			    }));
 			}
 			else if(descriptors[i].prim=='boolean'){
@@ -2410,9 +2649,34 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			        }));
 				
 			}
-			
+		    }	
+		    else {
+			items.push(Ext.create('Ext.form.field.Text',{
+			        anchor: '100%',
+			        name: i,
+			        value:actParam,
+			        fieldLabel: i,
+			        disabled: true,
+			        tooltipType: "title",
+			        tooltip: descriptors[i].desc,
+			        readOnlyCls: 'NvReadonlyField'
+		        }));
+		    }
 		}
 		
+                Ext.Ajax.request({
+                        url : "history.json",
+                        success : function(response) {
+				var data = Ext.decode(response.responseText);
+				for(var item in this) {
+				  if(this.hasOwnProperty(item) && this[item].store) {
+						this[item].store.loadData(data[this[item].name]);
+				  }
+				}
+			},
+			scope:items
+		});
+
 		this.runForm = Ext.create('Ext.form.Panel',{
 			items:items,
 			layout:"vbox",
@@ -2448,7 +2712,106 @@ Ext.define('NV.mplane.gui.windows.RunWindow',{
 			         }
 			]
 		}]);
-	}
+	},
+        
+        validate_duration : function(tok) {
+		var nums= tok.split(/[dhms]/);
+		if(nums.length == 0) throw("expression end");
+		for(k in nums) {
+		   if(!nums[k].match(k < nums.length -1 ? /^[0-9]+$/ : /^$/)) {
+			throw(tok + ": invalid duration");
+		   }
+		}
+        },
+
+        validate_iso : function(tok1, tok2) {
+	  if(tok1.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && 
+             tok2.match(/^[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3})?$/)) return true;
+	  if(!tok1) throw("expression end");
+	  if(tok2) tok1 = tok1 + " " + tok2;
+	  throw("token " + tok1);
+        },
+
+        whenvalidator : function(value) {
+		  var tokens = value.replace(/^[ ]+/,"").replace(/ +$/,"").replace(/[ ]+|\+|\.\.\.|\//g,"|$&|").split(/[ \|]+/); 
+		  var repeated = false;
+		  if(tokens.length == 0) return("Empty string");
+			
+		  try {
+  	            var tokn=0;
+		    if(tokens[tokn].match(/repeat/)) {
+			repeated = true;
+			tokn++;
+		    }
+		    var mode = 0;
+		    if(tokens[tokn].match(/^now$/)) mode = 1;
+		    else if(tokens[tokn].match(/^past$/)) mode = 2;
+		    else {
+			this.validate_iso(tokens[tokn],tokens[++tokn]);
+			mode=3; 
+		    }
+ 	            tokn++;
+
+		    if(tokn == tokens.length) {
+		      if(mode==2) throw("past not supported as singleton");
+		      if(repeated) throw("singleton is not supported for repeat");
+		    }
+		    else {
+		      if(tokn + 1 >= tokens.length) throw("range expr: " + tokens[tokn]);
+		      var t=tokens[tokn++];
+		      switch(t) {
+			case "+": 
+				if(mode==2) throw("past is invalid for + range");
+				this.validate_duration(tokens[tokn++]);
+				break;
+			case "...":
+		      		if(tokens[tokn].match(/^now$/)) { if(mode==1) throw("'now ... now' range"); }
+				else if(tokens[tokn].match(/^future$/));
+				else {
+				  this.validate_iso(tokens[tokn],tokens[++tokn]);
+				  if(mode==2) throw("invalid 'past ...' range"); 
+				}
+				tokn++;
+				break;
+			default: throw("range operator: " + t);
+		      };
+		      
+		      if(tokn < tokens.length && tokens[tokn] == "/") {
+			++tokn;
+			this.validate_duration(tokens[tokn++]);
+		      } 
+		      else if(tokens[tokn] == 'cron') {
+                         if(!repeated) throw("cron only valid for repeated when");
+			 tokn++;
+			 lims=[60, 60, 24, 31, 7, 12]
+			 for(var i = 0; i < 6; i++) {
+			 	var s = tokens[tokn++];
+				if(s != '*') {
+				   var nums=s.split(',');
+				   for(var num in nums) {
+					if( !num.match(/^[0-9][0-9]?$/) || num > lims[i]) throw("cron expr token: " + s);
+				   }
+				}
+			 }
+			 if(tokens[tokn] != '{') throw("end, '{ <inner_when> }' expected)");
+		      }
+                      if(repeated && tokn != tokens.length) {
+			   if(tokens[tokn++] != '{' || tokens[tokn++] != 'now') throw(tokens[tokn-1] + " in '{ inner_when }'");
+		           if(tokens[tokn] == '+') {
+				tokn++;
+				this.validate_duration(tokens[tokn++]);				
+  		                if(tokens[tokn] == '/') { tokn++; this.validate_duration(tokens[tokn++]); }				
+			   }
+			   if(tokens[tokn++] != '}') throw("missing '}'"); 
+			}
+		    }
+                    if(tokn != tokens.length) throw("extra tokens: " + tokens[tokn]);
+		  } catch(msg) {
+	                  return "Invalid when at " + msg;
+		  }
+		  return true;
+		}
+
 });
 
 Ext.ClassManager.addNameAliasMappings({

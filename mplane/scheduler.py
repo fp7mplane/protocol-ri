@@ -333,6 +333,7 @@ class MultiJob(object):
             return self.receipt
 
     def _job_callback(self, arg):
+        self.collect_results()        
         if self._callback:
             self._callback(self.receipt)
 
@@ -410,6 +411,12 @@ class Scheduler(object):
         self.services.append(service)
         cap = service.capability()
         self._capability_cache[cap.get_token()] = cap
+
+    def remove_service(self, service):
+        """Remove a service from this Scheduler"""
+        self.services.remove(service)
+        withdrawn_cap = mplane.model.Withdrawal(capability=service.capability())
+        self._capability_cache[withdrawn_cap.get_token()] = withdrawn_cap
 
     def capability_keys(self):
         """
