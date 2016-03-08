@@ -376,7 +376,7 @@ class ClientShell(cmd.Cmd):
 
         # Now invoke it
         self._client.invoke_capability(cap.get_token(), self._when, params, relabel)
-        print("ok")
+        print(cap.get_token(), "Started with OK")
 
     def complete_runcap(self, text, line, start_index, end_index):
         """Tab-complete known capability labels and tokens in first position"""
@@ -589,8 +589,7 @@ if __name__ == "__main__":
     # create a shell
     cs = ClientShell(config)
 
-    threading.Thread(target=rrd_export_controller, args=[cs]).start()
-
+    threading.Thread(target=rrd_export_controller, args=[cs],daemon = True).start()
 
     while not cs.exited:
         try:
