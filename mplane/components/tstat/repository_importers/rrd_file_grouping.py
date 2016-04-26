@@ -63,6 +63,9 @@ video_rate_prefix = "video_rate"
 video_flow_prefix = "L7_VIDEO_num"
 interrupt_prefix = "interrupted"
 
+tls_bitrate_prefix = "tls_bitrate"
+tls_flow_prefix = "L7_TLS_num"
+
 
 def rrd_file_classification (filename):
     readable_name = ""
@@ -144,12 +147,24 @@ def rrd_file_classification (filename):
     elif (web_bitrate_prefix in filename):
         readable_name = "WEB bitrate bit sec" + graphite_delimiter
         readable_name += in_out_local(filename)
-        readable_name += http_index_decoder (extract_index(filename))
+        readable_name += web_index_decoder (extract_index(filename))
 
     elif (web_flow_prefix in filename):
-        readable_name = "HTTP flow number" + graphite_delimiter
+        readable_name = "WEB flow number" + graphite_delimiter
         readable_name += in_out_local(filename)
-        readable_name += http_index_decoder (extract_index(filename))
+        readable_name += web_index_decoder (extract_index(filename))
+
+
+    elif (tls_bitrate_prefix in filename):
+        readable_name = "TLS bitrate bit sec" + graphite_delimiter
+        readable_name += in_out_local(filename)
+        readable_name += tls_index_decoder (extract_index(filename))
+
+    elif (tls_flow_prefix in filename):
+        readable_name = "TLS flow number" + graphite_delimiter
+        readable_name += in_out_local(filename)
+        readable_name += tls_index_decoder (extract_index(filename))
+
 
 
     elif (video_rate_prefix in filename):
@@ -178,7 +193,7 @@ def rrd_file_classification (filename):
             readable_name += tcp_connection_length_extract(filename)
 
     else:
-        print ("UNKNOWN FIX ME" + str(filename))
+        print ("UNKNOWN FIX ME --> " + str(filename))
 
 
     readable_name = readable_name.replace(" ", "_")
@@ -435,7 +450,7 @@ def in_out_local(filename):
     elif("loc" in fields[-2]):
         output = "local" + graphite_delimiter
     else:
-        output = "Unkown_in_out_loc" + graphite_delimiter
+        output = "Unkowninoutlocal" + graphite_delimiter
 
     return output
 
@@ -468,6 +483,8 @@ def index_decoder_ip(index):
         output = "TCP"
     elif(index == "1"):
         output = "ICMP"
+    elif(index == "41"):
+        output = "IPV6"
     else:
         output = "OTHERS"
     return output
@@ -476,6 +493,12 @@ def port_decoder_tcp(index):
     output = ""
     if(index == "8080"):
         output = "Squid"
+    elif(index == "8889"):
+        output = "mPlane Supervisor"
+    elif(index == "8890"):
+        output = "mPlane Supervisor"
+    elif(index == "9000"):
+        output = "mPlane Repository"
     elif(index == "6881"):
         output = "BitTorrent"
     elif(index == "6699"):
@@ -725,6 +748,9 @@ def port_decoder_udp(index):
     if(index == "6346"):
         output = "Gnutella-svc"
 
+    elif(index == "33434"):
+        output = "TRACEROUTE"
+
     elif(index == "4672"):
         output = "eDonkey"
 
@@ -733,6 +759,9 @@ def port_decoder_udp(index):
 
     elif(index == "123"):
         output = "NTP"
+
+    elif(index == "80"):
+        output = "PING"
 
     elif(index == "69"):
         output = "TFTP"
@@ -854,7 +883,6 @@ def multicast_index_decoder(filename):
 
 
     return output
-
 
 def http_index_decoder(filename):
     output = ""
@@ -1094,6 +1122,71 @@ def video_index_decoder(filename):
 
     elif(filename == "13"):
         output = "NFF Sky-On_Demand"
+
+    else:
+        output = "Unknown"
+    return output
+
+# check tstat/struct.h
+def web_index_decoder(filename):
+    output = ""
+
+    if(filename == "0"):
+        output = "GET"
+
+    elif(filename == "1"):
+        output = "POST"
+
+    elif(filename == "2"):
+        output = "STORAGE"
+
+    elif(filename == "3"):
+        output = "YOUTUBE"
+
+    elif(filename == "4"):
+        output = "VIDEO"
+
+    elif(filename == "5"):
+        output = "SOCIAL"
+
+    elif(filename == "6"):
+        output = "OTHER"
+
+    elif(filename == "7"):
+        output = "NETFLIX"
+
+    else:
+        output = "Unknown"
+    return output
+
+
+# check tstat/struct.h
+def tls_index_decoder(filename):
+    output = ""
+
+    if(filename == "0"):
+        output = "OTHER"
+
+    elif(filename == "1"):
+        output = "GOOGLE"
+
+    elif(filename == "2"):
+        output = "YOUTUBE"
+
+    elif(filename == "3"):
+        output = "FACEBOOK"
+
+    elif(filename == "4"):
+        output = "NETFLIX"
+
+    elif(filename == "5"):
+        output = "DROPBOX"
+
+    elif(filename == "6"):
+        output = "MICROSOFT"
+
+    elif(filename == "7"):
+        output = "APPLE"
 
     else:
         output = "Unknown"
