@@ -86,7 +86,7 @@ def send_result_to_graphite (d, metric):
         timestamp = field[1]
         value = field[2]
 
-        Component_Id = d.split("-")
+        Component_Id = d.split("Monroe_")
 
         lines   = ['tstat.%s.%s %f %f' % (str(Component_Id[-1]), str(readable_name), float(value), float(timestamp))]
 
