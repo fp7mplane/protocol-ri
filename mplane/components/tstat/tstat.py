@@ -34,6 +34,7 @@ import subprocess
 from mplane.components.tstat.tstat_exporters import tstat_rrd_exporter
 from mplane.components.tstat.tstat_exporters import tstat_streaming_exporter
 
+rrd_exporter_process = None
 
 """
 Implements tStat capabilities and services
@@ -325,6 +326,8 @@ class tStatExporterService(mplane.scheduler.Service):
         Execute this Service
 
         """
+        global rrd_exporter_process
+
         (start_time , end_time) = spec._when.datetimes()
         duration = spec.when().duration().total_seconds()
 
@@ -338,6 +341,12 @@ class tStatExporterService(mplane.scheduler.Service):
             self.change_conf(spec.get_label(), True)
 
         elif "tstat-exporter_rrd" in spec.get_label():
+            if rrd_exporter_process is not None:
+                parent = psutil.Process(rrd_exporter_process.pid)
+                for child in parent.children(recursive=True):
+                    child.kill()
+                parent.kill()
+            print ("kill already existing tstat-exporter_rrd !!!")
             process = tstat_rrd_exporter.run(self, self.config, self.rrd_path, spec,  start_time )
 
         elif "tstat-exporter_log" in spec.get_label():
@@ -369,6 +378,8 @@ class tStatExporterService(mplane.scheduler.Service):
         else:
             raise ValueError("Capability family doesn't exist")
 
+        rrd_exporter_process = process
+        
         self.wait_and_stop(end_time, check_interrupt, spec, process)
 
         # wait for specification execution
