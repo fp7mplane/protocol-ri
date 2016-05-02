@@ -284,7 +284,9 @@ def stream_classifier(filename):
 
 
         readable_name += in_out_local(filename)
-        readable_name += measure_type(filename)
+        if(type_prefix not in filename):
+            readable_name += measure_type(filename)
+
 
         if(type_prefix in filename):
             readable_name += "type" + graphite_delimiter 
