@@ -26,7 +26,7 @@ import sys
 
 import multiprocessing
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, isdir
 
 import json
 import rrdtool
@@ -65,6 +65,20 @@ def connect_to_repository(self, tls, repository_ip4, repository_port):
     self.repo_pool = tls.pool_for(None, host=repository_ip4, port=repository_port)
     return
 
+def read_latest_fetched_data(self, path):
+    if ( isdir (path) and isfile(join(path,"latest_fetched_data.txt")) ) :
+        fp = open (join(path,"latest_fetched_data.txt"), "r")
+        latest_time = fp.readline()
+        if (latest_time.isdigit()):
+            return  latest_time
+    return 0
+
+def write_latest_fetched_data(self, path,last_fetched_time):
+    if ( isdir (path) ) :
+        fp = open (join(path,"latest_fetched_data.txt"), "w")
+        fp.write(str(last_fetched_time))
+
+
 def indirect_export(self, tls, path, spec, start,interval):
     """
     
@@ -81,7 +95,7 @@ def indirect_export(self, tls, path, spec, start,interval):
     repository_port = int(spec.get_parameter_value("repository.url").split(":")[-1])
 
     connect_to_repository(self, tls, repository_ip, repository_port)
-    last_fetched_time = 0
+    last_fetched_time = int (read_latest_fetched_data(self, path))
 
     # change the time expressed in UTC to local timezone    
     start_local = change_to_local_tzone(start)
@@ -90,6 +104,11 @@ def indirect_export(self, tls, path, spec, start,interval):
     print ("UTC start time :" + str(start))
 
     while True:
+
+        if ( not isdir (path)):
+            print ("RRD directory does not exist !\n Check after 60 Seconds. ")
+            sleep (60) 
+            continue
 
         # fetch RRD files till the process killed by the function -> change_conf_indirect_export
         result_list = []
@@ -101,7 +120,6 @@ def indirect_export(self, tls, path, spec, start,interval):
         else:
             startTime = str(last_fetched_time)
 
-
         endTime = str (int(time()))
         rrd_files = [ f for f in listdir(path) if isfile(join(path,f)) and (".rrd" in f) ]
 
@@ -112,22 +130,29 @@ def indirect_export(self, tls, path, spec, start,interval):
 
             for tuple in rrdMetric[2]:
                 if tuple[0] is not None:
-
                     rrd_time = rrd_time + interval
                     timestamp = float(rrd_time)
                     value = float(tuple[0])
                     metric = f
-                    
                     if (rrd_time > last_fetched_time):
                         last_fetched_time = int(rrd_time)
 
                     result_list.append((metric,timestamp,value))
-            
-        print ("result list size :    " + str(len (result_list)))
 
+            if (len (result_list) > 1000):
+                print ("result list size :    " + str(len (result_list)))
+                while ( not return_results_to_repository(self, result_list) ):
+                    connect_to_repository(self, tls, repository_ip, repository_port)
+                    sleep (30)
+                result_list = []
+                            
         if len(result_list) > 0:
-            return_results_to_repository(self, result_list)
-
+            print ("result list size :    " + str(len (result_list)))
+            while ( not return_results_to_repository(self, result_list) ):
+                connect_to_repository(self, tls, repository_ip, repository_port)
+                sleep (30)
+                
+        write_latest_fetched_data(self, path,last_fetched_time)
         sleep(interval)
 
 def return_results_to_repository(self, res):
@@ -136,23 +161,21 @@ def return_results_to_repository(self, res):
     repository proxy    
 
     """
-
-
     url = "/" + RESULT_PATH_INDIRECT
 
     # send result to the Repository
-    
-    rec_res = self.repo_pool.urlopen('POST', url, 
+    rec_res = self.repo_pool.urlopen('POST', url, retries = 10,
     body=json.dumps(res).encode("utf-8"), 
     headers={"content-type": "application/json"})
-            
+
     # handle response
     if rec_res.status == 200:
         print("RRD logs successfully returned!")
+        return True
     else:
         print("Error returning Result for " )
         print("Repository said: " + str(rec_res.status) + " - " + rec_res.data.decode("utf-8"))
-    pass 
+        return False
 
 
 
