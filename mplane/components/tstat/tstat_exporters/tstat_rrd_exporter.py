@@ -65,17 +65,17 @@ def connect_to_repository(self, tls, repository_ip4, repository_port):
     self.repo_pool = tls.pool_for(None, host=repository_ip4, port=repository_port)
     return
 
-def read_latest_fetched_data(self, path):
-    if ( isdir (path) and isfile(join(path,"latest_fetched_data.txt")) ) :
-        fp = open (join(path,"latest_fetched_data.txt"), "r")
+def read_latest_fetched_data(self, path,interface):
+    if ( isdir (join(path,interface) ) and isfile(join(path,interface,"latest_fetched_data.txt")) ) :
+        fp = open (join(path,interface,"latest_fetched_data.txt"), "r")
         latest_time = fp.readline()
         if (latest_time.isdigit()):
             return  latest_time
     return 0
 
-def write_latest_fetched_data(self, path,last_fetched_time):
-    if ( isdir (path) ) :
-        fp = open (join(path,"latest_fetched_data.txt"), "w")
+def write_latest_fetched_data(self, path,interface,last_fetched_time):
+    if ( isdir (join(path,interface)) ) :
+        fp = open (join(path,interface,"latest_fetched_data.txt"), "w")
         fp.write(str(last_fetched_time))
 
 
@@ -95,7 +95,6 @@ def indirect_export(self, tls, path, spec, start,interval):
     repository_port = int(spec.get_parameter_value("repository.url").split(":")[-1])
 
     connect_to_repository(self, tls, repository_ip, repository_port)
-    last_fetched_time = int (read_latest_fetched_data(self, path))
 
     # change the time expressed in UTC to local timezone    
     start_local = change_to_local_tzone(start)
@@ -107,52 +106,60 @@ def indirect_export(self, tls, path, spec, start,interval):
 
         if ( not isdir (path)):
             print ("RRD directory does not exist !\n Check after 60 Seconds. ")
-            sleep (60) 
-            continue
+            exit()
 
-        # fetch RRD files till the process killed by the function -> change_conf_indirect_export
-        result_list = []
-        if(last_fetched_time == 0):
-            #convert timedate fprmat to time format
-            start_time_local = int(mktime(start_local.timetuple()))
-            startTime = str (start_time_local - interval )
+        Interface_list = [ d for d in listdir(path) if isdir(join(path,d)) ]
 
-        else:
-            startTime = str(last_fetched_time)
+        for interface in Interface_list:
 
-        endTime = str (int(time()))
-        rrd_files = [ f for f in listdir(path) if isfile(join(path,f)) and (".rrd" in f) ]
+            last_fetched_time = int (read_latest_fetched_data(self, path,interface))
 
-        for f in rrd_files :
-            rrdMetric = rrdtool.fetch( (path  + f),  "AVERAGE" ,'--resolution', str(interval), '-s', startTime, '-e', endTime)
 
-            rrd_time = rrdMetric[0][0]
+            # fetch RRD files till the process killed by the function -> change_conf_indirect_export
+            result_list = [(interface)]
+            if(last_fetched_time == 0):
+                #convert timedate fprmat to time format
+                start_time_local = int(mktime(start_local.timetuple()))
+                startTime = str (start_time_local - interval )
 
-            for tuple in rrdMetric[2]:
-                if tuple[0] is not None:
-                    rrd_time = rrd_time + interval
-                    timestamp = float(rrd_time)
-                    value = float(tuple[0])
-                    metric = f
-                    if (rrd_time > last_fetched_time):
-                        last_fetched_time = int(rrd_time)
+            else:
+                startTime = str(last_fetched_time)
 
-                    result_list.append((metric,timestamp,value))
+            endTime = str (int(time()))
+            rrd_files = [ f for f in listdir(join(path,interface)) if isfile(join(path,interface,f)) and (".rrd" in f) ]
 
-            if (len (result_list) > 1000):
+            for f in rrd_files :
+                rrdMetric = rrdtool.fetch( join(path,interface,f),  "AVERAGE" ,'--resolution', str(interval), '-s', startTime, '-e', endTime)
+
+                rrd_time = rrdMetric[0][0]
+
+                for tuple in rrdMetric[2]:
+                    if tuple[0] is not None:
+                        rrd_time = rrd_time + interval
+                        timestamp = float(rrd_time)
+                        value = float(tuple[0])
+                        metric = f
+                        if (rrd_time > last_fetched_time):
+                            last_fetched_time = int(rrd_time)
+
+                        result_list.append((metric,timestamp,value))
+
+                if (len (result_list) > 1000):
+                    print ("result list size :    " + str(len (result_list)))
+                    while ( not return_results_to_repository(self, result_list) ):
+                        connect_to_repository(self, tls, repository_ip, repository_port)
+                        sleep (30)
+                    result_list = [(interface)]
+                                
+            if len(result_list) > 1:
                 print ("result list size :    " + str(len (result_list)))
                 while ( not return_results_to_repository(self, result_list) ):
                     connect_to_repository(self, tls, repository_ip, repository_port)
                     sleep (30)
-                result_list = []
-                            
-        if len(result_list) > 0:
-            print ("result list size :    " + str(len (result_list)))
-            while ( not return_results_to_repository(self, result_list) ):
-                connect_to_repository(self, tls, repository_ip, repository_port)
-                sleep (30)
-                
-        write_latest_fetched_data(self, path,last_fetched_time)
+                    
+            write_latest_fetched_data(self, path,interface,last_fetched_time)
+
+
         sleep(interval)
 
 def return_results_to_repository(self, res):

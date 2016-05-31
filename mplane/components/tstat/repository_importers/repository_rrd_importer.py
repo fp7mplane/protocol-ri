@@ -79,8 +79,12 @@ def send_result_to_graphite (d, metric):
     """
     carbonconnection()
     message_carbon = ""
+    if type(metric[0]) is list:        
+        interface=""
+    else:
+        interface=metric[0]
 
-    for field in metric:
+    for field in metric[1:]:
 
         readable_name = rrd_file_classification (field[0])
         timestamp = field[1]
@@ -88,7 +92,7 @@ def send_result_to_graphite (d, metric):
 
         Component_Id = d.split("Monroe_")
 
-        lines   = ['tstat.%s.%s %f %f' % (str(Component_Id[-1]), str(readable_name), float(value), float(timestamp))]
+        lines   = ['tstat.%s.%s.%s %f %f' % (str(Component_Id[-1]),str (interface), str(readable_name), float(value), float(timestamp))]
 
         message_carbon += '\n'.join(lines) + '\n'
 
