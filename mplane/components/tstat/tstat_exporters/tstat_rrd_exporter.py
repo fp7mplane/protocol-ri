@@ -17,20 +17,21 @@
 
 from datetime import datetime, timedelta
 from time import sleep, time, mktime
-import mplane.model
-import mplane.utils
 
 
 from socket import socket
 import sys
 
 import multiprocessing
-from os import listdir
+from os import listdir,rename
 from os.path import isfile, join, isdir
 
 import json
 import rrdtool
 from dateutil import tz
+
+import pickle
+import gzip
 
 
 DEFAULT_RRD_INTERVAL = 300
@@ -78,7 +79,7 @@ def write_latest_fetched_data(self, path,interface,last_fetched_time):
         fp = open (join(path,interface,"latest_fetched_data.txt"), "w")
         fp.write(str(last_fetched_time))
 
-
+# change the start time from begining
 def indirect_export(self, tls, path, spec, start,interval):
     """
     
@@ -96,71 +97,42 @@ def indirect_export(self, tls, path, spec, start,interval):
 
     connect_to_repository(self, tls, repository_ip, repository_port)
 
-    # change the time expressed in UTC to local timezone    
+    # change the time expressed in UTC to local timezone 
     start_local = change_to_local_tzone(start)
 
     print ("local start time :" + str(start_local))
     print ("UTC start time :" + str(start))
-
     while True:
 
         if ( not isdir (path)):
-            print ("RRD directory does not exist !\n Check after 60 Seconds. ")
+            print ("RRD directory does not exist !\n ")
             exit()
+        in_path=path
+        Node_list = [ d for d in listdir(in_path) if isdir(join(in_path,d)) ]
 
-        Interface_list = [ d for d in listdir(path) if isdir(join(path,d)) ]
+        for node in Node_list:
+            in_path=join(path,node)
 
-        for interface in Interface_list:
+            Interface_list = [ d for d in listdir(in_path) if isdir(join(in_path,d)) ]
+            for interface in Interface_list:
+                in_path=join(path,node,interface)
 
-            last_fetched_time = int (read_latest_fetched_data(self, path,interface))
+                rrd_file_list = [ d for d in listdir(in_path) if (isfile(join(in_path,d)) and d.endswith(".pickle.gz") ) ]
+                rrd_file_list.sort(reverse=False)
 
-
-            # fetch RRD files till the process killed by the function -> change_conf_indirect_export
-            result_list = [(interface)]
-            if(last_fetched_time == 0):
-                #convert timedate fprmat to time format
-                start_time_local = int(mktime(start_local.timetuple()))
-                startTime = str (start_time_local - interval )
-
-            else:
-                startTime = str(last_fetched_time)
-
-            endTime = str (int(time()))
-            rrd_files = [ f for f in listdir(join(path,interface)) if isfile(join(path,interface,f)) and (".rrd" in f) ]
-
-            for f in rrd_files :
-                rrdMetric = rrdtool.fetch( join(path,interface,f),  "AVERAGE" ,'--resolution', str(interval), '-s', startTime, '-e', endTime)
-
-                rrd_time = rrdMetric[0][0]
-
-                for tuple in rrdMetric[2]:
-                    if tuple[0] is not None:
-                        rrd_time = rrd_time + interval
-                        timestamp = float(rrd_time)
-                        value = float(tuple[0])
-                        metric = f
-                        if (rrd_time > last_fetched_time):
-                            last_fetched_time = int(rrd_time)
-
-                        result_list.append((metric,timestamp,value))
-
-                if (len (result_list) > 1000):
-                    print ("result list size :    " + str(len (result_list)))
-                    while ( not return_results_to_repository(self, result_list) ):
-                        connect_to_repository(self, tls, repository_ip, repository_port)
-                        sleep (30)
-                    result_list = [(interface)]
-                                
-            if len(result_list) > 1:
-                print ("result list size :    " + str(len (result_list)))
-                while ( not return_results_to_repository(self, result_list) ):
-                    connect_to_repository(self, tls, repository_ip, repository_port)
-                    sleep (30)
-                    
-            write_latest_fetched_data(self, path,interface,last_fetched_time)
-
-
-        sleep(interval)
+                for f in rrd_file_list:
+                    result_list=[]
+                    with gzip.open(join(in_path,f) , "rb") as fp: 
+                        binary_content=fp.read()
+                        result_list=pickle.loads(binary_content)
+                        result_list.insert(0,(node,interface))
+                    rename(join(in_path,f),join(in_path,f.replace("pickle","exported")))
+                    if (len (result_list) > 0):
+                        print ("result list size :    " + str(len (result_list)))
+                        while ( not return_results_to_repository(self, result_list) ):
+                            connect_to_repository(self, tls, repository_ip, repository_port)
+                            sleep (10)
+        sleep(1)
 
 def return_results_to_repository(self, res):
     """

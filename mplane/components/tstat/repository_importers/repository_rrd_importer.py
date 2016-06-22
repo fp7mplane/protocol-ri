@@ -82,7 +82,8 @@ def send_result_to_graphite (d, metric):
     if type(metric[0]) is list:        
         interface=""
     else:
-        interface=metric[0]
+        node_id=metric[0]
+        interface=metric[1]
 
     for field in metric[1:]:
 
@@ -92,12 +93,13 @@ def send_result_to_graphite (d, metric):
 
         Component_Id = d.split("Monroe_")
 
-        lines   = ['tstat.%s.%s.%s %f %f' % (str(Component_Id[-1]),str (interface), str(readable_name), float(value), float(timestamp))]
+        lines   = ['tstat.%s.%s.%s %f %f' % (str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
 
         message_carbon += '\n'.join(lines) + '\n'
 
 
-    sock.sendall(bytes(message_carbon,'UTF-8')) 
+    sock.sendall(bytes(message_carbon,'UTF-8'))
+    sock.close() 
 
     return
 
