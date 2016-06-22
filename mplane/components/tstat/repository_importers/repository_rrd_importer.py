@@ -77,31 +77,32 @@ def send_result_to_graphite (d, metric):
         Server
 
     """
-    carbonconnection()
-    message_carbon = ""
-    if type(metric[0]) is list:        
-        interface=""
-    else:
-        node_id=metric[0]
-        interface=metric[1]
+    Component_Id = d.split("Monroe_")
+    if str(Component_Id[-1] == "2016": 
+        carbonconnection()
+        message_carbon = ""
+        if type(metric[0]) is list:        
+            interface=""
+        else:
+            node_id=metric[0]
+            interface=metric[1]
 
-    for field in metric[1:]:
+        for field in metric[1:]:
 
-        readable_name = rrd_file_classification (field[0])
-        timestamp = field[1]
-        value = field[2]
-
-        Component_Id = d.split("Monroe_")
-
-        lines   = ['tstat.%s.%s.%s %f %f' % (str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
-
-        message_carbon += '\n'.join(lines) + '\n'
+            readable_name = rrd_file_classification (field[0])
+            timestamp = field[1]
+            value = field[2]
 
 
-    sock.sendall(bytes(message_carbon,'UTF-8'))
-    sock.close() 
+            lines   = ['tstat.%s.%s.%s %f %f' % (str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
 
-    return
+            message_carbon += '\n'.join(lines) + '\n'
+
+
+        sock.sendall(bytes(message_carbon,'UTF-8'))
+        sock.close() 
+
+        return
 
 class HttpServer(object):
     """
