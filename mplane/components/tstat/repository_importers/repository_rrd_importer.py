@@ -78,7 +78,7 @@ def send_result_to_graphite (d, metric):
 
     """
     Component_Id = d.split("Monroe_")
-    if str(Component_Id[-1] == "2016": 
+    if str(Component_Id[-1]) == "2016": 
         carbonconnection()
         message_carbon = ""
         if type(metric[0]) is list:        
