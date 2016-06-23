@@ -78,14 +78,15 @@ def send_result_to_graphite (d, metric):
 
     """
     Component_Id = d.split("Monroe_")
-    if str(Component_Id[-1]) == "2016": 
+    if str(Component_Id[-1]) == "Node_2016": 
         carbonconnection()
         message_carbon = ""
-        if type(metric[0]) is list:        
+        if len(metric[0]) != 2:        
             interface=""
+            return
         else:
-            node_id=metric[0]
-            interface=metric[1]
+            node_id=metric[0][0]
+            interface=metric[0][1]
 
         for field in metric[1:]:
 
@@ -94,7 +95,7 @@ def send_result_to_graphite (d, metric):
             value = field[2]
 
 
-            lines   = ['tstat.%s.%s.%s %f %f' % (str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
+            lines   = ['tstat.%s.%s.%s %f %f' % ("Node_"+str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
 
             message_carbon += '\n'.join(lines) + '\n'
 
