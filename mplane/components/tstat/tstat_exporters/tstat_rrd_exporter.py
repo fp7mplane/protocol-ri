@@ -21,6 +21,7 @@ from time import sleep, time, mktime
 
 from socket import socket
 import sys
+import mplane
 
 import multiprocessing
 from os import listdir,rename
@@ -132,7 +133,8 @@ def indirect_export(self, tls, path, spec, start,interval):
                         while ( not return_results_to_repository(self, result_list) ):
                             connect_to_repository(self, tls, repository_ip, repository_port)
                             sleep (10)
-        sleep(1)
+                    sleep(120)
+        sleep(60)
 
 def return_results_to_repository(self, res):
     """
