@@ -133,7 +133,7 @@ def indirect_export(self, tls, path, spec, start,interval):
                         while ( not return_results_to_repository(self, result_list) ):
                             connect_to_repository(self, tls, repository_ip, repository_port)
                             sleep (10)
-                    sleep(120)
+                        sleep(120)
         sleep(60)
 
 def return_results_to_repository(self, res):
