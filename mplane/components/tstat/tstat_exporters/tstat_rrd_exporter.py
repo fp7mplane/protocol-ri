@@ -123,18 +123,22 @@ def indirect_export(self, tls, path, spec, start,interval):
 
                 for f in rrd_file_list:
                     result_list=[]
-                    with gzip.open(join(in_path,f) , "rb") as fp: 
-                        binary_content=fp.read()
-                        result_list=pickle.loads(binary_content)
-                        result_list.insert(0,(node,interface))
-                    rename(join(in_path,f),join(in_path,f.replace("pickle","exported")))
-                    if (len (result_list) > 0):
-                        print ("result list size :    " + str(len (result_list)))
-                        while ( not return_results_to_repository(self, result_list) ):
-                            connect_to_repository(self, tls, repository_ip, repository_port)
-                            sleep (10)
-                        sleep(120)
-        sleep(60)
+                    try:
+                        with gzip.open(join(in_path,f) , "rb") as fp: 
+                            binary_content=fp.read()
+                            result_list=pickle.loads(binary_content)
+                            result_list.insert(0,(node,interface))
+                        rename(join(in_path,f),join(in_path,f.replace("pickle","exported")))
+                        if (len (result_list) > 0):
+                            print ("result list size :    " + str(len (result_list)))
+                            while ( not return_results_to_repository(self, result_list) ):
+                                connect_to_repository(self, tls, repository_ip, repository_port)
+                                sleep (10)
+                            sleep(10)
+                    except:
+                        print("Unexpected error:", sys.exc_info()[0])
+                        break        
+                sleep(10)
 
 def return_results_to_repository(self, res):
     """
