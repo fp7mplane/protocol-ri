@@ -24,7 +24,7 @@ import sys
 import mplane
 
 import multiprocessing
-from os import listdir,rename
+from os import listdir,rename,remove
 from os.path import isfile, join, isdir
 
 import json
@@ -104,23 +104,20 @@ def indirect_export(self, tls, path, spec, start,interval):
     print ("local start time :" + str(start_local))
     print ("UTC start time :" + str(start))
     while True:
-
         if ( not isdir (path)):
             print ("RRD directory does not exist !\n ")
             exit()
         in_path=path
         Node_list = [ d for d in listdir(in_path) if isdir(join(in_path,d)) ]
-
         for node in Node_list:
             in_path=join(path,node)
-
             Interface_list = [ d for d in listdir(in_path) if isdir(join(in_path,d)) ]
             for interface in Interface_list:
                 in_path=join(path,node,interface)
 
                 rrd_file_list = [ d for d in listdir(in_path) if (isfile(join(in_path,d)) and d.endswith(".pickle.gz") ) ]
                 rrd_file_list.sort(reverse=False)
-
+                #print ("rrd_file_list = ",rrd_file_list)
                 for f in rrd_file_list:
                     result_list=[]
                     try:
@@ -128,17 +125,27 @@ def indirect_export(self, tls, path, spec, start,interval):
                             binary_content=fp.read()
                             result_list=pickle.loads(binary_content)
                             result_list.insert(0,(node,interface))
+
                         rename(join(in_path,f),join(in_path,f.replace("pickle","exported")))
                         if (len (result_list) > 0):
                             print ("result list size :    " + str(len (result_list)))
-                            while ( not return_results_to_repository(self, result_list) ):
+                            while ( return_results_to_repository(self, result_list) == False):
                                 connect_to_repository(self, tls, repository_ip, repository_port)
                                 sleep (10)
-                            sleep(10)
-                    except:
-                        print("Unexpected error:", sys.exc_info()[0])
-                        break        
-                sleep(10)
+                                print ("Retry after 10 Second : ",join(in_path,f))
+
+                            sleep(1)
+                            break
+
+                    except (EOFError,pickle.UnpicklingError,OSError,AttributeError,ValueError):
+                            remove(join(in_path,f))
+                            print("Unexpected error:", sys.exc_info()[0])
+                            continue
+                    except (FileNotFoundError):
+                            print("Unexpected error:", sys.exc_info()[0])
+                            break
+            sleep(0.5)
+        sleep(5)
 
 def return_results_to_repository(self, res):
     """
@@ -146,20 +153,23 @@ def return_results_to_repository(self, res):
     repository proxy    
 
     """
-    url = "/" + RESULT_PATH_INDIRECT
+    try:
+        url = "/" + RESULT_PATH_INDIRECT
+        # send result to the Repository
+        rec_res = self.repo_pool.urlopen('POST', url, retries = 1,timeout=10,
+        body=json.dumps(res).encode("utf-8"), 
+        headers={"content-type": "application/json"})
 
-    # send result to the Repository
-    rec_res = self.repo_pool.urlopen('POST', url, retries = 10,
-    body=json.dumps(res).encode("utf-8"), 
-    headers={"content-type": "application/json"})
-
-    # handle response
-    if rec_res.status == 200:
-        print("RRD logs successfully returned!")
-        return True
-    else:
-        print("Error returning Result for " )
-        print("Repository said: " + str(rec_res.status) + " - " + rec_res.data.decode("utf-8"))
+        #print ("rec_res = ", rec_res)
+        # handle response
+        if rec_res.status == 200:
+            #print("RRD logs successfully returned!")
+            return True
+        else:
+            print("Error returning Result for " )
+            print("Repository said: " + str(rec_res.status) + " - " + rec_res.data.decode("utf-8"))
+            return False
+    except:
         return False
 
 
