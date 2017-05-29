@@ -89,16 +89,16 @@ def send_result_to_graphite (d, metric):
             interface=metric[0][1]
 
         for field in metric[1:]:
+            try :
 
-            readable_name = rrd_file_classification (field[0])
-            timestamp = field[1]
-            value = field[2]
+                readable_name = rrd_file_classification (field[0])
+                timestamp = field[1]
+                value = field[2]
+                lines   = ['tstat.%s.%s.%s %f %f' % ("Node_"+str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
 
-
-            lines   = ['tstat.%s.%s.%s %f %f' % ("Node_"+str(node_id),str (interface), str(readable_name), float(value), float(timestamp))]
-
-            message_carbon += '\n'.join(lines) + '\n'
-
+                message_carbon += '\n'.join(lines) + '\n'
+            except  (IndexError,ValueError):
+                continue
 
         sock.sendall(bytes(message_carbon,'UTF-8'))
         sock.close() 
@@ -221,3 +221,4 @@ class IndirectResultHandler(MPlaneHandler):
         else:
             self._respond_plain_text(400, "Not a result (or exception)")
             return
+
